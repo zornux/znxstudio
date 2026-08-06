@@ -1,0 +1,27 @@
+// A rich, valid Zornux file exercising every outline symbol kind.
+import math
+import strings from "std/strings"
+
+define PI to 3.14159
+let counter is 0
+
+type Point
+
+record User {
+  define name to "anon"
+}
+
+class Account {
+  define balance to 0
+
+  function deposit(amount) {
+    set balance to balance + amount
+  }
+}
+
+function main() {
+  let total is 0
+  if true then {
+    let inner is 1
+  }
+}

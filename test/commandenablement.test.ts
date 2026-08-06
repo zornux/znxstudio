@@ -1,0 +1,47 @@
+import { describe, expect, test } from './harness';
+import { CommandRegistry } from '../src/renderer/commands/CommandRegistry';
+
+describe('command enablement (trust-gated UI)', () => {
+  test('commands are enabled by default and reflected in list()', () => {
+    const registry = new CommandRegistry();
+    registry.register('znxstudio.run.start', () => {}, 'Run');
+    expect(registry.isEnabled('znxstudio.run.start')).toBe(true);
+    expect(registry.list().find((c) => c.id === 'znxstudio.run.start')?.enabled).toBe(true);
+  });
+
+  test('an enablement rule can disable specific commands; abstaining leaves others enabled', () => {
+    const registry = new CommandRegistry();
+    registry.register('znxstudio.run.start', () => {}, 'Run');
+    registry.register('znxstudio.view.explorer', () => {}, 'Explorer');
+
+    let trusted = false;
+    const gated = new Set(['znxstudio.run.start']);
+    registry.addEnablementRule((id) => (gated.has(id) ? trusted : undefined));
+
+    expect(registry.isEnabled('znxstudio.run.start')).toBe(false); // gated + untrusted
+    expect(registry.isEnabled('znxstudio.view.explorer')).toBe(true); // rule abstains
+
+    trusted = true;
+    expect(registry.isEnabled('znxstudio.run.start')).toBe(true); // re-enabled live, no re-register
+  });
+
+  test('any rule returning false disables the command', () => {
+    const registry = new CommandRegistry();
+    registry.register('c', () => {});
+    registry.addEnablementRule(() => true);
+    registry.addEnablementRule(() => false);
+    expect(registry.isEnabled('c')).toBe(false);
+  });
+
+  test('onDidChangeEnablement notifies subscribers until disposed', () => {
+    const registry = new CommandRegistry();
+    let count = 0;
+    const sub = registry.onDidChangeEnablement(() => (count += 1));
+    registry.notifyEnablementChanged();
+    registry.notifyEnablementChanged();
+    expect(count).toBe(2);
+    sub.dispose();
+    registry.notifyEnablementChanged();
+    expect(count).toBe(2);
+  });
+});

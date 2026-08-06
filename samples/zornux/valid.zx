@@ -1,0 +1,9 @@
+// A valid Zornux program — should produce zero parser diagnostics.
+define greeting to "Hello, world"
+
+function main() {
+  say greeting
+  if true then {
+    say "done"
+  }
+}

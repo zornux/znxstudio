@@ -1,0 +1,85 @@
+# electron-builder packaging config (Phase 20F).
+#
+# Produces Windows / macOS / Linux artifacts on x64 + arm64. Signing is
+# CONDITIONAL — electron-builder reads certificates from CI secrets (env vars);
+# unsigned local/dev builds still succeed, so `npm run package` works on a dev
+# machine without any credentials. Do NOT treat a locally-produced installer as
+# trusted/production-signed until a real certificate is used in CI.
+appId: dev.znxstudio.ide
+productName: ZnxStudio
+copyright: © ZnxStudio
+
+directories:
+  output: release
+  buildResources: build
+
+# Only the compiled output ships; source + tests are excluded.
+files:
+  - dist/**/*
+  - package.json
+
+# Bundle the Zornux toolchain so installing the IDE installs the language.
+# `npm run stage:zornux` publishes a self-contained zornux into build/zornux/<rid>/;
+# it ships to <resources>/zornux/ and is resolved by src/main/util/zornuxRuntime.ts.
+# The directory always exists (placeholder), so packaging succeeds even if the
+# runtime hasn't been staged — resolution just falls through to a PATH lookup.
+extraResources:
+  - from: build/zornux
+    to: zornux
+    filter:
+      - "**/*"
+      - "!*.md"
+
+# Update feed. The channel is derived from the version's prerelease tag
+# (see channelForVersion in src/shared/update.ts): stable / preview (rc,beta) / nightly.
+publish:
+  provider: generic
+  url: https://updates.znxstudio.dev/${channel}
+
+win:
+  target:
+    - target: nsis # standard installer (silent: ZnxStudio-Setup.exe /S)
+      arch: [x64, arm64]
+    - target: portable # single-file, no-install artifact
+      arch: [x64, arm64]
+  # Signing (optional) via Azure Trusted Signing. The custom hook signs each
+  # artifact inside the build so blockmap/latest.yml hashes match the signed
+  # bytes. Absent Trusted Signing env vars ⇒ the hook no-ops ⇒ unsigned dev build.
+  # Env consumed by the hook: TRUSTED_SIGNING_ENDPOINT / _ACCOUNT / _PROFILE plus
+  # AZURE_TENANT_ID / AZURE_CLIENT_ID / AZURE_CLIENT_SECRET. See build/win-sign.js.
+  sign: build/win-sign.js
+
+nsis:
+  oneClick: false
+  perMachine: false
+  allowElevation: true
+  allowToChangeInstallationDirectory: true
+  # Enterprise: `/S` performs a silent install; MSI-less deployment via SCCM/Intune
+  # can wrap the portable or the NSIS silent switch.
+
+mac:
+  category: public.app-category.developer-tools
+  target:
+    - target: dmg
+      arch: [x64, arm64]
+    - target: zip # required by electron-updater on macOS
+      arch: [x64, arm64]
+  hardenedRuntime: true
+  gatekeeperAssess: false
+  entitlements: build/entitlements.mac.plist
+  entitlementsInherit: build/entitlements.mac.plist
+  # Notarization runs ONLY on a macOS runner with APPLE_ID / APPLE_APP_SPECIFIC_PASSWORD
+  # / APPLE_TEAM_ID present; absent creds ⇒ an unsigned local build (dev only).
+  notarize: false
+
+linux:
+  category: Development
+  maintainer: ZnxStudio <release@znxstudio.dev>
+  target:
+    - target: AppImage
+      arch: [x64, arm64]
+    - target: deb
+      arch: [x64, arm64]
+    - target: rpm
+      arch: [x64, arm64]
+  # Package/repo signing (.deb/.rpm) is handled in CI when GPG secrets are present.

@@ -1,0 +1,92 @@
+# Release packaging — builds the signed Windows installers from a version tag
+# and publishes them as a GitHub Release.
+#
+# Windows-only for now (Linux/macOS targets exist in electron-builder.yml and
+# can be added back as matrix entries later). Signing uses Azure Trusted Signing
+# via Microsoft's `sign` .NET tool, driven by the build/win-sign.js hook — it is
+# CONDITIONAL: without the TRUSTED_SIGNING_* / AZURE_* secrets the build still
+# succeeds but produces UNSIGNED artifacts (e.g. on forks / dry-runs).
+name: Release
+
+on:
+  push:
+    tags: ['v*']
+  workflow_dispatch:
+
+permissions:
+  contents: write # required to create the GitHub Release and upload assets
+
+jobs:
+  package:
+    name: package (windows)
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      # .NET + Microsoft's `sign` CLI power the Trusted Signing hook.
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '8.0.x'
+      - name: Install Trusted Signing tool
+        # `sign` (github.com/dotnet/sign) publishes as prerelease on NuGet.
+        # Pin an exact version here once you've confirmed one you trust.
+        run: dotnet tool install --global sign --prerelease
+
+      - run: npm ci
+      - run: npm run build
+      # electron-updater is loaded at runtime (optional require) but not bundled;
+      # install it so packaging metadata + auto-update wiring resolve.
+      - run: npm i -D electron-updater@^6
+
+      - name: Package (+ Trusted Signing)
+        run: npx electron-builder --win --publish never --config electron-builder.yml
+        env:
+          # Azure service principal — consumed by DefaultAzureCredential in `sign`.
+          AZURE_TENANT_ID: ${{ secrets.AZURE_TENANT_ID }}
+          AZURE_CLIENT_ID: ${{ secrets.AZURE_CLIENT_ID }}
+          AZURE_CLIENT_SECRET: ${{ secrets.AZURE_CLIENT_SECRET }}
+          # Trusted Signing account/profile/endpoint.
+          TRUSTED_SIGNING_ENDPOINT: ${{ secrets.TRUSTED_SIGNING_ENDPOINT }}
+          TRUSTED_SIGNING_ACCOUNT: ${{ secrets.TRUSTED_SIGNING_ACCOUNT }}
+          TRUSTED_SIGNING_PROFILE: ${{ secrets.TRUSTED_SIGNING_PROFILE }}
+
+      - name: Generate checksums
+        shell: bash
+        run: |
+          cd release
+          find . -maxdepth 1 -type f -name '*.exe' -print0 \
+            | xargs -0 -I{} sh -c 'sha512sum "{}" >> SHA512SUMS.txt' || true
+          cat SHA512SUMS.txt || true
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: znxstudio-windows
+          path: |
+            release/*.exe
+            release/*.blockmap
+            release/SHA512SUMS.txt
+            release/latest*.yml
+          if-no-files-found: warn
+
+      # Attach installers to a GitHub Release. Only runs for tag pushes
+      # (workflow_dispatch runs just build + upload-artifact for verification).
+      - name: Publish GitHub Release
+        if: startsWith(github.ref, 'refs/tags/v')
+        uses: softprops/action-gh-release@v2
+        with:
+          # A version with a prerelease tag (rc/beta/nightly) marks the Release
+          # as a pre-release automatically.
+          prerelease: ${{ contains(github.ref_name, '-') }}
+          generate_release_notes: true
+          files: |
+            release/*.exe
+            release/*.blockmap
+            release/SHA512SUMS.txt
+            release/latest*.yml
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

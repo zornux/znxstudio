@@ -1,0 +1,45 @@
+# Continuous integration (Phase 20G) — the same gate on all three OSes so a
+# platform-specific regression is caught before release, not after.
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  verify:
+    name: verify (${{ matrix.os }})
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [windows-latest, macos-latest, ubuntu-latest]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+      - run: npm ci
+      - run: npm run typecheck
+      - run: npm test
+      - run: npm run build
+
+  smoke:
+    name: smoke launch (linux)
+    runs-on: ubuntu-latest
+    needs: verify
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+      - run: npm ci
+      - run: npm run build
+      # Launch the real app headlessly (xvfb) with the self-test harness and
+      # confirm it boots — the startup line proves activation completed.
+      - name: Launch + verify startup
+        run: |
+          xvfb-run -a bash -c 'ZNXSTUDIO_SELFTEST=1 timeout --preserve-status -k 5 60 npx electron . --enable-logging 2>&1 | tee boot.log; grep -q "\[perf\] startup" boot.log'

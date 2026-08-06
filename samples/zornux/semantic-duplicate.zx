@@ -1,0 +1,8 @@
+// Duplicate declarations: flagged in the scope where they repeat.
+define count to 1
+define count to 2
+
+function run() {
+  let temp is 0
+  let temp is 1
+}

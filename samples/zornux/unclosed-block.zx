@@ -1,0 +1,3 @@
+// Invalid: the function block is never closed.
+function main() {
+  say "hello"

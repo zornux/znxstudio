@@ -1,0 +1,2 @@
+// Invalid: '@' is not a valid Zornux token.
+define x to 5 @ 3

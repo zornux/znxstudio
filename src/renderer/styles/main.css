@@ -1,0 +1,7092 @@
+/* ---------------------------------------------------------------------------
+   ZnxStudio workbench styles.
+   Colors are driven by CSS variables keyed off [data-theme] so the theme
+   system can swap palettes at runtime.
+--------------------------------------------------------------------------- */
+
+:root,
+:root[data-theme='znxstudio-dark'] {
+  --z-bg: #1a1b1e;
+  --z-bg-elevated: #212226;
+  --z-bg-panel: #1d1e22;
+  --z-border: #2c2e33;
+  --z-fg: #d7d9de;
+  --z-fg-muted: #8b8f98;
+  /* Darkened from #4c8dff so white-on-accent meets WCAG AA (≈4.6:1). */
+  --z-accent: #2f6fe0;
+  --z-accent-fg: #ffffff;
+  --z-activity-bg: #161719;
+  --z-status-bg: #14357a;
+  --z-status-fg: #eaf0ff;
+  --z-hover: #2a2c31;
+}
+
+:root[data-theme='znxstudio-light'] {
+  --z-bg: #ffffff;
+  --z-bg-elevated: #f5f6f8;
+  --z-bg-panel: #f0f1f4;
+  --z-border: #e0e2e6;
+  --z-fg: #1f2328;
+  --z-fg-muted: #6b7280;
+  --z-accent: #2563eb;
+  --z-accent-fg: #ffffff;
+  --z-activity-bg: #f0f1f4;
+  --z-status-bg: #2563eb;
+  --z-status-fg: #ffffff;
+  --z-hover: #e8eaef;
+}
+
+/* High-contrast themes (Phase 20J WI4): maximal fg/bg separation, bright
+   borders on every surface, and AAA-level accent contrast. */
+:root[data-theme='znxstudio-hc-dark'] {
+  --z-bg: #000000;
+  --z-bg-elevated: #000000;
+  --z-bg-panel: #000000;
+  --z-border: #ffffff;
+  --z-fg: #ffffff;
+  --z-fg-muted: #e6e6e6;
+  --z-accent: #ffff00;
+  --z-accent-fg: #000000;
+  --z-activity-bg: #000000;
+  --z-status-bg: #000000;
+  --z-status-fg: #ffffff;
+  --z-hover: #1e1e1e;
+}
+
+:root[data-theme='znxstudio-hc-light'] {
+  --z-bg: #ffffff;
+  --z-bg-elevated: #ffffff;
+  --z-bg-panel: #ffffff;
+  --z-border: #000000;
+  --z-fg: #000000;
+  --z-fg-muted: #1a1a1a;
+  --z-accent: #0033cc;
+  --z-accent-fg: #ffffff;
+  --z-activity-bg: #ffffff;
+  --z-status-bg: #ffffff;
+  --z-status-fg: #000000;
+  --z-hover: #e0e0e0;
+}
+
+/* Make every high-contrast surface visibly bordered (bg==panel==elevated). */
+:root[data-theme='znxstudio-hc-dark'] .znxstudio-panel,
+:root[data-theme='znxstudio-hc-dark'] .znxstudio-sidebar,
+:root[data-theme='znxstudio-hc-light'] .znxstudio-panel,
+:root[data-theme='znxstudio-hc-light'] .znxstudio-sidebar {
+  border: 1px solid var(--z-border);
+}
+
+/* Honor the OS forced-colors (Windows High Contrast) mode: hand control to the
+   system palette and keep a visible focus outline. */
+@media (forced-colors: active) {
+  :root {
+    --z-accent: Highlight;
+    --z-accent-fg: HighlightText;
+    --z-border: CanvasText;
+  }
+  .znxstudio-modal-btn,
+  .znxstudio-editor-action,
+  button:focus-visible,
+  [tabindex]:focus-visible {
+    forced-color-adjust: none;
+    outline: 2px solid Highlight;
+  }
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  margin: 0;
+  height: 100%;
+  overflow: hidden;
+}
+
+body {
+  font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+  font-size: 13px;
+  color: var(--z-fg);
+  background: var(--z-bg);
+}
+
+#znxstudio-root {
+  height: 100vh;
+}
+
+button {
+  font-family: inherit;
+  cursor: pointer;
+}
+
+/* ---- Workbench grid ---- */
+.znxstudio-workbench {
+  display: grid;
+  grid-template-rows: 34px 1fr 24px;
+  height: 100vh;
+}
+
+.znxstudio-titlebar {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 0 12px;
+  background: var(--z-bg-elevated);
+  border-bottom: 1px solid var(--z-border);
+  -webkit-app-region: drag;
+}
+
+.znxstudio-titlebar-brand {
+  font-weight: 700;
+  letter-spacing: 0.3px;
+}
+
+.znxstudio-titlebar-subtitle {
+  color: var(--z-fg-muted);
+  font-size: 11px;
+}
+
+.znxstudio-body {
+  display: flex;
+  min-height: 0;
+}
+
+/* ---- Activity bar ---- */
+.znxstudio-activitybar {
+  width: 48px;
+  background: var(--z-activity-bg);
+  border-right: 1px solid var(--z-border);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding-top: 8px;
+  gap: 4px;
+}
+
+.znxstudio-activity-item {
+  width: 40px;
+  height: 40px;
+  border: none;
+  background: transparent;
+  color: var(--z-fg-muted);
+  font-size: 18px;
+  border-radius: 6px;
+}
+
+.znxstudio-activity-item:hover {
+  background: var(--z-hover);
+  color: var(--z-fg);
+}
+
+.znxstudio-activity-item.is-active {
+  color: var(--z-fg);
+  position: relative;
+}
+
+.znxstudio-activity-item.is-active::before {
+  content: '';
+  position: absolute;
+  left: -4px;
+  top: 8px;
+  bottom: 8px;
+  width: 2px;
+  border-radius: 2px;
+  background: var(--z-accent);
+}
+
+.znxstudio-activity-more {
+  margin-top: auto;
+  margin-bottom: 6px;
+  color: var(--z-fg-muted);
+}
+
+/* ---- Floating menu (activity overflow + context menus) ---- */
+.znxstudio-menu {
+  position: fixed;
+  z-index: 1000;
+  min-width: 200px;
+  max-height: 70vh;
+  overflow-y: auto;
+  padding: 4px;
+  background: var(--z-bg-elevated, var(--z-bg-panel));
+  border: 1px solid var(--z-border);
+  border-radius: 8px;
+  box-shadow: 0 8px 28px rgba(0, 0, 0, 0.35);
+}
+
+.znxstudio-menu-header {
+  padding: 6px 10px 2px;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--z-fg-muted);
+}
+
+.znxstudio-menu-item {
+  display: block;
+  width: 100%;
+  text-align: left;
+  padding: 6px 10px;
+  border: none;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--z-fg);
+  font-size: 13px;
+  cursor: pointer;
+}
+
+.znxstudio-menu-item:hover {
+  background: var(--z-accent);
+  color: var(--z-accent-fg);
+}
+
+.znxstudio-menu-separator {
+  height: 1px;
+  margin: 4px 6px;
+  background: var(--z-border);
+}
+
+/* ---- Input dialog (Explorer New/Rename/Delete) ---- */
+.znxstudio-inputbox {
+  position: fixed;
+  inset: 0;
+  z-index: 1200;
+  display: none;
+  align-items: flex-start;
+  justify-content: center;
+  padding-top: 18vh;
+  background: rgba(0, 0, 0, 0.35);
+}
+.znxstudio-inputbox.is-open {
+  display: flex;
+}
+.znxstudio-inputbox-panel {
+  width: min(460px, 92vw);
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 18px 20px 16px;
+  background: var(--z-bg-elevated, var(--z-bg-panel));
+  border: 1px solid var(--z-border);
+  border-radius: 10px;
+  box-shadow: 0 18px 48px rgba(0, 0, 0, 0.5);
+}
+.znxstudio-inputbox-title {
+  font-size: 15px;
+  font-weight: 600;
+}
+.znxstudio-inputbox-label {
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: var(--z-fg-muted);
+}
+/* Scoped so it beats the compact app-wide .znxstudio-input (declared later). */
+.znxstudio-inputbox .znxstudio-inputbox-field {
+  width: 100%;
+  box-sizing: border-box;
+  padding: 12px 14px;
+  font-size: 15px;
+  line-height: 1.3;
+  border-radius: 8px;
+}
+.znxstudio-inputbox-message {
+  margin: 0;
+  color: var(--z-fg-muted);
+  font-size: 13px;
+}
+.znxstudio-inputbox-error {
+  min-height: 16px;
+  color: var(--z-warn, #d29922);
+  font-size: 12px;
+}
+.znxstudio-inputbox-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  margin-top: 4px;
+}
+.znxstudio-btn.is-danger {
+  background: var(--z-danger, #c0392b);
+  border-color: var(--z-danger, #c0392b);
+  color: #fff;
+}
+
+/* Parent items (submenu) — label left, › chevron right. */
+.znxstudio-menu-parent {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+.znxstudio-menu-chevron {
+  font-size: 14px;
+  line-height: 1;
+  opacity: 0.7;
+}
+.znxstudio-menu-item.znxstudio-menu-parent[aria-expanded='true'] {
+  background: var(--z-accent);
+  color: var(--z-accent-fg);
+}
+
+/* ---- Run & Debug sidebar (UX-1) ---- */
+.znxstudio-rundebug {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 10px;
+}
+
+.znxstudio-rundebug-action {
+  text-align: left;
+  width: 100%;
+}
+
+/* ---- Sidebar ---- */
+.znxstudio-sidebar {
+  width: 260px;
+  background: var(--z-bg-panel);
+  border-right: 1px solid var(--z-border);
+  display: flex;
+  flex-direction: column;
+  min-width: 180px;
+}
+
+.znxstudio-sidebar.is-collapsed {
+  display: none;
+}
+
+.znxstudio-sidebar-header {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 8px 6px 12px;
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.6px;
+  color: var(--z-fg-muted);
+}
+.znxstudio-sidebar-title {
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+/* SB-6: the workspace's own toolbar in the sidebar header. */
+.znxstudio-sidebar-toolbar {
+  display: flex;
+  align-items: center;
+  gap: 1px;
+  flex: 0 0 auto;
+}
+.znxstudio-sidebar-toolbar:empty {
+  display: none;
+}
+.znxstudio-sidebar-tool {
+  border: none;
+  background: transparent;
+  color: var(--z-fg-muted);
+  font-size: 13px;
+  width: 24px;
+  height: 22px;
+  border-radius: 4px;
+  cursor: pointer;
+}
+.znxstudio-sidebar-tool:hover {
+  background: var(--z-hover);
+  color: var(--z-fg);
+}
+
+.znxstudio-sidebar-body {
+  flex: 1;
+  overflow: auto;
+}
+
+/* ---- Explorer ---- */
+.znxstudio-explorer-empty {
+  padding: 16px 12px;
+  color: var(--z-fg-muted);
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.znxstudio-btn,
+.znxstudio-welcome-btn {
+  padding: 6px 12px;
+  border: 1px solid var(--z-border);
+  background: var(--z-bg-elevated);
+  color: var(--z-fg);
+  border-radius: 6px;
+}
+
+.znxstudio-btn:hover {
+  background: var(--z-hover);
+}
+
+.znxstudio-tree {
+  list-style: none;
+  margin: 0;
+  padding: 0 0 0 8px;
+}
+
+.znxstudio-tree .znxstudio-tree {
+  padding-left: 14px;
+}
+
+.znxstudio-tree [role='treeitem'] {
+  outline: none;
+}
+/* The treeitem is the focus target; show the focus ring on its visible row. */
+.znxstudio-tree [role='treeitem']:focus-visible > .znxstudio-tree-row {
+  outline: 2px solid var(--z-focus, var(--z-accent, #4c8bf5));
+  outline-offset: -2px;
+}
+.znxstudio-tree-row {
+  display: flex;
+  align-items: center;
+  height: 22px; /* fixed row height — no vertical reflow on hover (VS Code parity) */
+  padding: 0 8px;
+  border-radius: 4px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  user-select: none;
+  cursor: pointer;
+}
+
+.znxstudio-tree-row:hover {
+  /* Only the background changes — never geometry — so hovering can't shift layout. */
+  background: var(--z-hover);
+}
+
+.znxstudio-tree-row--file {
+  padding-left: 16px;
+  color: var(--z-fg);
+}
+
+/* ---- Editor region ---- */
+.znxstudio-editor-region {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.znxstudio-editor-area {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+}
+
+/* SB-5: the tabs + Run/Build actions share one top bar. */
+.znxstudio-editor-topbar {
+  display: flex;
+  align-items: stretch;
+  background: var(--z-bg-elevated);
+  border-bottom: 1px solid var(--z-border);
+}
+.znxstudio-editor-actions {
+  display: flex;
+  align-items: center;
+  gap: 1px;
+  padding: 0 6px;
+  flex: 0 0 auto;
+}
+.znxstudio-editor-action {
+  border: none;
+  background: transparent;
+  color: var(--z-fg-muted);
+  font-size: 13px;
+  width: 26px;
+  height: 26px;
+  border-radius: 5px;
+  cursor: pointer;
+}
+.znxstudio-editor-action:hover:not(:disabled) {
+  background: var(--z-hover);
+  color: var(--z-fg);
+}
+.znxstudio-editor-action:disabled {
+  opacity: 0.4;
+  cursor: default;
+}
+
+.znxstudio-editor-tabs {
+  height: 34px;
+  flex: 1;
+  display: flex;
+  align-items: stretch;
+  background: var(--z-bg-elevated);
+  overflow-x: auto;
+  overflow-y: hidden;
+}
+.znxstudio-editor-tabs.is-empty {
+  /* keep the strip's height so the layout doesn't jump when the last tab closes */
+}
+
+.znxstudio-editor-tab {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 0 8px 0 12px;
+  font-size: 12px;
+  border-right: 1px solid var(--z-border);
+  background: var(--z-bg-elevated);
+  color: var(--z-fg-muted);
+  cursor: pointer;
+  white-space: nowrap;
+  user-select: none;
+  max-width: 220px;
+}
+.znxstudio-editor-tab:hover {
+  background: var(--z-hover);
+}
+.znxstudio-editor-tab.is-active {
+  background: var(--z-bg);
+  color: var(--z-fg);
+  box-shadow: inset 0 2px 0 var(--z-accent);
+}
+.znxstudio-editor-tab.is-preview .znxstudio-editor-tab-label {
+  font-style: italic;
+}
+.znxstudio-editor-tab-label {
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.znxstudio-editor-tab-pin {
+  font-size: 10px;
+}
+
+/* Dirty ● shows when idle; the × takes its place on hover / when active. */
+.znxstudio-editor-tab-dirty {
+  display: none;
+  color: var(--z-fg);
+  font-size: 12px;
+  width: 16px;
+  text-align: center;
+}
+.znxstudio-editor-tab.is-dirty .znxstudio-editor-tab-dirty {
+  display: inline-block;
+}
+.znxstudio-editor-tab.is-dirty:hover .znxstudio-editor-tab-dirty,
+.znxstudio-editor-tab.is-dirty.is-active .znxstudio-editor-tab-dirty {
+  display: none;
+}
+
+.znxstudio-editor-tab-close {
+  border: none;
+  background: transparent;
+  color: var(--z-fg-muted);
+  font-size: 14px;
+  line-height: 1;
+  width: 16px;
+  height: 18px;
+  border-radius: 4px;
+  cursor: pointer;
+  visibility: hidden;
+}
+.znxstudio-editor-tab:hover .znxstudio-editor-tab-close,
+.znxstudio-editor-tab.is-active .znxstudio-editor-tab-close {
+  visibility: visible;
+}
+.znxstudio-editor-tab.is-dirty:not(:hover):not(.is-active) .znxstudio-editor-tab-close {
+  visibility: hidden;
+}
+.znxstudio-editor-tab-close:hover {
+  background: var(--z-hover);
+  color: var(--z-fg);
+}
+
+.znxstudio-tab-menu {
+  position: fixed;
+  z-index: 2200;
+}
+
+.znxstudio-breadcrumbs {
+  display: none;
+  align-items: center;
+  height: 24px;
+  padding: 0 10px;
+  background: var(--z-bg-elevated);
+  border-bottom: 1px solid var(--z-border);
+  font-size: 12px;
+  overflow: hidden;
+  position: relative;
+}
+.znxstudio-breadcrumbs.is-visible {
+  display: flex;
+}
+.znxstudio-breadcrumbs-trail {
+  display: flex;
+  align-items: center;
+  white-space: nowrap;
+  overflow: hidden;
+}
+.znxstudio-crumb {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 1px 4px;
+  border-radius: 3px;
+  color: var(--z-fg-muted);
+}
+.znxstudio-crumb--file {
+  color: var(--z-fg);
+}
+.znxstudio-crumb--symbol,
+.znxstudio-crumb--file {
+  cursor: pointer;
+}
+.znxstudio-crumb--symbol:hover,
+.znxstudio-crumb--file:hover {
+  background: var(--z-bg);
+  color: var(--z-fg);
+}
+.znxstudio-crumb-icon {
+  font-size: 11px;
+}
+.znxstudio-crumb-sep {
+  color: var(--z-fg-muted);
+  opacity: 0.6;
+  margin: 0 2px;
+}
+.znxstudio-crumb-menu {
+  position: absolute;
+  top: 23px;
+  z-index: 30;
+  min-width: 160px;
+  max-height: 280px;
+  overflow-y: auto;
+  background: var(--z-bg-elevated);
+  border: 1px solid var(--z-border);
+  border-radius: 4px;
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.35);
+  padding: 4px;
+}
+.znxstudio-crumb-menu-item {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 8px;
+  border-radius: 3px;
+  cursor: pointer;
+  color: var(--z-fg);
+}
+.znxstudio-crumb-menu-item:hover {
+  background: var(--z-accent);
+  color: var(--z-accent-fg);
+}
+
+.znxstudio-editor-surface {
+  position: relative;
+  flex: 1;
+  min-height: 0;
+}
+
+.znxstudio-editor-monaco {
+  position: absolute;
+  inset: 0;
+}
+
+.znxstudio-editor-overlay {
+  position: absolute;
+  inset: 0;
+  background: var(--z-bg);
+  overflow: hidden; /* the inner scroll layer scrolls; the close button stays pinned */
+  display: none;
+}
+
+.znxstudio-editor-overlay.is-visible {
+  display: block;
+}
+
+/* Scrolling region for a mounted view; sits under the pinned close button. */
+.znxstudio-editor-overlay-scroll {
+  position: absolute;
+  inset: 0;
+  overflow: auto;
+}
+
+/* Floating dismiss control shared by every editor-area view (settings, docs, welcome, …). */
+.znxstudio-editor-overlay-close {
+  position: absolute;
+  top: 8px;
+  right: 16px; /* clears a potential scrollbar on the inner layer */
+  z-index: 10;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  padding: 0;
+  border: 1px solid var(--z-border);
+  border-radius: 6px;
+  background: var(--z-bg-panel);
+  color: var(--z-fg-muted, var(--z-fg));
+  font-size: 14px;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.znxstudio-editor-overlay-close:hover {
+  background: var(--z-bg-hover, var(--z-border));
+  color: var(--z-fg);
+}
+
+.znxstudio-editor-overlay-close:focus-visible {
+  outline: 2px solid var(--z-focus, var(--z-accent, #4c8bf5));
+  outline-offset: 1px;
+}
+
+/* ---- Bottom panel (tabbed) ---- */
+.znxstudio-panel {
+  height: 220px;
+  border-top: 1px solid var(--z-border);
+  background: var(--z-bg-panel);
+  display: flex;
+  flex-direction: column;
+}
+
+.znxstudio-panel.is-hidden {
+  display: none;
+}
+
+.znxstudio-panel-tabs {
+  height: 30px;
+  display: flex;
+  align-items: stretch;
+  border-bottom: 1px solid var(--z-border);
+}
+
+.znxstudio-panel-tab {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  border: none;
+  background: transparent;
+  color: var(--z-fg-muted);
+  padding: 0 8px 0 14px;
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.6px;
+  border-bottom: 2px solid transparent;
+  cursor: pointer;
+  user-select: none;
+}
+
+.znxstudio-panel-tab.is-hidden {
+  display: none;
+}
+
+.znxstudio-panel-tab-label {
+  cursor: pointer;
+}
+
+.znxstudio-panel-tab-close {
+  border: none;
+  background: transparent;
+  color: var(--z-fg-muted);
+  font-size: 14px;
+  line-height: 1;
+  padding: 0 2px;
+  border-radius: 4px;
+  /* Always visible (subtly) so every open panel has a discoverable close, not
+     just the active/hovered one; active + hover raise the emphasis below. */
+  opacity: 0.4;
+  cursor: pointer;
+}
+
+.znxstudio-panel-tab:hover .znxstudio-panel-tab-close,
+.znxstudio-panel-tab.is-active .znxstudio-panel-tab-close {
+  opacity: 0.75;
+}
+
+.znxstudio-panel-tab-close:hover {
+  opacity: 1;
+  background: var(--z-hover);
+  color: var(--z-fg);
+}
+
+.znxstudio-panel-tab:hover {
+  color: var(--z-fg);
+}
+
+.znxstudio-panel-tab.is-active {
+  color: var(--z-fg);
+  border-bottom-color: var(--z-accent);
+}
+
+.znxstudio-panel-overflow {
+  border: none;
+  background: transparent;
+  color: var(--z-fg-muted);
+  font-size: 16px;
+  line-height: 1;
+  padding: 0 12px;
+  cursor: pointer;
+}
+
+.znxstudio-panel-overflow:hover {
+  color: var(--z-fg);
+  background: var(--z-hover);
+}
+
+.znxstudio-menu-search {
+  display: block;
+  width: calc(100% - 8px);
+  margin: 2px 4px 6px;
+  padding: 5px 8px;
+  border: 1px solid var(--z-border);
+  border-radius: 6px;
+  background: var(--z-bg-input, var(--z-bg));
+  color: var(--z-fg);
+  font-size: 13px;
+}
+
+.znxstudio-panel-picker {
+  min-width: 240px;
+}
+
+/* ---- Menu bar (UX-3) ---- */
+.znxstudio-menubar {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  margin-left: 12px;
+}
+
+.znxstudio-menubar-item {
+  border: none;
+  background: transparent;
+  color: var(--z-fg-muted);
+  padding: 3px 10px;
+  font-size: 12px;
+  border-radius: 5px;
+  cursor: pointer;
+}
+
+.znxstudio-menubar-item:hover {
+  background: var(--z-hover);
+  color: var(--z-fg);
+}
+
+.znxstudio-panel-views {
+  flex: 1;
+  position: relative;
+  min-height: 0;
+}
+
+.znxstudio-panel-view {
+  position: absolute;
+  inset: 0;
+  display: none;
+}
+
+.znxstudio-panel-view.is-active {
+  display: block;
+}
+
+/* ---- Terminal ---- */
+.znxstudio-terminal {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  background: #1d1e22;
+}
+
+/* ---- Terminal tab strip (VS Code-style, multi-shell) ---- */
+.znxstudio-term-tabs {
+  display: flex;
+  align-items: stretch;
+  gap: 4px;
+  padding: 3px 6px;
+  border-bottom: 1px solid var(--znxstudio-border, #2a2b30);
+  background: #202127;
+}
+.znxstudio-term-tablist {
+  display: flex;
+  align-items: stretch;
+  gap: 2px;
+  flex: 1;
+  min-width: 0;
+  overflow-x: auto;
+}
+.znxstudio-term-tab {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  max-width: 180px;
+  padding: 3px 6px 3px 10px;
+  border-radius: 4px;
+  color: #b8bbc2;
+  font-size: 12px;
+  white-space: nowrap;
+  cursor: pointer;
+  user-select: none;
+}
+.znxstudio-term-tab:hover {
+  background: #2a2b31;
+}
+.znxstudio-term-tab.is-active {
+  background: #31333b;
+  color: #eef0f4;
+}
+.znxstudio-term-tab.is-exited .znxstudio-term-tab-name {
+  opacity: 0.55;
+  text-decoration: line-through;
+}
+.znxstudio-term-tab-name {
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.znxstudio-term-tab-rename {
+  width: 110px;
+  padding: 1px 4px;
+  border: 1px solid var(--znxstudio-accent, #5b7cff);
+  border-radius: 3px;
+  background: #1a1b1f;
+  color: #eef0f4;
+  font: inherit;
+  font-size: 12px;
+  outline: none;
+}
+.znxstudio-term-tab-close {
+  border: none;
+  background: transparent;
+  color: inherit;
+  font-size: 14px;
+  line-height: 1;
+  padding: 0 2px;
+  border-radius: 3px;
+  cursor: pointer;
+  opacity: 0;
+}
+.znxstudio-term-tab:hover .znxstudio-term-tab-close,
+.znxstudio-term-tab.is-active .znxstudio-term-tab-close {
+  opacity: 0.75;
+}
+.znxstudio-term-tab-close:hover {
+  opacity: 1;
+  background: #45464e;
+}
+.znxstudio-term-actions {
+  display: flex;
+  align-items: center;
+}
+.znxstudio-term-new,
+.znxstudio-term-new-caret,
+.znxstudio-term-split {
+  border: none;
+  background: transparent;
+  color: #b8bbc2;
+  cursor: pointer;
+  font-size: 14px;
+  line-height: 1;
+  padding: 2px 6px;
+  border-radius: 4px;
+}
+.znxstudio-term-new-caret {
+  font-size: 10px;
+  padding-left: 2px;
+  padding-right: 4px;
+}
+.znxstudio-term-split {
+  font-size: 13px;
+}
+.znxstudio-term-new:hover,
+.znxstudio-term-new-caret:hover,
+.znxstudio-term-split:hover {
+  background: #2a2b31;
+  color: #eef0f4;
+}
+.znxstudio-term-body {
+  position: relative;
+  flex: 1;
+  min-height: 0;
+}
+/* A tab's panes shown side by side. The 1px gap over a dark backdrop reads as a
+   splitter line between panes. */
+.znxstudio-term-group {
+  display: flex;
+  height: 100%;
+  background: #141519;
+}
+/* Vertical split: panes stacked top/bottom instead of side by side. */
+.znxstudio-term-group.is-vertical {
+  flex-direction: column;
+}
+.znxstudio-term-pane {
+  flex: 1 1 0;
+  min-width: 0;
+  min-height: 0;
+  height: 100%;
+  padding: 6px 8px;
+  background: #1d1e22;
+}
+.znxstudio-term-group.is-vertical .znxstudio-term-pane {
+  height: auto;
+}
+/* Draggable divider between split panes. The 1px inner line reads as a splitter;
+   the 6px hit area makes it easy to grab. */
+.znxstudio-term-divider {
+  flex: 0 0 6px;
+  align-self: stretch;
+  background: #141519;
+  cursor: col-resize;
+  position: relative;
+}
+.znxstudio-term-group.is-vertical .znxstudio-term-divider {
+  cursor: row-resize;
+}
+.znxstudio-term-divider:hover,
+body.is-resizing .znxstudio-term-divider {
+  background: var(--znxstudio-accent, #5b7cff);
+}
+body.is-resizing {
+  cursor: col-resize;
+  user-select: none;
+}
+/* When split, the focused pane gets a subtle top accent so it's clear which one
+   receives keystrokes. */
+.znxstudio-term-group.is-split .znxstudio-term-pane.is-active-pane {
+  box-shadow: inset 0 2px 0 var(--znxstudio-accent, #5b7cff);
+}
+.znxstudio-context-menu {
+  position: fixed;
+  z-index: 1000;
+  min-width: 160px;
+  padding: 4px;
+  border: 1px solid var(--znxstudio-border, #2a2b30);
+  border-radius: 6px;
+  background: #26272d;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4);
+}
+.znxstudio-context-menu-item {
+  display: block;
+  width: 100%;
+  text-align: left;
+  border: none;
+  background: transparent;
+  color: #d7d9de;
+  font-size: 12px;
+  padding: 6px 10px;
+  border-radius: 4px;
+  cursor: pointer;
+}
+.znxstudio-context-menu-item:hover:not(:disabled) {
+  background: #34363e;
+}
+.znxstudio-context-menu-item:disabled {
+  opacity: 0.4;
+  cursor: default;
+}
+.znxstudio-term-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  height: 100%;
+}
+
+/* ---- Outline ---- */
+.znxstudio-outline {
+  height: 100%;
+  overflow: auto;
+  padding: 4px 0;
+}
+
+.znxstudio-outline-empty {
+  padding: 12px 16px;
+  color: var(--z-fg-muted);
+  font-size: 13px;
+}
+
+/* ---- Output ---- */
+.znxstudio-output {
+  height: 100%;
+  overflow: auto;
+}
+
+.znxstudio-output-log {
+  margin: 0;
+  padding: 10px 14px;
+  font-family: 'Cascadia Code', 'Consolas', monospace;
+  font-size: 12px;
+  line-height: 1.5;
+  color: var(--z-fg);
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+/* ---- Status bar ---- */
+.znxstudio-statusbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  background: var(--z-status-bg);
+  color: var(--z-status-fg);
+  font-size: 12px;
+  padding: 0 8px;
+}
+
+.znxstudio-status-left,
+.znxstudio-status-right {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  /* Let each half shrink and clip its surplus segments instead of pushing the
+     whole bar past the window edge (which would force a horizontal scrollbar
+     on the workbench). Lowest-priority segments fall off the outer edge. */
+  min-width: 0;
+  overflow: hidden;
+}
+
+.znxstudio-status-text {
+  padding: 0 6px;
+}
+
+.znxstudio-status-btn {
+  border: none;
+  background: transparent;
+  color: var(--z-status-fg);
+  padding: 2px 8px;
+  border-radius: 4px;
+  font-size: 12px;
+}
+
+.znxstudio-status-btn:hover {
+  background: rgba(255, 255, 255, 0.18);
+}
+
+/* ---- Welcome ---- */
+.znxstudio-welcome {
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 40px;
+}
+
+.znxstudio-welcome-inner {
+  max-width: 460px;
+  text-align: center;
+}
+
+.znxstudio-welcome-title {
+  margin: 0 0 28px;
+  font-size: 34px;
+}
+
+.znxstudio-welcome-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  max-width: 280px;
+  margin: 0 auto;
+}
+
+.znxstudio-welcome-btn {
+  text-align: left;
+  padding: 10px 14px;
+  font-size: 13px;
+}
+
+.znxstudio-welcome-btn.primary {
+  background: var(--z-accent);
+  border-color: var(--z-accent);
+  color: var(--z-accent-fg);
+}
+
+/* ---- Settings (split pane) ---- */
+.znxstudio-settings {
+  height: 100%;
+  display: flex;
+}
+
+.znxstudio-settings-side {
+  width: 280px;
+  padding: 24px 20px;
+  border-right: 1px solid var(--z-border);
+  overflow: auto;
+}
+
+.znxstudio-settings-side h1 {
+  margin: 0 0 6px;
+  font-size: 22px;
+}
+
+.znxstudio-settings-keys {
+  list-style: none;
+  margin: 18px 0 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.znxstudio-settings-keys li {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.znxstudio-settings-keys code {
+  color: var(--z-accent);
+  font-size: 12px;
+}
+
+.znxstudio-settings-keys span {
+  color: var(--z-fg-muted);
+  font-size: 12px;
+}
+
+.znxstudio-settings-editor {
+  flex: 1;
+  min-width: 0;
+}
+
+.znxstudio-muted {
+  color: var(--z-fg-muted);
+}
+
+/* ---- Toasts ---- */
+.znxstudio-toasts {
+  position: fixed;
+  right: 16px;
+  bottom: 34px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  z-index: 1000;
+}
+
+.znxstudio-toast {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  padding: 10px 12px 10px 14px;
+  border-radius: 8px;
+  background: var(--z-bg-elevated);
+  border: 1px solid var(--z-border);
+  color: var(--z-fg);
+  box-shadow: 0 6px 24px rgba(0, 0, 0, 0.35);
+  max-width: 360px;
+  transition: opacity 0.3s ease, transform 0.3s ease;
+}
+
+.znxstudio-toast-icon {
+  flex: 0 0 auto;
+  line-height: 1.4;
+}
+
+.znxstudio-toast-message {
+  flex: 1 1 auto;
+  min-width: 0;
+  line-height: 1.4;
+  overflow-wrap: anywhere;
+}
+
+.znxstudio-toast-close {
+  flex: 0 0 auto;
+  width: 20px;
+  height: 20px;
+  padding: 0;
+  border: 0;
+  border-radius: 4px;
+  background: transparent;
+  color: var(--z-fg-muted, var(--z-fg));
+  font-size: 12px;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.znxstudio-toast-close:hover {
+  background: var(--z-bg-hover, var(--z-border));
+  color: var(--z-fg);
+}
+
+.znxstudio-toast-close:focus-visible {
+  outline: 2px solid var(--z-focus, var(--z-accent, #4c8bf5));
+  outline-offset: 1px;
+}
+
+.znxstudio-toast--success {
+  border-color: var(--z-accent);
+}
+
+.znxstudio-toast--success .znxstudio-toast-icon {
+  color: var(--z-accent);
+}
+
+.znxstudio-toast--error {
+  border-color: #e5484d;
+}
+
+.znxstudio-toast--error .znxstudio-toast-icon {
+  color: #e5484d;
+}
+
+.znxstudio-toast.is-leaving {
+  opacity: 0;
+  transform: translateY(8px);
+}
+
+/* ---- Status bar items ---- */
+.znxstudio-status-item {
+  border: none;
+  background: transparent;
+  color: var(--z-status-fg);
+  font-size: 12px;
+  padding: 0 8px;
+  height: 24px;
+  border-radius: 0;
+  /* A single long segment (e.g. a long branch name) truncates rather than
+     crowding out its neighbours; the full value stays in the tooltip. */
+  flex: 0 0 auto;
+  max-width: 260px;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.znxstudio-status-item.is-action:hover {
+  background: rgba(255, 255, 255, 0.18);
+}
+
+/* ---- Explorer (structured) ---- */
+.znxstudio-explorer-shell {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+}
+
+.znxstudio-explorer-toolbar {
+  display: flex;
+  justify-content: flex-end;
+  padding: 2px 6px;
+  border-bottom: 1px solid var(--z-border);
+}
+
+.znxstudio-icon-btn {
+  border: none;
+  background: transparent;
+  color: var(--z-fg-muted);
+  font-size: 14px;
+  width: 24px;
+  height: 22px;
+  border-radius: 4px;
+}
+
+.znxstudio-icon-btn:hover {
+  background: var(--z-hover);
+  color: var(--z-fg);
+}
+
+.znxstudio-explorer {
+  flex: 1;
+  overflow-y: auto;
+  overflow-x: hidden; /* long names ellipsize instead of flashing a horizontal scrollbar */
+  scrollbar-gutter: stable; /* reserve the scrollbar track so rows never shift sideways */
+}
+
+/* ---- Explorer contributed sections (UX-6): Open Editors / Outline / Bookmarks ---- */
+.znxstudio-explorer-sections {
+  flex: 0 0 auto;
+  display: flex;
+  flex-direction: column;
+  max-height: 55%;
+  overflow: auto;
+}
+
+.znxstudio-explorer-cs {
+  border-bottom: 1px solid var(--z-border);
+}
+
+.znxstudio-explorer-cs-header {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  /* Fixed height + border-box so revealing the hover actions (a taller icon
+     button) only changes the background — never the row height (no vertical
+     "shake"/reflow of everything below). */
+  height: 26px;
+  box-sizing: border-box;
+  padding: 0 8px;
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--z-fg-muted);
+  cursor: pointer;
+  user-select: none;
+}
+.znxstudio-explorer-cs-header:hover {
+  background: var(--z-hover);
+}
+.znxstudio-explorer-cs-disclosure {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  text-transform: inherit;
+  letter-spacing: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+.znxstudio-explorer-cs-title {
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.znxstudio-explorer-cs-actions {
+  display: none;
+}
+.znxstudio-explorer-cs-header:hover .znxstudio-explorer-cs-actions {
+  display: inline-flex;
+}
+.znxstudio-explorer-cs-body {
+  max-height: 220px;
+  overflow: auto;
+}
+
+/* Open Editors list rows */
+.znxstudio-open-editors-empty {
+  padding: 6px 12px;
+  font-size: 12px;
+  color: var(--z-fg-muted);
+}
+.znxstudio-open-editors-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.znxstudio-open-editors-row.is-preview .znxstudio-open-editors-name {
+  font-style: italic;
+}
+.znxstudio-open-editors-row.is-active {
+  background: var(--z-hover);
+}
+.znxstudio-open-editors-name {
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.znxstudio-open-editors-dirty {
+  display: none;
+  color: var(--z-fg);
+  width: 14px;
+  text-align: center;
+}
+.znxstudio-open-editors-row.is-dirty .znxstudio-open-editors-dirty {
+  display: inline-block;
+}
+.znxstudio-open-editors-row:hover .znxstudio-open-editors-dirty {
+  display: none;
+}
+.znxstudio-open-editors-close {
+  border: none;
+  background: transparent;
+  color: var(--z-fg-muted);
+  font-size: 13px;
+  width: 16px;
+  height: 18px;
+  border-radius: 4px;
+  cursor: pointer;
+  visibility: hidden;
+}
+.znxstudio-open-editors-row:hover .znxstudio-open-editors-close {
+  visibility: visible;
+}
+.znxstudio-open-editors-close:hover {
+  background: var(--z-hover);
+  color: var(--z-fg);
+}
+
+.znxstudio-explorer-section {
+  margin-bottom: 6px;
+}
+
+.znxstudio-explorer-section.is-dimmed {
+  opacity: 0.55;
+}
+
+.znxstudio-explorer-section-header {
+  padding: 4px 12px;
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.7px;
+  color: var(--z-fg-muted);
+}
+
+/* Multi-root: one collapsible section per workspace folder (Phase 5A). */
+.znxstudio-explorer-root + .znxstudio-explorer-root {
+  border-top: 1px solid var(--z-border);
+}
+.znxstudio-explorer-root-header {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  padding: 4px 8px;
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: var(--z-fg-muted);
+  cursor: pointer;
+  user-select: none;
+}
+.znxstudio-explorer-root-header:hover {
+  color: var(--z-fg);
+}
+.znxstudio-explorer-root-name {
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.znxstudio-explorer-root-header .znxstudio-icon-btn {
+  opacity: 0;
+}
+.znxstudio-explorer-root-header:hover .znxstudio-icon-btn {
+  opacity: 0.7;
+}
+
+/* Solution Explorer (Phase 5B) — a project-centric view. */
+.znxstudio-solution-shell {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+}
+.znxstudio-solution-header {
+  padding: 6px 12px;
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--z-fg-muted);
+  border-bottom: 1px solid var(--z-border);
+}
+.znxstudio-solution-project-name {
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.znxstudio-solution-badge {
+  font-size: 9px;
+  text-transform: uppercase;
+  letter-spacing: 0.4px;
+  color: var(--z-fg-muted);
+  border: 1px solid var(--z-border);
+  border-radius: 3px;
+  padding: 0 4px;
+  margin-left: 4px;
+}
+.znxstudio-solution-problems {
+  font-size: 10px;
+  color: var(--z-warn, #d29922);
+  margin-left: 4px;
+}
+.znxstudio-solution-details {
+  padding-left: 22px;
+}
+.znxstudio-solution-detail {
+  padding: 2px 12px;
+  font-size: 11px;
+  color: var(--z-fg-muted);
+}
+.znxstudio-solution-action {
+  cursor: pointer;
+}
+.znxstudio-solution-action:hover {
+  color: var(--z-fg);
+}
+.znxstudio-solution-ref {
+  font-family: var(--z-mono, monospace);
+  font-size: 10.5px;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+.znxstudio-solution-ref-label {
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.znxstudio-solution-ref.is-internal .znxstudio-solution-ref-label {
+  color: var(--z-accent, #4a9eff);
+}
+.znxstudio-solution-ref .znxstudio-icon-btn {
+  opacity: 0;
+}
+.znxstudio-solution-ref:hover .znxstudio-icon-btn {
+  opacity: 0.7;
+}
+.znxstudio-solution-addform {
+  display: flex;
+  gap: 4px;
+  padding: 2px 12px;
+  flex-wrap: wrap;
+}
+.znxstudio-input {
+  background: var(--z-bg-input, var(--z-bg));
+  color: var(--z-fg);
+  border: 1px solid var(--z-border);
+  border-radius: 3px;
+  padding: 2px 6px;
+  font-size: 11px;
+  min-width: 0;
+  flex: 1;
+}
+
+/* ---- Package Manager (Phase 5E) ---- */
+.znxstudio-packages-shell {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+}
+.znxstudio-packages-searchbar {
+  display: flex;
+  gap: 4px;
+  padding: 6px 12px;
+  border-bottom: 1px solid var(--z-border);
+  flex-wrap: wrap;
+}
+.znxstudio-packages {
+  overflow-y: auto;
+  flex: 1;
+}
+.znxstudio-select {
+  background: var(--z-bg-input, var(--z-bg));
+  color: var(--z-fg);
+  border: 1px solid var(--z-border);
+  border-radius: 3px;
+  padding: 2px 4px;
+  font-size: 11px;
+  max-width: 40%;
+}
+.znxstudio-btn-small {
+  padding: 1px 8px;
+  font-size: 11px;
+}
+.znxstudio-packages-status {
+  padding: 4px 12px;
+  font-size: 11px;
+  color: var(--z-fg-muted);
+}
+.znxstudio-packages-result .znxstudio-tree-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.znxstudio-packages-name {
+  font-weight: 600;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.znxstudio-packages-version {
+  font-family: var(--z-mono, monospace);
+  font-size: 10.5px;
+  color: var(--z-fg-muted);
+}
+.znxstudio-packages-registry {
+  flex: 1;
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.4px;
+  color: var(--z-fg-muted);
+  text-align: right;
+}
+.znxstudio-packages-info {
+  padding: 2px 12px 4px 34px;
+}
+.znxstudio-packages-info-line {
+  font-family: var(--z-mono, monospace);
+  font-size: 10.5px;
+  color: var(--z-fg-muted);
+}
+.znxstudio-packages-registries {
+  border-top: 1px solid var(--z-border);
+  margin-top: 6px;
+}
+.znxstudio-packages-registry-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.znxstudio-packages-registry-loc {
+  flex: 1;
+  font-family: var(--z-mono, monospace);
+  font-size: 10px;
+  color: var(--z-fg-muted);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.znxstudio-packages-registry-row .znxstudio-icon-btn {
+  opacity: 0;
+}
+.znxstudio-packages-registry-row:hover .znxstudio-icon-btn {
+  opacity: 0.7;
+}
+
+/* ---- Workspace Profiles (Phase 5F) ---- */
+.znxstudio-profiles-shell {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+}
+.znxstudio-profiles {
+  overflow-y: auto;
+  flex: 1;
+}
+.znxstudio-profiles-option {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  cursor: pointer;
+}
+.znxstudio-profiles-layers {
+  border-top: 1px solid var(--z-border);
+  margin-top: 6px;
+}
+.znxstudio-profiles-layer {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+.znxstudio-profiles-layer-name {
+  flex: 1;
+  font-family: var(--z-mono, monospace);
+  font-size: 10.5px;
+}
+.znxstudio-profiles-layer-name.is-missing {
+  opacity: 0.5;
+}
+.znxstudio-profiles-actions {
+  border-top: 1px solid var(--z-border);
+  margin-top: 6px;
+  padding: 8px 12px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+.znxstudio-profiles-output {
+  flex-basis: 100%;
+  margin-top: 4px;
+}
+.znxstudio-profiles-status {
+  font-size: 11px;
+  color: var(--z-fg-muted);
+  padding: 2px 0;
+}
+.znxstudio-profiles-error {
+  font-size: 11px;
+  color: var(--z-error, #f85149);
+  padding: 2px 0;
+  font-family: var(--z-mono, monospace);
+}
+.znxstudio-profiles-block {
+  font-size: 11px;
+  font-weight: 600;
+  margin-top: 4px;
+}
+.znxstudio-profiles-field {
+  font-family: var(--z-mono, monospace);
+  font-size: 10.5px;
+  color: var(--z-fg-muted);
+  padding-left: 10px;
+}
+
+/* ---- Project Templates (Phase 5G) ---- */
+.znxstudio-templates {
+  height: 100%;
+  overflow-y: auto;
+  display: flex;
+  justify-content: center;
+}
+.znxstudio-templates-inner {
+  max-width: 860px;
+  width: 100%;
+  padding: 48px 32px;
+}
+.znxstudio-templates-title {
+  font-size: 26px;
+  font-weight: 600;
+  margin: 0 0 4px;
+}
+.znxstudio-templates-tag {
+  color: var(--z-fg-muted);
+  margin: 0 0 28px;
+}
+.znxstudio-templates-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+  gap: 14px;
+}
+.znxstudio-template-card {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  text-align: left;
+  padding: 16px;
+  border: 1px solid var(--z-border);
+  border-radius: 8px;
+  background: var(--z-bg-elevated, var(--z-bg));
+  color: var(--z-fg);
+  cursor: pointer;
+  transition: border-color 0.12s, transform 0.12s;
+}
+.znxstudio-template-card:hover {
+  border-color: var(--z-accent, #4a9eff);
+  transform: translateY(-1px);
+}
+.znxstudio-template-icon {
+  font-size: 24px;
+}
+.znxstudio-template-name {
+  font-weight: 600;
+}
+.znxstudio-template-desc {
+  font-size: 12px;
+  color: var(--z-fg-muted);
+  flex: 1;
+}
+.znxstudio-template-badge {
+  align-self: flex-start;
+  font-size: 9px;
+  text-transform: uppercase;
+  letter-spacing: 0.4px;
+  color: var(--z-fg-muted);
+  border: 1px solid var(--z-border);
+  border-radius: 3px;
+  padding: 1px 5px;
+}
+
+/* ---- Wizards (Phase 5H) ---- */
+.znxstudio-wizard {
+  height: 100%;
+  overflow-y: auto;
+  display: flex;
+  justify-content: center;
+}
+.znxstudio-wizard-inner {
+  max-width: 720px;
+  width: 100%;
+  padding: 48px 40px;
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+/* Roomy, full-width inputs inside the wizard (the app-wide .znxstudio-input is
+   deliberately compact for toolbars; the wizard wants generous fields). */
+.znxstudio-wizard .znxstudio-input {
+  width: 100%;
+  padding: 9px 12px;
+  font-size: 14px;
+  border-radius: 6px;
+}
+.znxstudio-wizard-steps {
+  display: flex;
+  gap: 8px;
+}
+.znxstudio-wizard-dot {
+  width: 28px;
+  height: 4px;
+  border-radius: 2px;
+  background: var(--z-border);
+}
+.znxstudio-wizard-dot.is-active {
+  background: var(--z-accent, #4a9eff);
+}
+.znxstudio-wizard-dot.is-done {
+  background: var(--z-fg-muted);
+}
+.znxstudio-wizard-title {
+  font-size: 18px;
+  font-weight: 600;
+  margin: 0;
+}
+.znxstudio-wizard-body {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+.znxstudio-wizard-label {
+  font-size: 12px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: var(--z-fg-muted);
+  margin-top: 10px;
+}
+.znxstudio-wizard-templates {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+  gap: 10px;
+}
+.znxstudio-template-card.is-selected {
+  border-color: var(--z-accent, #4a9eff);
+  box-shadow: 0 0 0 1px var(--z-accent, #4a9eff) inset;
+}
+.znxstudio-wizard-locationrow {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+.znxstudio-wizard-location {
+  flex: 1;
+  min-width: 0;
+  font-family: var(--z-mono, monospace);
+  font-size: 12px;
+  color: var(--z-fg-muted);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.znxstudio-wizard-deplist {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.znxstudio-wizard-deprow {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 10px;
+  border: 1px solid var(--z-border);
+  border-radius: 6px;
+}
+.znxstudio-wizard-depspec {
+  flex: 1;
+  font-family: var(--z-mono, monospace);
+  font-size: 13px;
+}
+.znxstudio-wizard-addrow {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+.znxstudio-wizard-addrow .znxstudio-input {
+  flex: 1;
+}
+/* Profile options: comfortable, clearly-clickable rows. */
+.znxstudio-wizard-body .znxstudio-profiles-option {
+  padding: 10px 12px;
+  border: 1px solid var(--z-border);
+  border-radius: 6px;
+  cursor: pointer;
+  gap: 10px;
+}
+.znxstudio-wizard-body .znxstudio-profiles-option.is-active {
+  border-color: var(--z-accent, #4a9eff);
+  box-shadow: 0 0 0 1px var(--z-accent, #4a9eff) inset;
+}
+.znxstudio-wizard-reviewrow {
+  display: flex;
+  gap: 12px;
+  padding: 3px 0;
+  border-bottom: 1px solid var(--z-border);
+}
+.znxstudio-wizard-reviewkey {
+  width: 110px;
+  color: var(--z-fg-muted);
+  font-size: 12px;
+}
+.znxstudio-wizard-error {
+  color: var(--z-warn, #d29922);
+  font-size: 12px;
+}
+.znxstudio-wizard-footer {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  margin-top: 16px;
+}
+.znxstudio-btn.ghost {
+  background: transparent;
+}
+.znxstudio-btn.primary {
+  background: var(--z-accent, #4a9eff);
+  color: var(--z-accent-fg, #fff);
+}
+.znxstudio-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/* ---- Zoijs Components panel (Phase 6B) ---- */
+.znxstudio-zoijs-components {
+  height: 100%;
+  overflow-y: auto;
+}
+.znxstudio-zoijs-comp {
+  padding: 1px 0;
+}
+.znxstudio-zoijs-comp-name {
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.znxstudio-zoijs-comp-meta {
+  padding: 0 12px 3px 34px;
+  font-size: 10.5px;
+  color: var(--z-fg-muted);
+  font-family: var(--z-mono, monospace);
+}
+.znxstudio-zoijs-reactivity,
+.znxstudio-zoijs-routes,
+.znxstudio-zoijs-devtools {
+  height: 100%;
+  overflow-y: auto;
+}
+.znxstudio-zoijs-devtools-status {
+  padding: 6px 12px;
+  font-size: 11px;
+  color: var(--z-fg-muted);
+  border-bottom: 1px solid var(--z-border);
+}
+.znxstudio-zoijs-devtools-status.is-connected {
+  color: var(--z-ok, #3fb950);
+}
+
+/* ---- Find in Files / Symbols (Phase 7A) ---- */
+.znxstudio-search {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  padding: 8px;
+  gap: 6px;
+}
+.znxstudio-search-options,
+.znxstudio-search-modes {
+  display: flex;
+  gap: 4px;
+}
+.znxstudio-search-toggle,
+.znxstudio-search-mode {
+  font-size: 11px;
+  padding: 2px 6px;
+  border: 1px solid var(--z-border);
+  border-radius: 3px;
+  background: transparent;
+  color: var(--z-fg-muted);
+  cursor: pointer;
+}
+.znxstudio-search-toggle.is-on,
+.znxstudio-search-mode.is-active {
+  background: var(--z-accent, #4a9eff);
+  color: var(--z-accent-fg, #fff);
+  border-color: var(--z-accent, #4a9eff);
+}
+.znxstudio-search-results {
+  flex: 1;
+  overflow-y: auto;
+}
+.znxstudio-search-status {
+  padding: 4px 2px;
+  font-size: 11px;
+  color: var(--z-fg-muted);
+}
+.znxstudio-search-file-header {
+  font-weight: 600;
+  font-size: 11px;
+}
+.znxstudio-search-match {
+  display: flex;
+  gap: 8px;
+  padding: 1px 4px 1px 16px;
+  font-family: var(--z-mono, monospace);
+  font-size: 11px;
+  cursor: pointer;
+  white-space: pre;
+  overflow: hidden;
+}
+.znxstudio-search-match:hover {
+  background: var(--z-bg-hover, rgba(127, 127, 127, 0.12));
+}
+.znxstudio-search-lineno {
+  color: var(--z-fg-muted);
+  min-width: 2.5em;
+  text-align: right;
+}
+.znxstudio-search-linetext {
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.znxstudio-search-match mark {
+  background: var(--z-accent, #4a9eff);
+  color: var(--z-accent-fg, #fff);
+  border-radius: 2px;
+}
+.znxstudio-search-symbol {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  cursor: pointer;
+}
+.znxstudio-search-symbol-name {
+  flex: 1;
+}
+.znxstudio-search-symbol-loc {
+  font-size: 10px;
+  color: var(--z-fg-muted);
+  font-family: var(--z-mono, monospace);
+}
+.znxstudio-search-replacebar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 2px;
+}
+.znxstudio-search-file-header input[type='checkbox'] {
+  margin-right: 6px;
+}
+.znxstudio-search-replace-block {
+  padding: 1px 0;
+}
+.znxstudio-search-old .znxstudio-search-linetext {
+  color: var(--z-fg-muted);
+}
+.znxstudio-search-old del {
+  background: var(--z-error, #f85149);
+  color: #fff;
+  text-decoration: none;
+  border-radius: 2px;
+}
+.znxstudio-search-new .znxstudio-search-linetext {
+  color: var(--z-ok, #3fb950);
+}
+
+/* ---- Live Preview (Phase 6G) ---- */
+.znxstudio-preview {
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+}
+.znxstudio-preview-idle {
+  margin: auto;
+  text-align: center;
+  color: var(--z-fg-muted);
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  align-items: center;
+}
+.znxstudio-preview-toolbar {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 3px 8px;
+  border-bottom: 1px solid var(--z-border);
+}
+.znxstudio-preview-url {
+  margin-left: 6px;
+  font-family: var(--z-mono, monospace);
+  font-size: 10.5px;
+  color: var(--z-fg-muted);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.znxstudio-preview-frame {
+  flex: 1;
+  width: 100%;
+  border: 0;
+  background: #fff;
+}
+.znxstudio-fullstack {
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+}
+.znxstudio-fullstack-label {
+  flex: 1;
+  font-size: 11px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.znxstudio-fullstack-routes {
+  padding: 3px 10px;
+  font-family: var(--z-mono, monospace);
+  font-size: 10px;
+  color: var(--z-fg-muted);
+  border-bottom: 1px solid var(--z-border);
+}
+
+.znxstudio-icon {
+  display: inline-block;
+  width: 1.35em;
+  text-align: center;
+  margin-right: 2px;
+}
+
+.znxstudio-tree-row.is-active {
+  background: var(--z-accent);
+  color: var(--z-accent-fg);
+}
+
+/* ---- Command palette ---- */
+.znxstudio-palette {
+  position: fixed;
+  inset: 0;
+  z-index: 2000;
+  display: none;
+  justify-content: center;
+  align-items: flex-start;
+  background: rgba(0, 0, 0, 0.35);
+}
+
+.znxstudio-palette.is-open {
+  display: flex;
+}
+
+.znxstudio-palette-box {
+  margin-top: 80px;
+  width: 560px;
+  max-width: 90vw;
+  background: var(--z-bg-elevated);
+  border: 1px solid var(--z-border);
+  border-radius: 8px;
+  box-shadow: 0 16px 48px rgba(0, 0, 0, 0.45);
+  overflow: hidden;
+}
+
+.znxstudio-palette-input {
+  width: 100%;
+  border: none;
+  border-bottom: 1px solid var(--z-border);
+  background: transparent;
+  color: var(--z-fg);
+  font-size: 14px;
+  padding: 12px 14px;
+  outline: none;
+}
+
+.znxstudio-palette-list {
+  list-style: none;
+  margin: 0;
+  padding: 6px;
+  max-height: 320px;
+  overflow: auto;
+}
+
+.znxstudio-palette-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 12px;
+  padding: 8px 10px;
+  border-radius: 6px;
+  cursor: pointer;
+}
+
+.znxstudio-palette-item.is-selected,
+.znxstudio-palette-item:hover {
+  background: var(--z-accent);
+  color: var(--z-accent-fg);
+}
+
+.znxstudio-palette-item.is-disabled {
+  opacity: 0.5;
+}
+
+.znxstudio-palette-item.is-disabled .znxstudio-palette-title::after {
+  content: ' — Restricted Mode';
+  color: var(--z-fg-muted, var(--z-fg));
+  font-style: italic;
+}
+
+.znxstudio-palette-title {
+  font-size: 13px;
+}
+
+.znxstudio-palette-id {
+  font-size: 11px;
+  color: var(--z-fg-muted);
+}
+
+.znxstudio-palette-item.is-selected .znxstudio-palette-id,
+.znxstudio-palette-item:hover .znxstudio-palette-id {
+  color: rgba(255, 255, 255, 0.75);
+}
+
+/* ---- Search Everywhere (UX-4) ---- */
+.znxstudio-everywhere {
+  position: fixed;
+  inset: 0;
+  z-index: 2000;
+  display: none;
+  justify-content: center;
+  align-items: flex-start;
+  background: rgba(0, 0, 0, 0.35);
+}
+
+.znxstudio-everywhere.is-open {
+  display: flex;
+}
+
+.znxstudio-everywhere-box {
+  margin-top: 72px;
+  width: 640px;
+  max-width: 92vw;
+  background: var(--z-bg-elevated);
+  border: 1px solid var(--z-border);
+  border-radius: 8px;
+  box-shadow: 0 16px 48px rgba(0, 0, 0, 0.45);
+  overflow: hidden;
+}
+
+.znxstudio-everywhere-tabs {
+  display: flex;
+  gap: 2px;
+  padding: 6px 8px 0;
+  border-bottom: 1px solid var(--z-border);
+  overflow-x: auto;
+}
+
+.znxstudio-everywhere-tab {
+  border: none;
+  background: transparent;
+  color: var(--z-fg-muted);
+  font-size: 12px;
+  padding: 6px 10px;
+  border-radius: 6px 6px 0 0;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.znxstudio-everywhere-tab:hover {
+  background: var(--z-hover);
+  color: var(--z-fg);
+}
+
+.znxstudio-everywhere-tab.is-active {
+  color: var(--z-fg);
+  border-bottom: 2px solid var(--z-accent);
+}
+
+.znxstudio-everywhere-input {
+  width: 100%;
+  border: none;
+  border-bottom: 1px solid var(--z-border);
+  background: transparent;
+  color: var(--z-fg);
+  font-size: 14px;
+  padding: 12px 14px;
+  outline: none;
+}
+
+.znxstudio-everywhere-list {
+  padding: 6px;
+  max-height: 380px;
+  overflow: auto;
+}
+
+.znxstudio-everywhere-group {
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--z-fg-muted);
+  padding: 8px 10px 4px;
+}
+
+.znxstudio-everywhere-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 12px;
+  padding: 7px 10px;
+  border-radius: 6px;
+  cursor: pointer;
+}
+
+.znxstudio-everywhere-item.is-selected,
+.znxstudio-everywhere-item:hover {
+  background: var(--z-accent);
+  color: var(--z-accent-fg);
+}
+
+.znxstudio-everywhere-label {
+  font-size: 13px;
+}
+
+.znxstudio-everywhere-detail {
+  font-size: 11px;
+  color: var(--z-fg-muted);
+  text-align: right;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  max-width: 55%;
+}
+
+.znxstudio-everywhere-item.is-selected .znxstudio-everywhere-detail,
+.znxstudio-everywhere-item:hover .znxstudio-everywhere-detail {
+  color: rgba(255, 255, 255, 0.75);
+}
+
+.znxstudio-everywhere-empty {
+  padding: 16px 10px;
+  color: var(--z-fg-muted);
+  font-size: 12px;
+}
+
+/* ---- Diagnostics ---- */
+.znxstudio-diagnostics {
+  height: 100%;
+  overflow: auto;
+  padding: 8px 0;
+}
+
+.znxstudio-diagnostics-empty {
+  padding: 12px 16px;
+  color: var(--z-fg-muted);
+  font-size: 13px;
+}
+
+.znxstudio-diagnostics-group {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 6px 16px 2px;
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.7px;
+  color: var(--z-fg-muted);
+}
+.znxstudio-diagnostics-group-count {
+  letter-spacing: 0;
+}
+
+/* ----- Problems toolbar (severity filters) ----- */
+.znxstudio-diagnostics-toolbar {
+  display: flex;
+  gap: 6px;
+  padding: 8px 16px;
+  border-bottom: 1px solid var(--z-border, rgba(255, 255, 255, 0.08));
+  position: sticky;
+  top: 0;
+  background: var(--z-bg, #1e1e1e);
+  z-index: 1;
+}
+.znxstudio-diag-chip {
+  font: inherit;
+  font-size: 12px;
+  padding: 2px 10px;
+  border-radius: 12px;
+  border: 1px solid var(--z-border, rgba(255, 255, 255, 0.12));
+  background: transparent;
+  color: var(--z-fg-muted);
+  cursor: pointer;
+  opacity: 0.5;
+}
+.znxstudio-diag-chip.is-active {
+  opacity: 1;
+  color: var(--z-fg);
+  background: var(--z-bg-hover, rgba(255, 255, 255, 0.06));
+}
+
+/* ----- diagnostic row meta (provenance · location · code) ----- */
+.znxstudio-diagnostic-meta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  margin-top: 2px;
+  font-size: 11px;
+  color: var(--z-fg-muted);
+}
+.znxstudio-diagnostic-source {
+  opacity: 0.9;
+}
+.znxstudio-diagnostic-code {
+  font-family: var(--z-font-mono, monospace);
+  font-size: 11px;
+  padding: 0 5px;
+  border-radius: 4px;
+  background: rgba(255, 255, 255, 0.06);
+}
+.znxstudio-diagnostic-code.is-link {
+  cursor: pointer;
+  color: #6ea8fe;
+  text-decoration: underline;
+}
+
+.znxstudio-diagnostic {
+  display: flex;
+  gap: 10px;
+  padding: 8px 16px;
+  border-left: 3px solid transparent;
+}
+
+.znxstudio-diagnostic.is-clickable {
+  cursor: pointer;
+}
+
+.znxstudio-diagnostic.is-clickable:hover {
+  background: var(--z-bg-hover, rgba(255, 255, 255, 0.06));
+}
+
+/* ----- Error Lens (inline diagnostics) ----- */
+.znxstudio-errorlens-line--error {
+  background: rgba(229, 72, 77, 0.09);
+}
+.znxstudio-errorlens-line--warning {
+  background: rgba(245, 166, 35, 0.09);
+}
+.znxstudio-errorlens-line--info {
+  background: rgba(80, 140, 255, 0.08);
+}
+.znxstudio-errorlens-line--hint {
+  background: rgba(255, 255, 255, 0.04);
+}
+
+.znxstudio-errorlens-text {
+  font-style: italic;
+  opacity: 0.85;
+}
+.znxstudio-errorlens-text--error {
+  color: #e5686d;
+}
+.znxstudio-errorlens-text--warning {
+  color: #f5a623;
+}
+.znxstudio-errorlens-text--info {
+  color: #6ea8fe;
+}
+.znxstudio-errorlens-text--hint {
+  color: var(--z-fg-muted);
+}
+
+/* ----- Dependencies panel ----- */
+.znxstudio-deps {
+  height: 100%;
+  overflow: auto;
+  font-size: 13px;
+}
+.znxstudio-deps-empty {
+  padding: 16px;
+  color: var(--z-fg-muted);
+}
+.znxstudio-deps-group {
+  padding: 6px 16px;
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--z-fg-muted);
+  background: rgba(255, 255, 255, 0.03);
+}
+.znxstudio-deps-file {
+  padding: 5px 16px;
+  color: var(--z-fg);
+}
+.znxstudio-deps-import {
+  padding: 3px 16px 3px 34px;
+  color: var(--z-fg-muted);
+}
+.znxstudio-deps-import--missing {
+  color: #e5686d;
+}
+.znxstudio-deps-cycle {
+  padding: 4px 16px;
+  color: #f5a623;
+}
+.znxstudio-deps .is-clickable {
+  cursor: pointer;
+}
+.znxstudio-deps .is-clickable:hover {
+  background: var(--z-bg-hover, rgba(255, 255, 255, 0.06));
+}
+
+/* ----- Compiler Profiler panel ----- */
+.znxstudio-profiler {
+  height: 100%;
+  overflow: auto;
+  font-size: 13px;
+}
+.znxstudio-profiler-empty {
+  padding: 16px;
+  color: var(--z-fg-muted);
+}
+.znxstudio-profiler-toolbar {
+  display: flex;
+  gap: 6px;
+  padding: 8px 16px;
+}
+.znxstudio-profiler-btn {
+  font: inherit;
+  font-size: 12px;
+  padding: 2px 10px;
+  border-radius: 6px;
+  border: 1px solid var(--z-border, rgba(255, 255, 255, 0.12));
+  background: transparent;
+  color: var(--z-fg);
+  cursor: pointer;
+}
+.znxstudio-profiler-btn:hover {
+  background: var(--z-bg-hover, rgba(255, 255, 255, 0.06));
+}
+.znxstudio-profiler-group {
+  padding: 6px 16px 2px;
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.7px;
+  color: var(--z-fg-muted);
+}
+.znxstudio-profiler-table {
+  padding: 2px 8px;
+}
+.znxstudio-profiler-row {
+  display: grid;
+  grid-template-columns: 2fr 1fr 1fr 1fr 1fr;
+  gap: 8px;
+  padding: 3px 8px;
+  font-variant-numeric: tabular-nums;
+}
+.znxstudio-profiler-row--head {
+  color: var(--z-fg-muted);
+  font-size: 11px;
+  border-bottom: 1px solid var(--z-border, rgba(255, 255, 255, 0.08));
+}
+.znxstudio-profiler-line {
+  padding: 3px 16px;
+  color: var(--z-fg-muted);
+  font-variant-numeric: tabular-nums;
+}
+
+/* ----- Debug panel ----- */
+.znxstudio-debug {
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  font-size: 13px;
+}
+.znxstudio-debug-header {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 16px;
+  border-bottom: 1px solid var(--z-border, rgba(255, 255, 255, 0.08));
+}
+.znxstudio-debug-state {
+  font-weight: 600;
+}
+.znxstudio-debug-state--stopped {
+  color: #f5a623;
+}
+.znxstudio-debug-state--running {
+  color: #3fb950;
+}
+.znxstudio-debug-state--error {
+  color: #e5686d;
+}
+.znxstudio-debug-state--terminated {
+  color: var(--z-fg-muted);
+}
+.znxstudio-debug-btn {
+  font: inherit;
+  font-size: 12px;
+  padding: 2px 12px;
+  border-radius: 6px;
+  border: 1px solid var(--z-border, rgba(255, 255, 255, 0.12));
+  background: transparent;
+  color: var(--z-fg);
+  cursor: pointer;
+}
+.znxstudio-debug-btn:hover {
+  background: var(--z-bg-hover, rgba(255, 255, 255, 0.06));
+}
+.znxstudio-debug-console {
+  flex: 1;
+  margin: 0;
+  padding: 8px 16px;
+  overflow: auto;
+  font-family: var(--z-font-mono, monospace);
+  font-size: 12px;
+  color: var(--z-fg-muted);
+  white-space: pre-wrap;
+}
+
+/* ----- Call stack ----- */
+.znxstudio-debug-stack {
+  border-bottom: 1px solid var(--z-border, rgba(255, 255, 255, 0.08));
+  max-height: 40%;
+  overflow: auto;
+}
+.znxstudio-debug-stack-title {
+  padding: 6px 16px 2px;
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.7px;
+  color: var(--z-fg-muted);
+}
+.znxstudio-debug-frame {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 4px 16px;
+  cursor: pointer;
+}
+.znxstudio-debug-frame:hover {
+  background: var(--z-bg-hover, rgba(255, 255, 255, 0.06));
+}
+.znxstudio-debug-frame.is-active {
+  background: rgba(245, 200, 66, 0.12);
+}
+.znxstudio-debug-frame-name {
+  color: var(--z-fg);
+}
+.znxstudio-debug-frame-loc {
+  color: var(--z-fg-muted);
+  font-size: 11px;
+}
+
+/* ----- Variables ----- */
+.znxstudio-debug-vars {
+  border-bottom: 1px solid var(--z-border, rgba(255, 255, 255, 0.08));
+  max-height: 45%;
+  overflow: auto;
+}
+.znxstudio-debug-scope {
+  padding: 4px 16px;
+  cursor: pointer;
+  font-size: 12px;
+  color: var(--z-fg);
+}
+.znxstudio-debug-scope:hover {
+  background: var(--z-bg-hover, rgba(255, 255, 255, 0.06));
+}
+.znxstudio-debug-var {
+  display: flex;
+  gap: 10px;
+  padding: 2px 16px 2px 0;
+  font-family: var(--z-font-mono, monospace);
+  font-size: 12px;
+}
+.znxstudio-debug-var.is-expandable {
+  cursor: pointer;
+}
+.znxstudio-debug-var.is-expandable:hover {
+  background: var(--z-bg-hover, rgba(255, 255, 255, 0.06));
+}
+.znxstudio-debug-var-name {
+  color: #9cdcfe;
+  white-space: nowrap;
+}
+.znxstudio-debug-var-value {
+  color: var(--z-fg-muted);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* ----- Watch expressions ----- */
+.znxstudio-debug-watch {
+  border-bottom: 1px solid var(--z-border, rgba(255, 255, 255, 0.08));
+  max-height: 40%;
+  overflow: auto;
+}
+.znxstudio-debug-watch-input {
+  width: calc(100% - 32px);
+  margin: 2px 16px 4px;
+  padding: 3px 8px;
+  font: inherit;
+  font-size: 12px;
+  color: var(--z-fg);
+  background: var(--z-bg-hover, rgba(255, 255, 255, 0.06));
+  border: 1px solid var(--z-border, rgba(255, 255, 255, 0.12));
+  border-radius: 4px;
+  box-sizing: border-box;
+}
+.znxstudio-debug-watch-input:focus {
+  outline: none;
+  border-color: var(--z-accent, #6ea8fe);
+}
+.znxstudio-debug-watch-row {
+  align-items: center;
+}
+.znxstudio-debug-watch-remove {
+  margin-left: auto;
+  padding: 0 6px;
+  font: inherit;
+  color: var(--z-fg-muted);
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  opacity: 0;
+}
+.znxstudio-debug-watch-row:hover .znxstudio-debug-watch-remove {
+  opacity: 1;
+}
+.znxstudio-debug-watch-error {
+  color: #e5686d;
+  font-style: italic;
+}
+
+/* ----- Current execution line ----- */
+.znxstudio-exec-line {
+  background: rgba(245, 200, 66, 0.12);
+}
+.znxstudio-exec-arrow::before {
+  content: '▶';
+  color: #f5c842;
+  font-size: 11px;
+  margin-left: 2px;
+}
+.znxstudio-exec-line--exception {
+  background: rgba(229, 72, 77, 0.16);
+}
+.znxstudio-exec-arrow--exception::before {
+  content: '⛔';
+  color: #e5484d;
+}
+
+/* ----- Exception banner ----- */
+.znxstudio-debug-exception {
+  padding: 8px 16px;
+  background: rgba(229, 72, 77, 0.12);
+  border-bottom: 1px solid rgba(229, 72, 77, 0.4);
+}
+.znxstudio-debug-exception-title {
+  font-weight: 600;
+  color: #e5686d;
+  font-size: 12px;
+}
+.znxstudio-debug-exception-message {
+  margin-top: 2px;
+  color: var(--z-fg);
+  font-size: 12px;
+}
+
+/* ----- Breakpoint gutter glyphs ----- */
+.znxstudio-bp {
+  cursor: pointer;
+}
+.znxstudio-bp::before {
+  content: '';
+  display: inline-block;
+  width: 11px;
+  height: 11px;
+  margin-left: 5px;
+  border-radius: 50%;
+  vertical-align: middle;
+}
+.znxstudio-bp--verified::before {
+  background: #e5484d;
+}
+.znxstudio-bp--unverified::before {
+  background: transparent;
+  border: 1px solid #9a5a5c;
+  box-sizing: border-box;
+}
+.znxstudio-bp--conditional::before {
+  background: #e5484d;
+  box-shadow: inset 0 0 0 2px rgba(0, 0, 0, 0.55);
+}
+
+/* Bookmarks (Phase 7E) */
+.znxstudio-bookmark-glyph {
+  cursor: pointer;
+}
+.znxstudio-bookmark-glyph::before {
+  content: '';
+  display: inline-block;
+  width: 4px;
+  height: 14px;
+  margin-left: 3px;
+  border-radius: 1px;
+  background: rgba(230, 184, 0, 0.9);
+}
+.znxstudio-bookmarks {
+  padding: 4px 0;
+  overflow-y: auto;
+}
+.znxstudio-bookmarks-empty {
+  padding: 10px 12px;
+  color: var(--z-fg-muted);
+  font-size: 12px;
+}
+.znxstudio-bookmarks-file {
+  padding: 4px 12px 2px;
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--z-fg-muted);
+}
+.znxstudio-bookmarks-row {
+  gap: 6px;
+  padding-left: 20px;
+  cursor: pointer;
+}
+
+/* Snippet insert picker (Phase 7F) */
+.znxstudio-snippet-picker {
+  position: fixed;
+  inset: 0;
+  z-index: 50;
+  display: flex;
+  justify-content: center;
+  align-items: flex-start;
+  padding-top: 12vh;
+  background: rgba(0, 0, 0, 0.35);
+}
+.znxstudio-snippet-box {
+  width: 560px;
+  max-width: 90vw;
+  max-height: 60vh;
+  display: flex;
+  flex-direction: column;
+  background: var(--z-bg-elevated);
+  border: 1px solid var(--z-border);
+  border-radius: 6px;
+  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.45);
+  overflow: hidden;
+}
+.znxstudio-snippet-input {
+  border: none;
+  border-bottom: 1px solid var(--z-border);
+  background: transparent;
+  color: var(--z-fg);
+  padding: 10px 12px;
+  font-size: 13px;
+  outline: none;
+}
+.znxstudio-snippet-list {
+  list-style: none;
+  margin: 0;
+  padding: 4px;
+  overflow-y: auto;
+}
+.znxstudio-snippet-item {
+  padding: 6px 8px;
+  border-radius: 4px;
+  cursor: pointer;
+}
+.znxstudio-snippet-item:hover {
+  background: var(--z-bg);
+}
+.znxstudio-snippet-head {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+}
+.znxstudio-snippet-prefix {
+  font-weight: 600;
+  color: var(--z-accent);
+}
+.znxstudio-snippet-name {
+  font-size: 12px;
+  color: var(--z-fg-muted);
+}
+.znxstudio-snippet-preview {
+  margin: 4px 0 0;
+  padding: 6px 8px;
+  background: var(--z-bg);
+  border-radius: 3px;
+  font-size: 11px;
+  line-height: 1.4;
+  color: var(--z-fg-muted);
+  white-space: pre;
+  overflow-x: auto;
+}
+
+/* Workspace Tasks (Phase 7G) */
+.znxstudio-tasks {
+  overflow-y: auto;
+}
+.znxstudio-tasks-toolbar {
+  padding: 6px 10px;
+  border-bottom: 1px solid var(--z-border);
+}
+.znxstudio-tasks-empty {
+  padding: 12px;
+  color: var(--z-fg-muted);
+  font-size: 12px;
+}
+.znxstudio-tasks-group {
+  padding: 6px 12px 2px;
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--z-fg-muted);
+}
+.znxstudio-tasks-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 4px 12px;
+}
+.znxstudio-tasks-row:hover {
+  background: var(--z-bg-elevated);
+}
+.znxstudio-tasks-label {
+  font-weight: 600;
+  min-width: 90px;
+}
+.znxstudio-tasks-cmd {
+  flex: 1;
+  color: var(--z-fg-muted);
+  font-size: 11px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.znxstudio-tasks-run {
+  flex: none;
+}
+
+/* Code Metrics (Phase 7I) */
+.znxstudio-metrics {
+  padding: 8px 12px;
+  overflow-y: auto;
+}
+.znxstudio-metrics-empty {
+  padding: 8px 0;
+  color: var(--z-fg-muted);
+  font-size: 12px;
+}
+.znxstudio-metrics-score {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 10px;
+}
+.znxstudio-metrics-rating {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  border-radius: 6px;
+  font-weight: 700;
+  color: #fff;
+}
+.znxstudio-metrics-rating--a { background: #2fa84f; }
+.znxstudio-metrics-rating--b { background: #7bb241; }
+.znxstudio-metrics-rating--c { background: #d9a218; }
+.znxstudio-metrics-rating--d { background: #e5484d; }
+.znxstudio-metrics-mi {
+  font-size: 13px;
+  color: var(--z-fg);
+}
+.znxstudio-metrics-subhead {
+  margin: 10px 0 4px;
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--z-fg-muted);
+}
+.znxstudio-metrics-grid {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.znxstudio-metrics-row {
+  display: flex;
+  justify-content: space-between;
+  padding: 2px 0;
+  font-size: 12px;
+  border-bottom: 1px dotted var(--z-border);
+}
+.znxstudio-metrics-key {
+  color: var(--z-fg-muted);
+}
+.znxstudio-metrics-val {
+  color: var(--z-fg);
+  font-variant-numeric: tabular-nums;
+}
+
+/* Quick Open (Phase 7J) */
+.znxstudio-quickopen {
+  position: fixed;
+  inset: 0;
+  z-index: 55;
+  display: flex;
+  justify-content: center;
+  align-items: flex-start;
+  padding-top: 10vh;
+  background: rgba(0, 0, 0, 0.35);
+}
+.znxstudio-quickopen-box {
+  width: 600px;
+  max-width: 92vw;
+  max-height: 64vh;
+  display: flex;
+  flex-direction: column;
+  background: var(--z-bg-elevated);
+  border: 1px solid var(--z-border);
+  border-radius: 6px;
+  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.45);
+  overflow: hidden;
+}
+.znxstudio-quickopen-input {
+  border: none;
+  border-bottom: 1px solid var(--z-border);
+  background: transparent;
+  color: var(--z-fg);
+  padding: 10px 12px;
+  font-size: 13px;
+  outline: none;
+}
+.znxstudio-quickopen-list {
+  list-style: none;
+  margin: 0;
+  padding: 4px;
+  overflow-y: auto;
+}
+.znxstudio-quickopen-item {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  padding: 5px 8px;
+  border-radius: 4px;
+  cursor: pointer;
+}
+.znxstudio-quickopen-item.is-selected,
+.znxstudio-quickopen-item:hover {
+  background: var(--z-accent);
+  color: var(--z-accent-fg);
+}
+.znxstudio-quickopen-name {
+  font-weight: 600;
+}
+.znxstudio-quickopen-dir {
+  font-size: 11px;
+  color: var(--z-fg-muted);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.znxstudio-quickopen-item.is-selected .znxstudio-quickopen-dir,
+.znxstudio-quickopen-item:hover .znxstudio-quickopen-dir {
+  color: var(--z-accent-fg);
+  opacity: 0.85;
+}
+
+/* Task comments / TODOs (Phase 7J) */
+.znxstudio-todo {
+  overflow-y: auto;
+}
+.znxstudio-todo-empty {
+  padding: 12px;
+  color: var(--z-fg-muted);
+  font-size: 12px;
+}
+.znxstudio-todo-toolbar {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 6px 12px;
+  border-bottom: 1px solid var(--z-border);
+}
+.znxstudio-todo-summary {
+  font-size: 11px;
+  color: var(--z-fg-muted);
+}
+.znxstudio-todo-group {
+  padding: 6px 12px 2px;
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--z-fg-muted);
+}
+.znxstudio-todo-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 3px 12px;
+  cursor: pointer;
+}
+.znxstudio-todo-badge {
+  flex: none;
+  font-size: 10px;
+  font-weight: 700;
+  padding: 1px 5px;
+  border-radius: 3px;
+  color: #fff;
+}
+.znxstudio-todo-badge--todo { background: #4c8dff; }
+.znxstudio-todo-badge--fixme { background: #e5484d; }
+.znxstudio-todo-badge--bug { background: #e5484d; }
+.znxstudio-todo-badge--hack { background: #d9a218; }
+.znxstudio-todo-badge--xxx { background: #d9a218; }
+.znxstudio-todo-badge--note { background: #6b7280; }
+.znxstudio-todo-msg {
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.znxstudio-todo-loc {
+  flex: none;
+  font-size: 11px;
+  color: var(--z-fg-muted);
+}
+
+/* Database Connections (Phase 8A) */
+.znxstudio-database {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+}
+.znxstudio-database-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 6px 10px;
+  border-bottom: 1px solid var(--z-border);
+}
+.znxstudio-database-title {
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--z-fg-muted);
+}
+.znxstudio-database-list {
+  overflow-y: auto;
+  padding: 6px;
+}
+.znxstudio-database-empty {
+  padding: 10px;
+  color: var(--z-fg-muted);
+  font-size: 12px;
+}
+.znxstudio-database-conn {
+  border: 1px solid var(--z-border);
+  border-radius: 5px;
+  padding: 6px 8px;
+  margin-bottom: 8px;
+  background: var(--z-bg-elevated);
+}
+.znxstudio-database-conn-head {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  cursor: pointer;
+}
+.znxstudio-database-name {
+  font-weight: 600;
+  flex: 1;
+}
+.znxstudio-database-provider {
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  color: var(--z-accent-fg);
+  background: var(--z-accent);
+  border-radius: 3px;
+  padding: 1px 5px;
+}
+.znxstudio-database-target {
+  margin-top: 3px;
+  font-size: 11px;
+  color: var(--z-fg-muted);
+}
+.znxstudio-database-target.is-file {
+  font-family: var(--z-mono, monospace);
+  color: var(--z-fg);
+}
+.znxstudio-database-meta {
+  margin-top: 2px;
+  font-size: 11px;
+  color: var(--z-fg-muted);
+}
+.znxstudio-database-table {
+  gap: 6px;
+  padding-left: 8px;
+  margin-top: 2px;
+  cursor: pointer;
+}
+.znxstudio-database-from {
+  color: var(--z-fg-muted);
+  font-size: 11px;
+}
+.znxstudio-database-table-wrap {
+  margin-top: 2px;
+}
+.znxstudio-database-caret {
+  width: 12px;
+  color: var(--z-fg-muted);
+  font-size: 10px;
+}
+.znxstudio-database-table-name {
+  flex: 1;
+}
+.znxstudio-database-columns {
+  padding-left: 22px;
+}
+.znxstudio-database-columns.is-collapsed {
+  display: none;
+}
+.znxstudio-database-column {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 4px;
+  padding: 1px 0;
+  font-size: 11px;
+}
+.znxstudio-database-col-name {
+  color: var(--z-fg);
+}
+.znxstudio-database-tag {
+  font-size: 9px;
+  padding: 0 4px;
+  border-radius: 3px;
+  border: 1px solid var(--z-border);
+  color: var(--z-fg-muted);
+}
+.znxstudio-database-tag--pk {
+  background: var(--z-accent);
+  color: var(--z-accent-fg);
+  border-color: var(--z-accent);
+}
+.znxstudio-database-tag--private {
+  color: #d9a218;
+  border-color: #d9a218;
+}
+
+/* Query Console (Phase 8C) */
+.znxstudio-query {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 8px 12px;
+  overflow-y: auto;
+}
+.znxstudio-query-row {
+  display: flex;
+  gap: 6px;
+}
+.znxstudio-query-select {
+  flex: 1;
+  background: var(--z-bg-elevated);
+  color: var(--z-fg);
+  border: 1px solid var(--z-border);
+  border-radius: 4px;
+  padding: 4px 6px;
+  font-size: 12px;
+}
+.znxstudio-query-input {
+  background: var(--z-bg-elevated);
+  color: var(--z-fg);
+  border: 1px solid var(--z-border);
+  border-radius: 4px;
+  padding: 6px 8px;
+  font-family: var(--z-mono, monospace);
+  font-size: 12px;
+  resize: vertical;
+}
+.znxstudio-query-diag {
+  font-size: 11px;
+  min-height: 14px;
+}
+.znxstudio-query-diag.is-ok {
+  color: #2fa84f;
+}
+.znxstudio-query-diag.is-error {
+  color: #e5484d;
+}
+.znxstudio-query-actions {
+  display: flex;
+  gap: 6px;
+}
+.znxstudio-query-result {
+  font-size: 12px;
+  padding: 6px 8px;
+  border-radius: 4px;
+  min-height: 16px;
+  background: var(--z-bg-elevated);
+  font-family: var(--z-mono, monospace);
+}
+.znxstudio-query-result.is-success {
+  color: #2fa84f;
+}
+.znxstudio-query-result.is-error {
+  color: #e5484d;
+}
+.znxstudio-query-result.is-info {
+  color: var(--z-fg-muted);
+}
+
+/* Migration Designer (Phase 8D) */
+.znxstudio-migrations {
+  overflow-y: auto;
+  padding-bottom: 8px;
+}
+.znxstudio-migrations-empty {
+  padding: 12px;
+  color: var(--z-fg-muted);
+  font-size: 12px;
+}
+.znxstudio-migrations-file {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 12px;
+  border-bottom: 1px solid var(--z-border);
+  background: var(--z-bg-elevated);
+}
+.znxstudio-migrations-file > span:first-child {
+  flex: 1;
+  font-size: 12px;
+  font-weight: 600;
+}
+.znxstudio-migrations-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 3px 12px;
+}
+.znxstudio-migrations-status {
+  flex: none;
+  font-size: 9px;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  padding: 1px 5px;
+  border-radius: 3px;
+  color: #fff;
+}
+.znxstudio-migrations-status--applied {
+  background: #2fa84f;
+}
+.znxstudio-migrations-status--pending {
+  background: #d9a218;
+}
+.znxstudio-migrations-name {
+  font-weight: 600;
+  cursor: pointer;
+}
+.znxstudio-migrations-ops {
+  flex: 1;
+  font-size: 11px;
+  color: var(--z-fg-muted);
+  font-family: var(--z-mono, monospace);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* Data Browser (Phase 8E) */
+.znxstudio-data {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 8px 12px;
+  overflow: auto;
+  height: 100%;
+}
+.znxstudio-data-row {
+  display: flex;
+  gap: 6px;
+}
+.znxstudio-data-status {
+  font-size: 11px;
+  color: var(--z-fg-muted);
+}
+.znxstudio-data-status.is-error {
+  color: #e5484d;
+}
+.znxstudio-data-grid {
+  overflow: auto;
+}
+.znxstudio-data-table {
+  border-collapse: collapse;
+  font-size: 12px;
+  width: 100%;
+}
+.znxstudio-data-table th,
+.znxstudio-data-table td {
+  border: 1px solid var(--z-border);
+  padding: 3px 8px;
+  text-align: left;
+  white-space: nowrap;
+}
+.znxstudio-data-table th {
+  background: var(--z-bg-elevated);
+  position: sticky;
+  top: 0;
+  font-weight: 600;
+}
+.znxstudio-data-table tr:nth-child(even) td {
+  background: var(--z-bg-elevated);
+}
+
+/* Query Profiler (Phase 8F) */
+.znxstudio-profiler-table {
+  margin-top: 4px;
+}
+.znxstudio-profiler-table td {
+  font-variant-numeric: tabular-nums;
+}
+
+/* ORM Explorer (Phase 8G) */
+.znxstudio-orm {
+  overflow-y: auto;
+  padding-bottom: 8px;
+}
+.znxstudio-orm-empty {
+  padding: 12px;
+  color: var(--z-fg-muted);
+  font-size: 12px;
+}
+.znxstudio-orm-heading {
+  padding: 6px 12px 2px;
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--z-fg-muted);
+}
+.znxstudio-orm-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 3px 12px;
+}
+.znxstudio-orm-name {
+  font-weight: 600;
+}
+.znxstudio-orm-from {
+  flex: 1;
+  font-size: 11px;
+  color: var(--z-fg-muted);
+}
+.znxstudio-orm-crud {
+  display: flex;
+  gap: 3px;
+}
+.znxstudio-orm-badge {
+  width: 16px;
+  height: 16px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 10px;
+  font-weight: 700;
+  border-radius: 3px;
+  border: 1px solid var(--z-border);
+  color: var(--z-fg-muted);
+}
+.znxstudio-orm-badge.is-on {
+  background: #2fa84f;
+  border-color: #2fa84f;
+  color: #fff;
+}
+.znxstudio-orm-ok {
+  padding: 6px 12px;
+  font-size: 12px;
+  color: #2fa84f;
+}
+.znxstudio-orm-diag {
+  padding: 3px 12px;
+  font-size: 12px;
+  cursor: pointer;
+}
+.znxstudio-orm-diag--error {
+  color: #e5484d;
+}
+.znxstudio-orm-diag--warning {
+  color: #d9a218;
+}
+.znxstudio-orm-diag:hover {
+  background: var(--z-bg-elevated);
+}
+
+/* Test Explorer (Phase 9A) */
+.znxstudio-tests {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+}
+.znxstudio-tests-toolbar {
+  display: flex;
+  gap: 6px;
+  padding: 6px 10px;
+  border-bottom: 1px solid var(--z-border);
+}
+.znxstudio-tests-tree {
+  overflow-y: auto;
+  padding: 4px 0;
+}
+.znxstudio-tests-empty {
+  padding: 12px;
+  color: var(--z-fg-muted);
+  font-size: 12px;
+}
+.znxstudio-tests-file-head {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 10px;
+  cursor: pointer;
+}
+.znxstudio-tests-file-head:hover {
+  background: var(--z-bg-elevated);
+}
+.znxstudio-tests-caret {
+  width: 12px;
+  color: var(--z-fg-muted);
+  font-size: 10px;
+}
+.znxstudio-tests-file-name {
+  flex: 1;
+  font-weight: 600;
+  font-size: 12px;
+}
+.znxstudio-tests-summary {
+  font-size: 11px;
+  color: var(--z-fg-muted);
+}
+.znxstudio-tests-kind {
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 0.03em;
+  padding: 0 4px;
+  border-radius: 3px;
+  border: 1px solid var(--z-border);
+  color: var(--z-fg-muted);
+}
+.znxstudio-tests-kind--integration {
+  background: #7c5cff;
+  border-color: #7c5cff;
+  color: #fff;
+}
+.znxstudio-tests-case {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 2px 10px 2px 26px;
+  cursor: pointer;
+  flex-wrap: wrap;
+}
+.znxstudio-tests-case:hover {
+  background: var(--z-bg-elevated);
+}
+.znxstudio-tests-icon {
+  width: 14px;
+  text-align: center;
+}
+.znxstudio-tests-case--passed .znxstudio-tests-icon {
+  color: #2fa84f;
+}
+.znxstudio-tests-case--failed .znxstudio-tests-icon {
+  color: #e5484d;
+}
+.znxstudio-tests-case-name {
+  flex: 1;
+  font-size: 12px;
+}
+.znxstudio-tests-meta {
+  font-size: 10px;
+  color: var(--z-fg-muted);
+  font-variant-numeric: tabular-nums;
+}
+.znxstudio-tests-failure {
+  flex-basis: 100%;
+  margin-left: 20px;
+  font-size: 11px;
+  color: #e5484d;
+  font-family: var(--z-mono, monospace);
+}
+
+/* Unit Runner options + results (Phase 9B) */
+.znxstudio-tests-options {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 10px;
+  border-bottom: 1px solid var(--z-border);
+}
+.znxstudio-tests-options .znxstudio-query-select {
+  flex: none;
+  padding: 2px 4px;
+  font-size: 11px;
+}
+.znxstudio-tests-options input.znxstudio-query-select {
+  flex: 1;
+}
+.znxstudio-tests-check {
+  font-size: 11px;
+  color: var(--z-fg-muted);
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  white-space: nowrap;
+}
+.znxstudio-testresults {
+  padding: 6px 12px;
+  overflow-y: auto;
+  font-size: 12px;
+}
+.znxstudio-testresults-empty {
+  color: var(--z-fg-muted);
+}
+.znxstudio-testresults-banner {
+  padding: 4px 8px;
+  border-radius: 4px;
+  margin-bottom: 6px;
+  font-weight: 600;
+}
+.znxstudio-testresults-banner.is-pass {
+  background: rgba(47, 168, 79, 0.15);
+  color: #2fa84f;
+}
+.znxstudio-testresults-banner.is-fail {
+  background: rgba(229, 72, 77, 0.15);
+  color: #e5484d;
+}
+.znxstudio-testresults-row {
+  display: flex;
+  justify-content: space-between;
+  padding: 2px 0;
+  border-bottom: 1px dotted var(--z-border);
+}
+.znxstudio-testresults-row .is-pass {
+  color: #2fa84f;
+}
+.znxstudio-testresults-row .is-fail {
+  color: #e5484d;
+}
+
+/* Coverage (Phase 9D) */
+.znxstudio-coverage {
+  padding: 8px 12px;
+  overflow-y: auto;
+}
+.znxstudio-coverage-toolbar {
+  margin-bottom: 8px;
+}
+.znxstudio-coverage-empty {
+  color: var(--z-fg-muted);
+  font-size: 12px;
+}
+.znxstudio-coverage-summary {
+  font-size: 12px;
+  font-weight: 600;
+  margin-bottom: 4px;
+}
+.znxstudio-coverage-bar {
+  height: 8px;
+  border-radius: 4px;
+  background: var(--z-bg-elevated);
+  overflow: hidden;
+  margin-bottom: 8px;
+}
+.znxstudio-coverage-fill {
+  height: 100%;
+  transition: width 0.2s;
+}
+.znxstudio-coverage-fill.is-high {
+  background: #2fa84f;
+}
+.znxstudio-coverage-fill.is-mid {
+  background: #d9a218;
+}
+.znxstudio-coverage-fill.is-low {
+  background: #e5484d;
+}
+.znxstudio-coverage-ok {
+  color: #2fa84f;
+  font-size: 12px;
+}
+.znxstudio-coverage-heading {
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--z-fg-muted);
+  margin: 4px 0;
+}
+.znxstudio-coverage-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 2px 0;
+  cursor: pointer;
+  font-size: 12px;
+}
+.znxstudio-coverage-row:hover {
+  background: var(--z-bg-elevated);
+}
+.znxstudio-coverage-dot {
+  color: #d9a218;
+}
+.znxstudio-coverage-name {
+  flex: 1;
+}
+.znxstudio-coverage-loc {
+  font-size: 11px;
+  color: var(--z-fg-muted);
+}
+
+/* Test Perf (Phase 9E) */
+.znxstudio-perf-summary {
+  font-size: 11px;
+  color: var(--z-fg-muted);
+  margin-bottom: 4px;
+}
+.znxstudio-perf-over td {
+  background: rgba(229, 72, 77, 0.12);
+}
+.znxstudio-perf-budget {
+  margin-top: 6px;
+  font-size: 12px;
+  color: #e5484d;
+}
+
+/* Mocking (Phase 9F) */
+.znxstudio-mocking {
+  padding: 6px;
+  overflow-y: auto;
+}
+.znxstudio-mocking-empty {
+  padding: 10px;
+  color: var(--z-fg-muted);
+  font-size: 12px;
+}
+.znxstudio-mocking-comp {
+  border: 1px solid var(--z-border);
+  border-radius: 5px;
+  padding: 6px 8px;
+  margin-bottom: 8px;
+  background: var(--z-bg-elevated);
+}
+.znxstudio-mocking-head {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.znxstudio-mocking-name {
+  font-weight: 600;
+  flex: 1;
+}
+.znxstudio-mocking-kind {
+  font-size: 10px;
+  text-transform: uppercase;
+  color: var(--z-fg-muted);
+}
+.znxstudio-mocking-uses {
+  margin-top: 2px;
+  font-size: 11px;
+  color: var(--z-fg-muted);
+}
+.znxstudio-mocking-fn {
+  margin-top: 2px;
+  padding-left: 8px;
+  font-size: 11px;
+  font-family: var(--z-mono, monospace);
+  color: var(--z-fg);
+}
+
+/* Continuous Testing (Phase 9G) */
+.znxstudio-continuous {
+  padding: 6px 12px;
+  overflow-y: auto;
+}
+.znxstudio-continuous-toolbar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+.znxstudio-continuous-state {
+  font-size: 11px;
+  color: var(--z-fg-muted);
+  flex: 1;
+}
+.znxstudio-continuous-streak {
+  font-size: 11px;
+  color: #d9a218;
+  font-weight: 600;
+}
+.znxstudio-continuous-empty {
+  color: var(--z-fg-muted);
+  font-size: 12px;
+}
+.znxstudio-continuous-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 2px 0;
+  font-size: 12px;
+  border-bottom: 1px dotted var(--z-border);
+}
+.znxstudio-continuous-badge {
+  width: 14px;
+  text-align: center;
+}
+.znxstudio-continuous-row.is-pass .znxstudio-continuous-badge {
+  color: #2fa84f;
+}
+.znxstudio-continuous-row.is-fail .znxstudio-continuous-badge {
+  color: #e5484d;
+}
+.znxstudio-continuous-file {
+  flex: 1;
+}
+.znxstudio-continuous-stats {
+  font-size: 11px;
+  color: var(--z-fg-muted);
+  font-variant-numeric: tabular-nums;
+}
+
+.znxstudio-diagnostic--error {
+  border-left-color: #e5484d;
+}
+
+.znxstudio-diagnostic--warning {
+  border-left-color: #f5a623;
+}
+
+.znxstudio-diagnostic--info {
+  border-left-color: var(--z-accent);
+}
+
+.znxstudio-diagnostic-message {
+  font-size: 13px;
+  color: var(--z-fg);
+}
+
+.znxstudio-diagnostic-hint {
+  font-size: 12px;
+  color: var(--z-fg-muted);
+  margin-top: 2px;
+}
+
+/* ---- AI Chat (Phase 10A) ---- */
+.znxstudio-chat {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  min-height: 0;
+}
+.znxstudio-chat-header {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 10px;
+  border-bottom: 1px solid var(--z-border);
+}
+.znxstudio-chat-provider {
+  font-size: 12px;
+  font-weight: 600;
+}
+.znxstudio-chat-log {
+  flex: 1;
+  overflow-y: auto;
+  padding: 8px 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.znxstudio-chat-hint {
+  font-size: 12px;
+  padding: 8px 2px;
+}
+.znxstudio-chat-msg {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  max-width: 100%;
+}
+.znxstudio-chat-role {
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.4px;
+  color: var(--z-fg-muted);
+}
+.znxstudio-chat-body {
+  white-space: pre-wrap;
+  word-break: break-word;
+  font-size: 12.5px;
+  line-height: 1.45;
+  padding: 6px 9px;
+  border-radius: 8px;
+  border: 1px solid var(--z-border);
+  background: var(--z-bg-elevated);
+}
+.znxstudio-chat-msg.is-user .znxstudio-chat-body {
+  background: var(--z-accent);
+  color: var(--z-accent-fg);
+  border-color: transparent;
+}
+.znxstudio-chat-msg.is-pending .znxstudio-chat-body {
+  opacity: 0.6;
+  font-style: italic;
+}
+.znxstudio-chat-msg.is-error .znxstudio-chat-body {
+  border-color: var(--z-danger, #e5534b);
+}
+.znxstudio-chat-copy {
+  align-self: flex-end;
+  margin-top: 2px;
+  font-size: 10px;
+  padding: 1px 8px;
+  color: var(--z-fg-muted);
+  background: transparent;
+  border: 1px solid var(--z-border);
+  border-radius: 4px;
+  cursor: pointer;
+  opacity: 0;
+  transition: opacity 0.12s ease;
+}
+.znxstudio-chat-msg:hover .znxstudio-chat-copy,
+.znxstudio-chat-copy:focus {
+  opacity: 1;
+}
+.znxstudio-chat-copy:hover {
+  color: var(--z-fg);
+}
+/* Send flips to a Stop control while a reply streams. */
+.znxstudio-btn.is-stop {
+  background: var(--z-danger, #e5534b);
+  border-color: var(--z-danger, #e5534b);
+  color: #fff;
+}
+.znxstudio-chat-composer {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 8px 10px;
+  border-top: 1px solid var(--z-border);
+}
+.znxstudio-chat-context {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 11px;
+  color: var(--z-fg-muted);
+}
+.znxstudio-chat-input {
+  resize: vertical;
+  width: 100%;
+  box-sizing: border-box;
+  background: var(--z-bg-input, var(--z-bg));
+  color: var(--z-fg);
+  border: 1px solid var(--z-border);
+  border-radius: 6px;
+  padding: 6px 8px;
+  font-family: inherit;
+  font-size: 12.5px;
+}
+.znxstudio-chat-empty {
+  padding: 16px 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  align-items: flex-start;
+}
+
+/* ---- AI Provider settings (Phase 10A) ---- */
+.znxstudio-ai-settings {
+  padding: 20px 24px;
+  overflow-y: auto;
+  height: 100%;
+  box-sizing: border-box;
+}
+.znxstudio-ai-settings-header h1 {
+  margin: 0 0 4px;
+  font-size: 18px;
+}
+.znxstudio-ai-settings-header p {
+  margin: 0 0 16px;
+  max-width: 640px;
+  font-size: 12.5px;
+}
+.znxstudio-ai-settings-body {
+  display: grid;
+  grid-template-columns: minmax(220px, 280px) 1fr;
+  gap: 24px;
+  align-items: start;
+}
+.znxstudio-ai-providers {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.znxstudio-ai-provider {
+  display: flex;
+  gap: 8px;
+  align-items: flex-start;
+  padding: 8px 10px;
+  border: 1px solid var(--z-border);
+  border-radius: 8px;
+  cursor: pointer;
+}
+.znxstudio-ai-provider.is-active {
+  border-color: var(--z-accent);
+  background: var(--z-bg-elevated);
+}
+.znxstudio-ai-provider-text {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+}
+.znxstudio-ai-provider-text small {
+  color: var(--z-fg-muted);
+  font-size: 11px;
+}
+.znxstudio-ai-detail {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  max-width: 520px;
+}
+.znxstudio-ai-field {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+.znxstudio-ai-field > label {
+  font-size: 12px;
+  font-weight: 600;
+}
+.znxstudio-ai-field small {
+  font-size: 11px;
+}
+.znxstudio-ai-input {
+  background: var(--z-bg-input, var(--z-bg));
+  color: var(--z-fg);
+  border: 1px solid var(--z-border);
+  border-radius: 6px;
+  padding: 5px 8px;
+  font-size: 12.5px;
+}
+.znxstudio-ai-off {
+  padding: 12px;
+  border: 1px dashed var(--z-border);
+  border-radius: 8px;
+  font-size: 12.5px;
+}
+.znxstudio-ai-foot {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.znxstudio-ai-link {
+  color: var(--z-accent);
+  font-size: 12px;
+}
+.znxstudio-ai-privacy {
+  font-size: 11px;
+  margin: 0;
+}
+.znxstudio-ai-actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-top: 4px;
+}
+.znxstudio-ai-probe-result {
+  font-size: 12px;
+  color: var(--z-fg-muted);
+}
+.znxstudio-ai-probe-result.is-ok {
+  color: var(--z-ok, #3fb950);
+}
+.znxstudio-ai-probe-result.is-error {
+  color: var(--z-danger, #e5534b);
+}
+.znxstudio-ai-probe-result.is-warn {
+  color: var(--z-warn, #d29922);
+}
+
+/* ---- AI Refactoring modal + diff (Phase 10C) ---- */
+.znxstudio-ai-modal {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.45);
+  display: flex;
+  align-items: flex-start;
+  justify-content: center;
+  padding-top: 8vh;
+  z-index: 60;
+}
+.znxstudio-ai-modal-box {
+  background: var(--z-bg-elevated);
+  border: 1px solid var(--z-border);
+  border-radius: 10px;
+  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.4);
+  width: min(560px, 92vw);
+  max-height: 80vh;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+.znxstudio-ai-modal-box.is-wide {
+  width: min(820px, 94vw);
+}
+.znxstudio-ai-modal-title {
+  padding: 10px 14px;
+  font-weight: 600;
+  border-bottom: 1px solid var(--z-border);
+}
+.znxstudio-ai-actions-list {
+  list-style: none;
+  margin: 0;
+  padding: 6px;
+  overflow-y: auto;
+}
+.znxstudio-ai-action {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  padding: 8px 10px;
+  border-radius: 6px;
+  cursor: pointer;
+}
+.znxstudio-ai-action:hover,
+.znxstudio-ai-action:focus {
+  background: var(--z-hover);
+  outline: none;
+}
+.znxstudio-ai-action span {
+  font-size: 11.5px;
+  color: var(--z-fg-muted);
+}
+.znxstudio-ai-diff-status {
+  padding: 18px 14px;
+  color: var(--z-fg-muted);
+  font-size: 12.5px;
+}
+.znxstudio-ai-diff-meta {
+  padding: 6px 14px;
+  font-size: 12px;
+  color: var(--z-fg-muted);
+  border-bottom: 1px solid var(--z-border);
+}
+.znxstudio-ai-diff-add {
+  color: var(--z-ok, #3fb950);
+  font-weight: 600;
+}
+.znxstudio-ai-diff-del {
+  color: var(--z-danger, #e5534b);
+  font-weight: 600;
+}
+.znxstudio-ai-diff {
+  overflow: auto;
+  flex: 1;
+  font-family: var(--z-mono, monospace);
+  font-size: 12px;
+  line-height: 1.5;
+  padding: 6px 0;
+}
+.znxstudio-ai-diff-line {
+  display: flex;
+  white-space: pre;
+  padding: 0 10px;
+}
+.znxstudio-ai-diff-line.is-add {
+  background: rgba(63, 185, 80, 0.14);
+}
+.znxstudio-ai-diff-line.is-del {
+  background: rgba(229, 83, 75, 0.14);
+}
+.znxstudio-ai-diff-gutter {
+  width: 14px;
+  flex: none;
+  color: var(--z-fg-muted);
+  user-select: none;
+}
+.znxstudio-ai-diff-text {
+  flex: 1;
+}
+.znxstudio-ai-diff-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  padding: 10px 14px;
+  border-top: 1px solid var(--z-border);
+}
+
+/* ---- AI Review panel (Phase 10D) ---- */
+.znxstudio-review {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  overflow-y: auto;
+}
+.znxstudio-review-toolbar {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 10px;
+  border-bottom: 1px solid var(--z-border);
+}
+.znxstudio-review-provider {
+  margin-left: auto;
+  font-size: 11px;
+  color: var(--z-fg-muted);
+}
+.znxstudio-review-summary {
+  padding: 6px 12px;
+  font-size: 11.5px;
+  color: var(--z-fg-muted);
+  border-bottom: 1px solid var(--z-border);
+}
+.znxstudio-review-empty {
+  padding: 14px 12px;
+  font-size: 12px;
+  color: var(--z-fg-muted);
+}
+.znxstudio-review-row {
+  display: flex;
+  gap: 8px;
+  align-items: flex-start;
+  padding: 7px 12px;
+  border-bottom: 1px solid var(--z-border);
+  cursor: pointer;
+}
+.znxstudio-review-row:hover {
+  background: var(--z-hover);
+}
+.znxstudio-review-icon {
+  flex: none;
+}
+.znxstudio-review-line {
+  flex: none;
+  font-family: var(--z-mono, monospace);
+  font-size: 11px;
+  color: var(--z-fg-muted);
+  min-width: 34px;
+}
+.znxstudio-review-body {
+  min-width: 0;
+}
+.znxstudio-review-title {
+  font-size: 12.5px;
+  font-weight: 600;
+}
+.znxstudio-review-detail {
+  font-size: 11.5px;
+  color: var(--z-fg-muted);
+  margin-top: 1px;
+}
+.znxstudio-review-row.is-error .znxstudio-review-line {
+  color: var(--z-danger, #e5534b);
+}
+.znxstudio-review-row.is-warning .znxstudio-review-line {
+  color: var(--z-warn, #d29922);
+}
+
+/* ---- AI Docs panel (Phase 10E) ---- */
+.znxstudio-docs {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  min-height: 0;
+}
+.znxstudio-docs-toolbar {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 10px;
+  border-bottom: 1px solid var(--z-border);
+}
+.znxstudio-docs-provider {
+  margin-left: auto;
+  font-size: 11px;
+  color: var(--z-fg-muted);
+}
+.znxstudio-docs-body {
+  flex: 1;
+  overflow: auto;
+  padding: 10px 12px;
+}
+.znxstudio-docs-body.is-muted {
+  color: var(--z-fg-muted);
+  font-size: 12px;
+}
+.znxstudio-docs-markdown {
+  margin: 0;
+  white-space: pre-wrap;
+  word-break: break-word;
+  font-family: var(--z-mono, monospace);
+  font-size: 12px;
+  line-height: 1.5;
+}
+
+/* ---- AI Test Generation panel (Phase 10F) ---- */
+.znxstudio-testgen {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  min-height: 0;
+}
+.znxstudio-testgen-toolbar {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 10px;
+  border-bottom: 1px solid var(--z-border);
+}
+.znxstudio-testgen-count {
+  font-size: 11px;
+  color: var(--z-fg-muted);
+}
+.znxstudio-testgen-provider {
+  margin-left: auto;
+  font-size: 11px;
+  color: var(--z-fg-muted);
+}
+.znxstudio-testgen-result {
+  padding: 6px 12px;
+  font-size: 12px;
+  border-bottom: 1px solid var(--z-border);
+}
+.znxstudio-testgen-result.is-pass {
+  color: var(--z-ok, #3fb950);
+}
+.znxstudio-testgen-result.is-fail {
+  color: var(--z-danger, #e5534b);
+}
+.znxstudio-testgen-fail {
+  color: var(--z-fg);
+  font-size: 11.5px;
+  margin-top: 2px;
+}
+.znxstudio-testgen-body {
+  flex: 1;
+  overflow: auto;
+  padding: 10px 12px;
+}
+.znxstudio-testgen-body.is-muted {
+  color: var(--z-fg-muted);
+  font-size: 12px;
+}
+.znxstudio-testgen-code {
+  margin: 0;
+  white-space: pre;
+  font-family: var(--z-mono, monospace);
+  font-size: 12px;
+  line-height: 1.5;
+}
+
+/* ---- AI Debug Assistant panel (Phase 10G) ---- */
+.znxstudio-debugai {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  min-height: 0;
+}
+.znxstudio-debugai-toolbar {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 10px;
+  border-bottom: 1px solid var(--z-border);
+}
+.znxstudio-debugai-provider {
+  margin-left: auto;
+  font-size: 11px;
+  color: var(--z-fg-muted);
+}
+.znxstudio-debugai-error {
+  padding: 6px 12px;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--z-danger, #e5534b);
+  border-bottom: 1px solid var(--z-border);
+}
+.znxstudio-debugai-error.is-output {
+  color: var(--z-fg);
+}
+.znxstudio-debugai-snippet {
+  margin: 0;
+  padding: 8px 12px;
+  white-space: pre;
+  overflow-x: auto;
+  font-family: var(--z-mono, monospace);
+  font-size: 11.5px;
+  line-height: 1.5;
+  background: var(--z-bg-elevated);
+  border-bottom: 1px solid var(--z-border);
+}
+.znxstudio-debugai-body {
+  flex: 1;
+  overflow: auto;
+  padding: 10px 12px;
+}
+.znxstudio-debugai-body.is-muted {
+  color: var(--z-fg-muted);
+  font-size: 12px;
+}
+.znxstudio-debugai-explanation {
+  margin: 0;
+  white-space: pre-wrap;
+  word-break: break-word;
+  font-size: 12.5px;
+  line-height: 1.5;
+}
+
+/* ---- AI Architecture panel (Phase 10H) ---- */
+.znxstudio-arch {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  min-height: 0;
+}
+.znxstudio-arch-toolbar {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 10px;
+  border-bottom: 1px solid var(--z-border);
+}
+.znxstudio-arch-provider {
+  margin-left: auto;
+  font-size: 11px;
+  color: var(--z-fg-muted);
+}
+.znxstudio-arch-stats {
+  padding: 6px 12px;
+  font-size: 11.5px;
+  color: var(--z-fg-muted);
+  border-bottom: 1px solid var(--z-border);
+}
+.znxstudio-arch-body {
+  flex: 1;
+  overflow: auto;
+  padding: 10px 12px;
+}
+.znxstudio-arch-body.is-muted {
+  color: var(--z-fg-muted);
+  font-size: 12px;
+}
+.znxstudio-arch-analysis {
+  margin: 0;
+  white-space: pre-wrap;
+  word-break: break-word;
+  font-size: 12.5px;
+  line-height: 1.55;
+}
+
+/* ---- Extensions Manager (Phase 11E) ---- */
+.znxstudio-extmgr {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  overflow-y: auto;
+  padding: 8px;
+  gap: 6px;
+}
+.znxstudio-extmgr-search {
+  background: var(--z-bg-input, var(--z-bg));
+  color: var(--z-fg);
+  border: 1px solid var(--z-border);
+  border-radius: 6px;
+  padding: 5px 8px;
+  font-size: 12.5px;
+}
+.znxstudio-extmgr-section {
+  font-size: 10.5px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: var(--z-fg-muted);
+  margin-top: 6px;
+  padding: 2px 2px;
+}
+.znxstudio-extmgr-empty {
+  font-size: 11.5px;
+  color: var(--z-fg-muted);
+  padding: 2px 2px 6px;
+}
+.znxstudio-extmgr-row {
+  border: 1px solid var(--z-border);
+  border-radius: 8px;
+  padding: 8px 9px;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+.znxstudio-extmgr-head {
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
+}
+.znxstudio-extmgr-name {
+  font-weight: 600;
+  font-size: 12.5px;
+}
+.znxstudio-extmgr-version {
+  font-size: 10.5px;
+  color: var(--z-fg-muted);
+}
+.znxstudio-extmgr-badge {
+  margin-left: auto;
+  font-size: 10px;
+  padding: 1px 6px;
+  border-radius: 10px;
+  border: 1px solid var(--z-border);
+}
+.znxstudio-extmgr-badge.is-active {
+  color: var(--z-ok, #3fb950);
+  border-color: currentColor;
+}
+.znxstudio-extmgr-badge.is-failed {
+  color: var(--z-danger, #e5534b);
+  border-color: currentColor;
+}
+.znxstudio-extmgr-badge.is-incompatible {
+  color: var(--z-warn, #d29922);
+  border-color: currentColor;
+}
+.znxstudio-extmgr-desc {
+  font-size: 11.5px;
+}
+.znxstudio-extmgr-meta {
+  font-size: 11px;
+  color: var(--z-fg-muted);
+}
+.znxstudio-extmgr-error {
+  font-size: 11px;
+  color: var(--z-danger, #e5534b);
+}
+.znxstudio-extmgr-actions {
+  display: flex;
+  gap: 6px;
+  margin-top: 4px;
+}
+.znxstudio-extmgr-logs {
+  font-size: 11px;
+}
+.znxstudio-extmgr-logs summary {
+  cursor: pointer;
+  color: var(--z-fg-muted);
+}
+.znxstudio-extmgr-logs pre {
+  margin: 4px 0 0;
+  white-space: pre-wrap;
+  font-family: var(--z-mono, monospace);
+  font-size: 10.5px;
+  color: var(--z-fg-muted);
+  max-height: 120px;
+  overflow: auto;
+}
+
+/* ---- Source Control (Phase 12) ---- */
+.znxstudio-scm {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  overflow-y: auto;
+  padding: 8px;
+  gap: 6px;
+}
+.znxstudio-scm-empty {
+  color: var(--z-fg-muted);
+  font-size: 12px;
+  padding: 6px 2px;
+}
+.znxstudio-scm-header {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.znxstudio-scm-branch {
+  font-weight: 600;
+  font-size: 12.5px;
+  flex: 1;
+}
+.znxstudio-scm-message {
+  background: var(--z-bg-input, var(--z-bg));
+  color: var(--z-fg);
+  border: 1px solid var(--z-border);
+  border-radius: 6px;
+  padding: 5px 8px;
+  font-family: inherit;
+  font-size: 12.5px;
+  resize: vertical;
+}
+.znxstudio-scm-group {
+  font-size: 10.5px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: var(--z-fg-muted);
+  margin-top: 6px;
+}
+.znxstudio-scm-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 2px 2px;
+  border-radius: 4px;
+}
+.znxstudio-scm-row:hover {
+  background: var(--z-hover);
+}
+.znxstudio-scm-letter {
+  width: 14px;
+  text-align: center;
+  font-family: var(--z-mono, monospace);
+  font-size: 11px;
+  color: var(--z-fg-muted);
+}
+.znxstudio-scm-row.is-modified .znxstudio-scm-letter {
+  color: var(--z-warn, #d29922);
+}
+.znxstudio-scm-row.is-untracked .znxstudio-scm-letter,
+.znxstudio-scm-row.is-added .znxstudio-scm-letter {
+  color: var(--z-ok, #3fb950);
+}
+.znxstudio-scm-row.is-deleted .znxstudio-scm-letter,
+.znxstudio-scm-row.is-conflicted .znxstudio-scm-letter {
+  color: var(--z-danger, #e5534b);
+}
+.znxstudio-scm-file {
+  flex: 1;
+  font-size: 12.5px;
+  cursor: pointer;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.znxstudio-scm-pr {
+  align-self: flex-start;
+}
+.znxstudio-scm-branch {
+  cursor: pointer;
+  text-align: left;
+  background: none;
+  border: none;
+  color: inherit;
+}
+.znxstudio-scm-picker {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.35);
+  display: flex;
+  align-items: flex-start;
+  justify-content: center;
+  padding-top: 12vh;
+  z-index: 60;
+}
+.znxstudio-scm-picker-box {
+  background: var(--z-bg-elevated);
+  border: 1px solid var(--z-border);
+  border-radius: 8px;
+  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.4);
+  width: min(420px, 90vw);
+  max-height: 70vh;
+  overflow-y: auto;
+  padding: 6px;
+}
+.znxstudio-scm-picker-title {
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: var(--z-fg-muted);
+  padding: 6px 8px;
+}
+.znxstudio-scm-picker-item {
+  display: block;
+  width: 100%;
+  text-align: left;
+  background: none;
+  border: none;
+  color: var(--z-fg);
+  font-family: var(--z-mono, monospace);
+  font-size: 12.5px;
+  padding: 6px 8px;
+  border-radius: 5px;
+  cursor: pointer;
+}
+.znxstudio-scm-picker-item:hover {
+  background: var(--z-hover);
+}
+.znxstudio-scm-picker-item.is-current {
+  color: var(--z-accent);
+  cursor: default;
+}
+.znxstudio-scm-picker-item.is-create {
+  color: var(--z-accent);
+  border-bottom: 1px solid var(--z-border);
+  border-radius: 0;
+  margin-bottom: 4px;
+}
+
+/* ---- Pull Requests (Phase 12C) ---- */
+.znxstudio-prs {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  min-height: 0;
+}
+.znxstudio-prs-toolbar {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 10px;
+  border-bottom: 1px solid var(--z-border);
+}
+.znxstudio-prs-info {
+  margin-left: auto;
+  font-size: 11px;
+  color: var(--z-fg-muted);
+}
+.znxstudio-prs-body {
+  flex: 1;
+  overflow: auto;
+  padding: 4px 0;
+}
+.znxstudio-prs-body.is-muted {
+  color: var(--z-fg-muted);
+  font-size: 12px;
+  padding: 10px 12px;
+}
+.znxstudio-prs-row {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  padding: 5px 12px;
+  cursor: pointer;
+  border-bottom: 1px solid var(--z-border);
+}
+.znxstudio-prs-row:hover {
+  background: var(--z-hover);
+}
+.znxstudio-prs-num {
+  font-family: var(--z-mono, monospace);
+  font-size: 11px;
+  color: var(--z-fg-muted);
+}
+.znxstudio-prs-title {
+  flex: 1;
+  font-size: 12.5px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.znxstudio-prs-meta {
+  font-size: 10.5px;
+  color: var(--z-fg-muted);
+}
+
+/* ---- Repo Explorer / History (Phase 12F) ---- */
+.znxstudio-history {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  min-height: 0;
+}
+.znxstudio-history-toolbar {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 10px;
+  border-bottom: 1px solid var(--z-border);
+}
+.znxstudio-history-info {
+  margin-left: auto;
+  font-size: 11px;
+  color: var(--z-fg-muted);
+}
+.znxstudio-history-empty {
+  padding: 10px 12px;
+  font-size: 12px;
+  color: var(--z-fg-muted);
+}
+.znxstudio-history-row {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  padding: 5px 12px;
+  cursor: pointer;
+  border-bottom: 1px solid var(--z-border);
+}
+.znxstudio-history-row:hover {
+  background: var(--z-hover);
+}
+.znxstudio-history-hash {
+  font-family: var(--z-mono, monospace);
+  font-size: 11px;
+  color: var(--z-accent);
+}
+.znxstudio-history-subject {
+  flex: 1;
+  font-size: 12.5px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.znxstudio-history-meta {
+  font-size: 10.5px;
+  color: var(--z-fg-muted);
+}
+.znxstudio-history-detail {
+  padding: 4px 12px 8px 24px;
+  background: var(--z-bg-elevated);
+  border-bottom: 1px solid var(--z-border);
+}
+.znxstudio-history-summary {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 11px;
+  color: var(--z-fg-muted);
+  padding: 3px 0;
+}
+.znxstudio-history-file {
+  display: flex;
+  gap: 8px;
+  font-size: 11.5px;
+  font-family: var(--z-mono, monospace);
+  padding: 1px 0;
+}
+.znxstudio-history-counts {
+  min-width: 70px;
+  color: var(--z-fg-muted);
+}
+
+/* ---- Deployment hub (Phase 13) ---- */
+.znxstudio-deploy {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  overflow-y: auto;
+  padding: 8px;
+  gap: 6px;
+}
+.znxstudio-deploy-header {
+  font-weight: 600;
+  font-size: 13px;
+}
+.znxstudio-deploy-active {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+}
+.znxstudio-deploy-active .znxstudio-select {
+  flex: 1;
+  max-width: none;
+}
+.znxstudio-deploy-card {
+  border: 1px solid var(--z-border);
+  border-radius: 8px;
+  padding: 7px 9px;
+}
+.znxstudio-deploy-card.is-active {
+  border-color: var(--z-accent);
+}
+.znxstudio-deploy-card-title {
+  display: flex;
+  align-items: center;
+  font-weight: 600;
+  font-size: 12.5px;
+}
+.znxstudio-deploy-card-title button {
+  margin-left: auto;
+}
+.znxstudio-deploy-card-meta {
+  font-size: 11px;
+  color: var(--z-fg-muted);
+}
+.znxstudio-deploy-group {
+  font-size: 10.5px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: var(--z-fg-muted);
+  margin-top: 8px;
+}
+.znxstudio-deploy-action {
+  text-align: left;
+}
+
+/* ---- Deploy artifact preview modal (Phase 13) ---- */
+.znxstudio-deploy-modal {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.45);
+  display: flex;
+  align-items: flex-start;
+  justify-content: center;
+  padding-top: 8vh;
+  z-index: 60;
+}
+.znxstudio-deploy-modal-box {
+  background: var(--z-bg-elevated);
+  border: 1px solid var(--z-border);
+  border-radius: 10px;
+  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.4);
+  width: min(760px, 94vw);
+  max-height: 80vh;
+  display: flex;
+  flex-direction: column;
+}
+.znxstudio-deploy-modal-head {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  padding: 10px 14px;
+  border-bottom: 1px solid var(--z-border);
+}
+.znxstudio-deploy-modal-title {
+  font-weight: 600;
+}
+.znxstudio-deploy-modal-file {
+  font-family: var(--z-mono, monospace);
+  font-size: 11px;
+  color: var(--z-fg-muted);
+}
+.znxstudio-deploy-modal-content {
+  flex: 1;
+  overflow: auto;
+  margin: 0;
+  padding: 12px 14px;
+  font-family: var(--z-mono, monospace);
+  font-size: 12px;
+  line-height: 1.5;
+  white-space: pre;
+}
+.znxstudio-deploy-modal-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  padding: 10px 14px;
+  border-top: 1px solid var(--z-border);
+}
+
+/* ---- Remote environments (Phase 13F) ---- */
+.znxstudio-remote {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  min-height: 0;
+}
+.znxstudio-remote-toolbar {
+  display: flex;
+  gap: 6px;
+  padding: 6px 10px;
+  border-bottom: 1px solid var(--z-border);
+}
+.znxstudio-remote-section {
+  font-size: 10.5px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: var(--z-fg-muted);
+  padding: 6px 12px 2px;
+}
+.znxstudio-remote-empty {
+  padding: 8px 12px;
+  font-size: 12px;
+  color: var(--z-fg-muted);
+}
+.znxstudio-remote-host {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 5px 12px;
+  border-bottom: 1px solid var(--z-border);
+}
+.znxstudio-remote-name {
+  font-weight: 600;
+  font-size: 12.5px;
+}
+.znxstudio-remote-detail {
+  flex: 1;
+  font-family: var(--z-mono, monospace);
+  font-size: 11px;
+  color: var(--z-fg-muted);
+}
+
+/* ---- Performance profiler hub (Phase 14) ---- */
+.znxstudio-perf {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  overflow-y: auto;
+  padding: 8px;
+  gap: 6px;
+}
+.znxstudio-perf-header {
+  font-weight: 600;
+  font-size: 13px;
+}
+.znxstudio-perf-engine {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+}
+.znxstudio-perf-engine .znxstudio-select {
+  flex: 1;
+  max-width: none;
+}
+.znxstudio-perf-action {
+  text-align: left;
+}
+.znxstudio-perf-summary {
+  font-size: 11.5px;
+  color: var(--z-fg-muted);
+  margin-top: 6px;
+}
+.znxstudio-perf-notes {
+  font-size: 11px;
+  color: var(--z-warn, #d29922);
+}
+
+/* ---- CPU profiler view (Phase 14A) ---- */
+.znxstudio-cpu {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  overflow: auto;
+}
+.znxstudio-cpu-toolbar {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 10px;
+  border-bottom: 1px solid var(--z-border);
+  position: sticky;
+  top: 0;
+  background: var(--z-bg);
+}
+.znxstudio-cpu-toolbar .is-active {
+  border-color: var(--z-accent);
+  color: var(--z-accent);
+}
+.znxstudio-cpu-empty,
+.znxstudio-cpu-summary {
+  padding: 8px 12px;
+  font-size: 11.5px;
+  color: var(--z-fg-muted);
+}
+.znxstudio-cpu-row {
+  position: relative;
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  padding: 4px 12px;
+  border-bottom: 1px solid var(--z-border);
+}
+.znxstudio-cpu-bar {
+  position: absolute;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  background: color-mix(in srgb, var(--z-accent) 18%, transparent);
+  pointer-events: none;
+}
+.znxstudio-cpu-name {
+  font-family: var(--z-mono, monospace);
+  font-size: 12px;
+  z-index: 1;
+}
+.znxstudio-cpu-pct {
+  font-size: 12px;
+  font-weight: 600;
+  min-width: 62px;
+  text-align: right;
+  z-index: 1;
+}
+.znxstudio-cpu-meta {
+  flex: 1;
+  font-size: 11px;
+  color: var(--z-fg-muted);
+  text-align: right;
+  z-index: 1;
+}
+.znxstudio-cpu-line {
+  padding: 2px 12px;
+  font-family: var(--z-mono, monospace);
+  font-size: 11px;
+  color: var(--z-fg-muted);
+}
+.znxstudio-cpu-treerow {
+  display: flex;
+  gap: 10px;
+  padding: 2px 12px 2px 0;
+  font-size: 12px;
+}
+.znxstudio-cpu-flame {
+  position: relative;
+  margin: 8px 12px;
+}
+.znxstudio-cpu-frame {
+  position: absolute;
+  height: 18px;
+  line-height: 18px;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  font-size: 10.5px;
+  padding: 0 4px;
+  box-sizing: border-box;
+  border: 1px solid var(--z-bg);
+  border-radius: 2px;
+  background: linear-gradient(180deg, #e8a33d, #d97706);
+  color: #1b1b1b;
+  cursor: default;
+}
+
+/* ---- Memory profiler (Phase 14B) ---- */
+.znxstudio-mem,
+.znxstudio-hot,
+.znxstudio-alloc {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  overflow: auto;
+}
+.znxstudio-mem-toolbar {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 10px;
+  border-bottom: 1px solid var(--z-border);
+}
+.znxstudio-mem-info {
+  margin-left: auto;
+  font-size: 11px;
+  color: var(--z-fg-muted);
+}
+.znxstudio-mem-section,
+.znxstudio-hot-section,
+.znxstudio-alloc-section {
+  padding: 8px 12px 3px;
+  font-size: 10.5px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: var(--z-fg-muted);
+}
+.znxstudio-mem-empty,
+.znxstudio-hot-empty,
+.znxstudio-alloc-empty,
+.znxstudio-tl-empty {
+  padding: 10px 12px;
+  font-size: 12px;
+  color: var(--z-fg-muted);
+}
+.znxstudio-mem-row {
+  display: flex;
+  gap: 8px;
+  padding: 2px 12px;
+  font-size: 12px;
+}
+.znxstudio-mem-name {
+  flex: 1;
+  font-family: var(--z-mono, monospace);
+}
+.znxstudio-mem-value {
+  font-variant-numeric: tabular-nums;
+}
+.znxstudio-mem-row.is-grow .znxstudio-mem-value {
+  color: var(--z-warn, #d29922);
+}
+.znxstudio-mem-row.is-shrink .znxstudio-mem-value {
+  color: var(--z-ok, #3fb950);
+}
+.znxstudio-mem-row.is-leak {
+  background: color-mix(in srgb, var(--z-danger, #e5534b) 12%, transparent);
+}
+.znxstudio-mem-row.is-leak .znxstudio-mem-value {
+  color: var(--z-danger, #e5534b);
+  font-weight: 600;
+}
+
+/* ---- Performance timeline (Phase 14C) ---- */
+.znxstudio-tl {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  overflow: auto;
+}
+.znxstudio-tl-summary,
+.znxstudio-tl-cats {
+  padding: 6px 12px;
+  font-size: 11.5px;
+  color: var(--z-fg-muted);
+}
+.znxstudio-tl-chart {
+  position: relative;
+  margin: 4px 12px 12px;
+  border-left: 1px solid var(--z-border);
+}
+.znxstudio-tl-span {
+  position: absolute;
+  height: 18px;
+  line-height: 18px;
+  font-size: 10.5px;
+  padding: 0 4px;
+  box-sizing: border-box;
+  border-radius: 3px;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  color: #10151b;
+  background: #6ea8fe;
+}
+.znxstudio-tl-span.is-query {
+  background: #7ee787;
+}
+.znxstudio-tl-span.is-request {
+  background: #d2a8ff;
+}
+.znxstudio-tl-span.is-job,
+.znxstudio-tl-span.is-task {
+  background: #ffa657;
+}
+.znxstudio-tl-span.is-unclosed {
+  border: 1px dashed var(--z-danger, #e5534b);
+}
+.znxstudio-tl-marker {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  width: 2px;
+  background: var(--z-danger, #e5534b);
+}
+
+/* ---- Hotspots (Phase 14D) ---- */
+.znxstudio-hot-rec {
+  padding: 6px 12px;
+  border-left: 3px solid var(--z-accent);
+  margin: 2px 12px;
+  background: var(--z-bg-elevated);
+  border-radius: 0 6px 6px 0;
+}
+.znxstudio-hot-rec-title {
+  font-size: 12.5px;
+  font-weight: 600;
+}
+.znxstudio-hot-rec-detail {
+  font-size: 11.5px;
+  color: var(--z-fg-muted);
+}
+.znxstudio-hot-row {
+  display: flex;
+  gap: 8px;
+  padding: 3px 12px;
+  font-size: 12px;
+}
+.znxstudio-hot-rank {
+  width: 20px;
+  color: var(--z-fg-muted);
+}
+.znxstudio-hot-name {
+  flex: 1;
+  font-family: var(--z-mono, monospace);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.znxstudio-hot-value {
+  font-variant-numeric: tabular-nums;
+  color: var(--z-fg-muted);
+}
+
+/* ---- Allocations (Phase 14E) ---- */
+.znxstudio-alloc-row {
+  position: relative;
+  display: flex;
+  gap: 8px;
+  padding: 3px 12px;
+  font-size: 12px;
+}
+.znxstudio-alloc-bar {
+  position: absolute;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  background: color-mix(in srgb, var(--z-ok, #3fb950) 16%, transparent);
+  pointer-events: none;
+}
+.znxstudio-alloc-name {
+  flex: 1;
+  font-family: var(--z-mono, monospace);
+  z-index: 1;
+}
+.znxstudio-alloc-value {
+  font-variant-numeric: tabular-nums;
+  color: var(--z-fg-muted);
+  z-index: 1;
+}
+
+
+/* ---------------------------------------------------------------- Phase 15: Security */
+.znxstudio-security {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 10px;
+  overflow: auto;
+}
+.znxstudio-security-header {
+  font-weight: 600;
+  font-size: 12px;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  opacity: 0.8;
+}
+.znxstudio-security-action {
+  text-align: left;
+}
+.znxstudio-security-summary {
+  font-size: 12px;
+  opacity: 0.85;
+  line-height: 1.5;
+}
+.znxstudio-security-note {
+  font-size: 12px;
+  padding: 6px 8px;
+  border-left: 3px solid var(--znxstudio-warning, #d19a66);
+  background: rgba(209, 154, 102, 0.1);
+}
+.znxstudio-security-verdict {
+  font-size: 12px;
+  font-family: var(--znxstudio-font-mono, monospace);
+  padding: 6px 8px;
+  border-radius: 3px;
+}
+.znxstudio-security-verdict.is-blocking {
+  color: var(--znxstudio-error, #e06c75);
+  background: rgba(224, 108, 117, 0.12);
+}
+.znxstudio-security-verdict.is-clean {
+  color: var(--znxstudio-success, #98c379);
+  background: rgba(152, 195, 121, 0.12);
+}
+
+.znxstudio-secrets {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 10px;
+  overflow: auto;
+}
+.znxstudio-secrets-summary {
+  font-size: 12px;
+  opacity: 0.85;
+}
+.znxstudio-secrets-alert {
+  font-size: 12px;
+  padding: 6px 8px;
+  border-left: 3px solid var(--znxstudio-error, #e06c75);
+  background: rgba(224, 108, 117, 0.12);
+}
+.znxstudio-secrets-row {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 8px;
+  border: 1px solid var(--znxstudio-border, #333);
+  border-radius: 4px;
+}
+.znxstudio-secrets-title {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+}
+.znxstudio-secrets-code {
+  font-family: var(--znxstudio-font-mono, monospace);
+  opacity: 0.7;
+}
+.znxstudio-secrets-location {
+  align-self: flex-start;
+  background: none;
+  border: none;
+  padding: 0;
+  cursor: pointer;
+  font-family: var(--znxstudio-font-mono, monospace);
+  font-size: 11px;
+  color: var(--znxstudio-link, #61afef);
+}
+.znxstudio-secrets-why,
+.znxstudio-secrets-fix {
+  font-size: 11px;
+  line-height: 1.5;
+  opacity: 0.8;
+}
+.znxstudio-secrets-fix::before {
+  content: 'fix: ';
+  opacity: 0.6;
+}
+.znxstudio-secrets-revoke {
+  font-size: 11px;
+  color: var(--znxstudio-error, #e06c75);
+}
+.znxstudio-secrets-actions {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.znxstudio-secrets-docs {
+  font-size: 11px;
+  color: var(--znxstudio-link, #61afef);
+}
+.znxstudio-severity {
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  padding: 1px 5px;
+  border-radius: 3px;
+  font-weight: 600;
+}
+.znxstudio-severity-critical {
+  background: rgba(224, 108, 117, 0.25);
+  color: var(--znxstudio-error, #e06c75);
+}
+.znxstudio-severity-error {
+  background: rgba(224, 108, 117, 0.15);
+  color: var(--znxstudio-error, #e06c75);
+}
+.znxstudio-severity-warning {
+  background: rgba(209, 154, 102, 0.18);
+  color: var(--znxstudio-warning, #d19a66);
+}
+.znxstudio-severity-info {
+  background: rgba(97, 175, 239, 0.15);
+  color: var(--znxstudio-link, #61afef);
+}
+
+.znxstudio-scanner {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 10px;
+  overflow: auto;
+}
+.znxstudio-scanner-summary {
+  font-size: 12px;
+  opacity: 0.85;
+}
+.znxstudio-scanner-filters {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+.znxstudio-scanner-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  cursor: pointer;
+}
+.znxstudio-scanner-unanalyzed {
+  font-size: 11px;
+  padding: 5px 8px;
+  border-left: 3px solid var(--znxstudio-warning, #d19a66);
+  background: rgba(209, 154, 102, 0.1);
+}
+.znxstudio-scanner-empty {
+  font-size: 12px;
+  opacity: 0.6;
+  padding: 8px 0;
+}
+.znxstudio-scanner-group {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.znxstudio-scanner-file {
+  font-size: 11px;
+  font-weight: 600;
+  opacity: 0.7;
+  border-bottom: 1px solid var(--znxstudio-border, #333);
+  padding-bottom: 2px;
+}
+.znxstudio-scanner-row {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 4px 0 4px 8px;
+}
+.znxstudio-scanner-hit {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  background: none;
+  border: none;
+  padding: 0;
+  cursor: pointer;
+  text-align: left;
+  font-size: 12px;
+  color: inherit;
+}
+.znxstudio-scanner-hit:hover {
+  text-decoration: underline;
+}
+.znxstudio-scanner-code {
+  font-family: var(--znxstudio-font-mono, monospace);
+  opacity: 0.7;
+}
+.znxstudio-scanner-where {
+  font-family: var(--znxstudio-font-mono, monospace);
+  opacity: 0.5;
+}
+.znxstudio-scanner-detail {
+  font-size: 11px;
+  line-height: 1.5;
+  opacity: 0.75;
+  padding-left: 8px;
+}
+.znxstudio-scanner-related {
+  align-self: flex-start;
+  background: none;
+  border: none;
+  padding: 0 0 0 8px;
+  cursor: pointer;
+  font-size: 11px;
+  color: var(--znxstudio-link, #61afef);
+}
+
+.znxstudio-depaudit {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 10px;
+  overflow: auto;
+}
+.znxstudio-depaudit-summary {
+  font-size: 12px;
+  opacity: 0.85;
+}
+.znxstudio-depaudit-note {
+  font-size: 11px;
+  opacity: 0.7;
+  line-height: 1.5;
+}
+.znxstudio-depaudit-warn {
+  font-size: 11px;
+  line-height: 1.5;
+  padding: 5px 8px;
+  border-left: 3px solid var(--znxstudio-warning, #d19a66);
+  background: rgba(209, 154, 102, 0.1);
+}
+.znxstudio-depaudit-row {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  padding: 8px;
+  border: 1px solid var(--znxstudio-border, #333);
+  border-radius: 4px;
+}
+.znxstudio-depaudit-title {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+}
+.znxstudio-depaudit-code {
+  font-family: var(--znxstudio-font-mono, monospace);
+  opacity: 0.7;
+}
+.znxstudio-depaudit-why,
+.znxstudio-depaudit-fix {
+  font-size: 11px;
+  line-height: 1.5;
+  opacity: 0.78;
+}
+.znxstudio-depaudit-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.znxstudio-depaudit-command {
+  font-family: var(--znxstudio-font-mono, monospace);
+  font-size: 11px;
+  padding: 1px 5px;
+  border-radius: 3px;
+  background: var(--znxstudio-code-bg, rgba(255, 255, 255, 0.06));
+}
+.znxstudio-depaudit-docs {
+  font-size: 11px;
+  color: var(--znxstudio-link, #61afef);
+}
+.znxstudio-depaudit-list {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding-top: 6px;
+  border-top: 1px solid var(--znxstudio-border, #333);
+}
+.znxstudio-depaudit-dep {
+  background: none;
+  border: none;
+  padding: 2px 0;
+  text-align: left;
+  cursor: pointer;
+  font-size: 11px;
+  font-family: var(--znxstudio-font-mono, monospace);
+  color: inherit;
+  opacity: 0.85;
+}
+
+.znxstudio-secrules {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 10px;
+  overflow: auto;
+}
+.znxstudio-secrules-profile {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  padding-bottom: 6px;
+  border-bottom: 1px solid var(--znxstudio-border, #333);
+}
+.znxstudio-secrules-label {
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  opacity: 0.7;
+}
+.znxstudio-secrules-radio {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  cursor: pointer;
+}
+.znxstudio-secrules-note {
+  font-size: 11px;
+  line-height: 1.5;
+  padding: 5px 8px;
+  border-left: 3px solid var(--znxstudio-warning, #d19a66);
+  background: rgba(209, 154, 102, 0.1);
+}
+.znxstudio-secrules-row {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  padding: 6px 0;
+  border-bottom: 1px solid var(--znxstudio-border, #2a2a2a);
+}
+.znxstudio-secrules-row.is-inactive {
+  opacity: 0.55;
+}
+.znxstudio-secrules-head {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 6px;
+  font-size: 12px;
+}
+.znxstudio-secrules-code {
+  font-family: var(--znxstudio-font-mono, monospace);
+  opacity: 0.7;
+}
+.znxstudio-secrules-category {
+  font-size: 10px;
+  opacity: 0.55;
+}
+.znxstudio-secrules-hits {
+  font-size: 10px;
+  opacity: 0.75;
+}
+.znxstudio-secrules-blocks {
+  font-size: 10px;
+  color: var(--znxstudio-error, #e06c75);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+.znxstudio-secrules-override {
+  align-self: flex-start;
+  font-size: 11px;
+}
+.znxstudio-secrules-inactive {
+  font-size: 11px;
+  line-height: 1.5;
+  opacity: 0.7;
+  padding-left: 22px;
+}
+.znxstudio-secrules-docs {
+  align-self: flex-start;
+  font-size: 11px;
+  color: var(--znxstudio-link, #61afef);
+}
+.znxstudio-secrules-preview {
+  white-space: pre-wrap;
+  font-family: var(--znxstudio-font-mono, monospace);
+  font-size: 11px;
+  opacity: 0.7;
+  padding: 6px 8px;
+  background: var(--znxstudio-code-bg, rgba(255, 255, 255, 0.04));
+  border-radius: 3px;
+}
+
+.znxstudio-secdash {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 12px;
+  overflow: auto;
+}
+.znxstudio-secdash-headline {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+}
+.znxstudio-secdash-grade {
+  font-size: 34px;
+  font-weight: 700;
+  line-height: 1;
+}
+.znxstudio-secdash-grade.grade-a {
+  color: var(--znxstudio-success, #98c379);
+}
+.znxstudio-secdash-grade.grade-b {
+  color: #b5cea8;
+}
+.znxstudio-secdash-grade.grade-c {
+  color: var(--znxstudio-warning, #d19a66);
+}
+.znxstudio-secdash-grade.grade-d,
+.znxstudio-secdash-grade.grade-f {
+  color: var(--znxstudio-error, #e06c75);
+}
+.znxstudio-secdash-score {
+  font-size: 13px;
+  opacity: 0.7;
+  font-family: var(--znxstudio-font-mono, monospace);
+}
+.znxstudio-secdash-note {
+  font-size: 12px;
+  line-height: 1.5;
+  opacity: 0.82;
+}
+.znxstudio-secdash-warn {
+  font-size: 12px;
+  line-height: 1.5;
+  padding: 6px 8px;
+  border-left: 3px solid var(--znxstudio-warning, #d19a66);
+  background: rgba(209, 154, 102, 0.1);
+}
+.znxstudio-secdash-severities {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+.znxstudio-secdash-sources {
+  font-size: 11px;
+  opacity: 0.7;
+}
+.znxstudio-secdash-rules {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding-top: 6px;
+  border-top: 1px solid var(--znxstudio-border, #333);
+}
+.znxstudio-secdash-rule {
+  font-size: 11px;
+  font-family: var(--znxstudio-font-mono, monospace);
+  opacity: 0.82;
+}
+
+/* ------------------------------------------------------------ Phase 16: Collaboration */
+.znxstudio-collab {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 10px;
+  overflow: auto;
+}
+.znxstudio-collab-header {
+  font-weight: 600;
+  font-size: 12px;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  opacity: 0.8;
+}
+.znxstudio-collab-note {
+  font-size: 11px;
+  line-height: 1.5;
+  opacity: 0.78;
+}
+.znxstudio-collab-warn {
+  font-size: 11px;
+  line-height: 1.5;
+  padding: 5px 8px;
+  border-left: 3px solid var(--znxstudio-warning, #d19a66);
+  background: rgba(209, 154, 102, 0.1);
+}
+.znxstudio-collab-action {
+  text-align: left;
+}
+.znxstudio-collab-invite {
+  font-family: var(--znxstudio-font-mono, monospace);
+  font-size: 11px;
+}
+.znxstudio-collab-roster {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding-top: 6px;
+  border-top: 1px solid var(--znxstudio-border, #333);
+}
+.znxstudio-collab-participant {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+}
+.znxstudio-collab-dot {
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  flex: none;
+}
+.znxstudio-collab-where {
+  margin-left: auto;
+  font-size: 10px;
+  opacity: 0.6;
+  font-family: var(--znxstudio-font-mono, monospace);
+}
+
+.znxstudio-team {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 10px;
+  overflow: auto;
+}
+.znxstudio-team-title {
+  font-weight: 600;
+  font-size: 12px;
+}
+.znxstudio-team-note,
+.znxstudio-team-remedy {
+  font-size: 11px;
+  line-height: 1.5;
+  opacity: 0.78;
+}
+.znxstudio-team-remedy::before {
+  content: 'fix: ';
+  opacity: 0.6;
+}
+.znxstudio-team-notice {
+  font-size: 11px;
+  line-height: 1.5;
+  padding: 5px 8px;
+  border-left: 3px solid var(--znxstudio-link, #61afef);
+  background: rgba(97, 175, 239, 0.08);
+}
+.znxstudio-team-warn {
+  font-size: 11px;
+  line-height: 1.5;
+  padding: 5px 8px;
+  border-left: 3px solid var(--znxstudio-warning, #d19a66);
+  background: rgba(209, 154, 102, 0.1);
+}
+.znxstudio-team-ok {
+  font-size: 11px;
+  color: var(--znxstudio-success, #98c379);
+}
+.znxstudio-team-setting {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 11px;
+  font-family: var(--znxstudio-font-mono, monospace);
+  padding: 2px 0;
+}
+.znxstudio-team-key {
+  min-width: 140px;
+}
+.znxstudio-team-value {
+  opacity: 0.85;
+}
+.znxstudio-team-origin {
+  margin-left: auto;
+  font-size: 10px;
+  padding: 1px 5px;
+  border-radius: 3px;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+.znxstudio-team-origin.origin-locked {
+  background: rgba(224, 108, 117, 0.18);
+  color: var(--znxstudio-error, #e06c75);
+}
+.znxstudio-team-origin.origin-user {
+  background: rgba(152, 195, 121, 0.15);
+  color: var(--znxstudio-success, #98c379);
+}
+.znxstudio-team-origin.origin-team {
+  background: rgba(97, 175, 239, 0.15);
+  color: var(--znxstudio-link, #61afef);
+}
+.znxstudio-team-origin.origin-default {
+  opacity: 0.5;
+}
+.znxstudio-team-overridden {
+  font-size: 10px;
+  color: var(--znxstudio-error, #e06c75);
+}
+.znxstudio-team-violation {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  padding: 6px 8px;
+  border: 1px solid var(--znxstudio-border, #333);
+  border-radius: 4px;
+}
+.znxstudio-team-violation-head {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+}
+
+.znxstudio-debug-exception-mode {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  margin-left: auto;
+  font-size: 11px;
+  opacity: 0.85;
+}
+.znxstudio-debug-exception-mode select {
+  font-size: 11px;
+}
+
+.znxstudio-security-live {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  padding: 6px 0;
+  border-top: 1px solid var(--znxstudio-border, #333);
+}
+.znxstudio-security-toggle {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  cursor: pointer;
+}
+
+/* ------------------------------------------------------------- Phase 17: Workbench UX */
+
+/* Docking. The body is a row; ordering the children moves the sidebar. */
+.znxstudio-workbench.sidebar-right .znxstudio-sidebar { order: 3; }
+.znxstudio-workbench.sidebar-right .znxstudio-splitter--sidebar { order: 2; }
+.znxstudio-workbench.sidebar-right .znxstudio-editor-region { order: 1; }
+.znxstudio-workbench.sidebar-right .znxstudio-activitybar { order: 4; }
+
+.znxstudio-workbench .znxstudio-sidebar { width: var(--znxstudio-sidebar-width, 260px); flex: none; }
+.znxstudio-workbench.sidebar-hidden .znxstudio-sidebar,
+.znxstudio-workbench.sidebar-hidden .znxstudio-splitter--sidebar { display: none; }
+.znxstudio-workbench.activitybar-hidden .znxstudio-activitybar { display: none; }
+.znxstudio-workbench.statusbar-hidden .znxstudio-statusbar { display: none; }
+
+.znxstudio-workbench .znxstudio-panel { height: var(--znxstudio-panel-height, 240px); flex: none; }
+.znxstudio-workbench.panel-hidden .znxstudio-panel,
+.znxstudio-workbench.panel-hidden .znxstudio-splitter--panel { display: none; }
+
+.znxstudio-workbench.panel-right .znxstudio-editor-region { flex-direction: row; }
+.znxstudio-workbench.panel-right .znxstudio-panel {
+  height: auto;
+  width: var(--znxstudio-panel-width, 380px);
+}
+.znxstudio-workbench.panel-right .znxstudio-splitter--panel {
+  width: 4px;
+  height: auto;
+  cursor: col-resize;
+}
+
+.znxstudio-workbench.panel-maximized .znxstudio-editor-area { display: none; }
+.znxstudio-workbench.panel-maximized .znxstudio-panel { height: 100%; flex: 1 1 auto; }
+
+.znxstudio-workbench.is-zen .znxstudio-titlebar { display: none; }
+
+/* Always-visible escape hatch while zen mode hides the chrome. */
+.znxstudio-zen-exit {
+  position: fixed;
+  top: 10px;
+  right: 12px;
+  z-index: 100;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 12px;
+  font-size: 12px;
+  color: var(--z-fg);
+  background: var(--z-bg-elevated);
+  border: 1px solid var(--z-border);
+  border-radius: 999px;
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.4);
+  cursor: pointer;
+  opacity: 0.85;
+  transition: opacity 0.12s ease;
+}
+.znxstudio-zen-exit:hover {
+  opacity: 1;
+  background: var(--z-hover);
+}
+
+/* Splitters */
+.znxstudio-splitter {
+  flex: none;
+  background: transparent;
+  transition: background 120ms ease;
+}
+.znxstudio-splitter--sidebar {
+  width: 4px;
+  cursor: col-resize;
+}
+.znxstudio-splitter--panel {
+  height: 4px;
+  cursor: row-resize;
+}
+.znxstudio-splitter:hover,
+.znxstudio-workbench.is-resizing .znxstudio-splitter {
+  background: var(--znxstudio-link, #61afef);
+}
+.znxstudio-workbench.is-resizing {
+  user-select: none;
+  cursor: inherit;
+}
+
+.znxstudio-panel-tab.is-hidden { display: none; }
+
+/* Panel manager, keybindings editor, macros, profiles */
+.znxstudio-panel-manager,
+.znxstudio-keys,
+.znxstudio-macros,
+.znxstudio-profiles {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 10px;
+  overflow: auto;
+}
+.znxstudio-panel-manager-title {
+  font-weight: 600;
+  font-size: 12px;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  opacity: 0.8;
+}
+.znxstudio-panel-manager-row,
+.znxstudio-macros-row,
+.znxstudio-profiles-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+}
+.znxstudio-panel-manager-row span,
+.znxstudio-macros-row span:first-of-type {
+  flex: 1;
+}
+
+/* ---- Manage Panels overlay (redesigned) ---- */
+.znxstudio-pm-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 60;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(0, 0, 0, 0.45);
+}
+.znxstudio-pm-card {
+  display: flex;
+  flex-direction: column;
+  width: min(440px, 92vw);
+  max-height: 80vh;
+  background: var(--z-bg-elevated);
+  border: 1px solid var(--z-border);
+  border-radius: 10px;
+  box-shadow: 0 16px 48px rgba(0, 0, 0, 0.45);
+  overflow: hidden;
+}
+.znxstudio-pm-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 14px;
+  border-bottom: 1px solid var(--z-border);
+}
+.znxstudio-pm-title {
+  font-weight: 600;
+  font-size: 12px;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--z-fg);
+}
+.znxstudio-pm-close {
+  border: none;
+  background: transparent;
+  color: var(--z-fg-muted);
+  font-size: 18px;
+  line-height: 1;
+  width: 24px;
+  height: 24px;
+  border-radius: 6px;
+  cursor: pointer;
+}
+.znxstudio-pm-close:hover {
+  background: var(--z-hover);
+  color: var(--z-fg);
+}
+.znxstudio-pm-body {
+  overflow-y: auto;
+  padding: 6px 8px;
+  scrollbar-gutter: stable;
+}
+.znxstudio-pm-section {
+  margin-bottom: 4px;
+}
+.znxstudio-pm-section-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  padding: 6px 8px;
+  border: none;
+  background: transparent;
+  color: var(--z-fg-muted);
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  cursor: pointer;
+  border-radius: 6px;
+}
+.znxstudio-pm-section-header:hover {
+  background: var(--z-hover);
+  color: var(--z-fg);
+}
+.znxstudio-pm-caret {
+  width: 12px;
+}
+.znxstudio-pm-section-name {
+  flex: 1;
+  text-align: left;
+}
+.znxstudio-pm-count {
+  opacity: 0.7;
+  font-variant-numeric: tabular-nums;
+}
+.znxstudio-pm-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  height: 32px;
+  padding: 0 8px 0 4px;
+  margin: 1px 0;
+  border-radius: 6px;
+  border-left: 2px solid transparent;
+  font-size: 13px;
+  color: var(--z-fg);
+}
+.znxstudio-pm-row:hover {
+  background: var(--z-hover);
+}
+.znxstudio-pm-row.is-enabled {
+  background: color-mix(in srgb, var(--z-accent) 12%, transparent);
+  border-left-color: var(--z-accent);
+}
+.znxstudio-pm-row.is-dragging {
+  opacity: 0.4;
+}
+.znxstudio-pm-row.is-drop-target {
+  box-shadow: inset 0 2px 0 0 var(--z-accent);
+}
+.znxstudio-pm-handle {
+  color: var(--z-fg-muted);
+  cursor: grab;
+  opacity: 0.35;
+  font-size: 12px;
+  letter-spacing: -2px;
+  user-select: none;
+}
+.znxstudio-pm-row:hover .znxstudio-pm-handle {
+  opacity: 0.8;
+}
+.znxstudio-pm-label {
+  flex: 1;
+  cursor: pointer;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+/* Modern toggle switch (dark-theme native) */
+.znxstudio-pm-switch {
+  position: relative;
+  flex: none;
+  width: 34px;
+  height: 18px;
+  border: none;
+  border-radius: 9px;
+  background: var(--z-bg-input);
+  box-shadow: inset 0 0 0 1px var(--z-border);
+  cursor: pointer;
+  transition: background 0.12s ease;
+}
+.znxstudio-pm-switch::after {
+  content: '';
+  position: absolute;
+  top: 2px;
+  left: 2px;
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  background: var(--z-fg-muted);
+  transition: transform 0.12s ease, background 0.12s ease;
+}
+.znxstudio-pm-switch[aria-checked='true'] {
+  background: var(--z-accent);
+  box-shadow: none;
+}
+.znxstudio-pm-switch[aria-checked='true']::after {
+  transform: translateX(16px);
+  background: var(--z-accent-fg);
+}
+.znxstudio-pm-footer {
+  padding: 10px 14px;
+  border-top: 1px solid var(--z-border);
+}
+.znxstudio-pm-reset {
+  border: 1px solid var(--z-border);
+  background: transparent;
+  color: var(--z-fg-muted);
+  font-size: 12px;
+  padding: 5px 10px;
+  border-radius: 6px;
+  cursor: pointer;
+}
+.znxstudio-pm-reset:hover {
+  background: var(--z-hover);
+  color: var(--z-fg);
+}
+.znxstudio-keys-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 11px;
+  padding: 2px 0;
+}
+.znxstudio-keys-chord {
+  min-width: 120px;
+  font-family: var(--znxstudio-font-mono, monospace);
+  padding: 1px 5px;
+  border-radius: 3px;
+  background: var(--znxstudio-code-bg, rgba(255, 255, 255, 0.06));
+}
+.znxstudio-keys-command {
+  flex: 1;
+  font-family: var(--znxstudio-font-mono, monospace);
+  opacity: 0.8;
+}
+.znxstudio-keys-origin {
+  font-size: 10px;
+  text-transform: uppercase;
+  opacity: 0.5;
+}
+.znxstudio-keys-row.is-user .znxstudio-keys-origin {
+  color: var(--znxstudio-success, #98c379);
+  opacity: 1;
+}
+.znxstudio-keys-warn {
+  font-size: 11px;
+  line-height: 1.5;
+  padding: 5px 8px;
+  border-left: 3px solid var(--znxstudio-warning, #d19a66);
+  background: rgba(209, 154, 102, 0.1);
+}
+.znxstudio-macros-note {
+  font-size: 11px;
+  opacity: 0.75;
+  line-height: 1.5;
+}
+.znxstudio-macros-recording {
+  font-size: 11px;
+  color: var(--znxstudio-error, #e06c75);
+}
+.znxstudio-macros-steps {
+  font-size: 10px;
+  font-family: var(--znxstudio-font-mono, monospace);
+  opacity: 0.6;
+  padding-left: 8px;
+  word-break: break-all;
+}
+.znxstudio-profiles-state {
+  margin-left: auto;
+  font-size: 10px;
+  text-transform: uppercase;
+  opacity: 0.6;
+}
+
+/* ---------------------------------------------------- Docs (Phase 18) ---- */
+.znxstudio-docs-viewer {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  overflow: hidden;
+  background: var(--z-bg);
+}
+.znxstudio-docs-titlebar {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 10px;
+  border-bottom: 1px solid var(--z-border);
+  flex: 0 0 auto;
+}
+.znxstudio-docs-crumb {
+  font-size: 11px;
+  opacity: 0.7;
+  margin-left: 6px;
+}
+.znxstudio-docs-note {
+  font-size: 11px;
+  opacity: 0.7;
+  font-style: italic;
+}
+.znxstudio-md {
+  overflow: auto;
+  padding: 16px 24px 48px;
+  line-height: 1.65;
+  font-size: 13px;
+}
+.znxstudio-md h1 { font-size: 22px; margin: 18px 0 10px; }
+.znxstudio-md h2 { font-size: 18px; margin: 20px 0 8px; border-bottom: 1px solid var(--z-border); padding-bottom: 4px; }
+.znxstudio-md h3 { font-size: 15px; margin: 16px 0 6px; }
+.znxstudio-md p { margin: 8px 0; }
+.znxstudio-md ul, .znxstudio-md ol { margin: 8px 0; padding-left: 22px; }
+.znxstudio-md li { margin: 3px 0; }
+.znxstudio-md blockquote {
+  margin: 10px 0;
+  padding: 4px 12px;
+  border-left: 3px solid var(--z-accent);
+  opacity: 0.85;
+}
+.znxstudio-md code {
+  font-family: var(--znxstudio-font-mono, monospace);
+  font-size: 12px;
+  background: var(--z-bg-elevated);
+  border-radius: 3px;
+  padding: 1px 4px;
+}
+.znxstudio-md-code { position: relative; margin: 10px 0; }
+.znxstudio-md-code pre {
+  margin: 0;
+  padding: 10px 12px;
+  overflow-x: auto;
+  background: var(--z-bg-panel);
+  border: 1px solid var(--z-border);
+  border-radius: 4px;
+}
+.znxstudio-md-code pre code { background: none; padding: 0; }
+.znxstudio-md-run { position: absolute; top: 6px; right: 6px; }
+
+/* AI output: reuse the Markdown element styles but drop the page-level padding so
+   it fits inside a chat bubble / panel body. Code blocks get a hover toolbar. */
+.znxstudio-ai-md.znxstudio-md { padding: 0; overflow: visible; }
+.znxstudio-ai-md :first-child { margin-top: 0; }
+.znxstudio-ai-md-codebar {
+  position: absolute;
+  top: 6px;
+  right: 6px;
+  display: flex;
+  gap: 4px;
+  opacity: 0;
+  transition: opacity 0.12s ease;
+}
+.znxstudio-md-code:hover .znxstudio-ai-md-codebar,
+.znxstudio-ai-md-codebar:focus-within {
+  opacity: 1;
+}
+.znxstudio-ai-md-btn {
+  font-size: 11px;
+  padding: 2px 8px;
+  color: var(--z-fg-muted);
+  background: var(--z-bg-elevated);
+  border: 1px solid var(--z-border);
+  border-radius: 4px;
+  cursor: pointer;
+}
+.znxstudio-ai-md-btn:hover {
+  color: var(--z-fg);
+  border-color: var(--z-fg-muted);
+}
+.znxstudio-md-table { border-collapse: collapse; margin: 10px 0; display: block; overflow-x: auto; }
+.znxstudio-md-table th, .znxstudio-md-table td {
+  border: 1px solid var(--z-border);
+  padding: 5px 10px;
+  text-align: left;
+}
+.znxstudio-md-table th { background: var(--z-bg-elevated); }
+.znxstudio-md hr { border: none; border-top: 1px solid var(--z-border); margin: 18px 0; }
+.znxstudio-md-link { color: var(--z-accent); text-decoration: none; cursor: pointer; }
+.znxstudio-md-link:hover { text-decoration: underline; }
+.znxstudio-md-link.is-external::after { content: ' ↗'; font-size: 9px; opacity: 0.6; }
+/* A link ZnxStudio refuses to follow reads as text, with a reason on hover. */
+.znxstudio-md-unsafe { text-decoration: underline dotted; opacity: 0.65; cursor: help; }
+
+.znxstudio-apidocs, .znxstudio-samples, .znxstudio-tutorial, .znxstudio-exercises {
+  height: 100%;
+  overflow: auto;
+  padding: 8px 10px;
+  font-size: 12px;
+}
+.znxstudio-apidocs-toolbar, .znxstudio-samples-toolbar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin-bottom: 8px;
+}
+.znxstudio-apidocs-toggle { display: inline-flex; align-items: center; gap: 4px; font-size: 11px; }
+.znxstudio-apidocs-summary { padding: 5px 0; font-size: 11px; opacity: 0.85; }
+.znxstudio-apidocs-summary.is-unwritten { color: var(--znxstudio-warning, #d19a66); }
+.znxstudio-apidocs-section { margin-top: 10px; font-weight: 600; font-size: 11px; text-transform: uppercase; opacity: 0.7; }
+.znxstudio-apidocs-pages, .znxstudio-apidocs-coverage, .znxstudio-learning-problems, .znxstudio-learning-items {
+  list-style: none;
+  margin: 4px 0;
+  padding: 0;
+}
+.znxstudio-apidocs-coverage li, .znxstudio-learning-problems li {
+  font-family: var(--znxstudio-font-mono, monospace);
+  font-size: 11px;
+  opacity: 0.8;
+  padding: 2px 0;
+}
+.znxstudio-apidocs-page {
+  background: none;
+  border: none;
+  color: var(--z-accent);
+  cursor: pointer;
+  padding: 2px 0;
+  font-size: 12px;
+}
+.znxstudio-apidocs-page:disabled { color: var(--z-fg-muted); cursor: default; }
+.znxstudio-apidocs-empty, .znxstudio-samples-empty, .znxstudio-tutorial-empty, .znxstudio-learning-empty {
+  padding: 10px 2px;
+  font-size: 11px;
+  opacity: 0.7;
+  line-height: 1.6;
+}
+.znxstudio-apidocs-failure { color: var(--znxstudio-error, #e06c75); font-weight: 600; margin: 6px 0; }
+.znxstudio-apidocs-note, .znxstudio-samples-note {
+  font-size: 11px;
+  opacity: 0.75;
+  line-height: 1.5;
+  border-left: 3px solid var(--znxstudio-warning, #d19a66);
+  padding: 4px 8px;
+  margin: 6px 0;
+}
+
+.znxstudio-samples-columns { display: flex; gap: 12px; align-items: flex-start; }
+.znxstudio-samples-list { flex: 0 0 220px; max-height: 60vh; overflow: auto; }
+.znxstudio-samples-detail { flex: 1 1 auto; min-width: 0; }
+.znxstudio-samples-category { font-size: 10px; text-transform: uppercase; opacity: 0.55; margin: 8px 0 2px; }
+.znxstudio-samples-item {
+  display: block;
+  width: 100%;
+  text-align: left;
+  background: none;
+  border: none;
+  color: inherit;
+  padding: 3px 6px;
+  cursor: pointer;
+  border-radius: 3px;
+  font-size: 12px;
+}
+.znxstudio-samples-item:hover { background: var(--z-hover); }
+.znxstudio-samples-item.is-selected { background: var(--z-accent); color: var(--z-accent-fg); }
+.znxstudio-samples-count { font-size: 10px; opacity: 0.6; margin-left: auto; }
+.znxstudio-samples-title { font-family: var(--znxstudio-font-mono, monospace); font-size: 11px; opacity: 0.8; }
+.znxstudio-samples-actions, .znxstudio-tutorial-actions, .znxstudio-exercise-actions {
+  display: flex;
+  gap: 6px;
+  margin: 6px 0;
+}
+.znxstudio-samples-source, .znxstudio-samples-output, .znxstudio-tutorial-output, .znxstudio-exercise-output {
+  font-family: var(--znxstudio-font-mono, monospace);
+  font-size: 11px;
+  background: var(--z-bg-panel);
+  border: 1px solid var(--z-border);
+  border-radius: 4px;
+  padding: 8px;
+  max-height: 240px;
+  overflow: auto;
+  margin: 6px 0;
+}
+.znxstudio-samples-verdict, .znxstudio-tutorial-verdict, .znxstudio-exercise-verdict {
+  font-size: 11px;
+  padding: 5px 8px;
+  border-radius: 3px;
+  margin: 6px 0;
+}
+.is-ok { background: rgba(80, 200, 120, 0.12); color: var(--znxstudio-success, #6cc78a); }
+.is-bad { background: rgba(224, 108, 117, 0.12); color: var(--znxstudio-error, #e06c75); }
+
+.znxstudio-learning { padding: 8px 10px; overflow: auto; height: 100%; }
+.znxstudio-learning-header { font-weight: 600; margin-bottom: 8px; }
+.znxstudio-learning-summary { font-size: 11px; opacity: 0.75; margin-bottom: 10px; }
+.znxstudio-learning-track { margin-top: 12px; font-weight: 600; font-size: 12px; }
+.znxstudio-learning-desc { font-size: 11px; opacity: 0.7; margin: 2px 0 6px; line-height: 1.5; }
+.znxstudio-learning-bar { height: 4px; background: var(--z-bg-elevated); border-radius: 2px; overflow: hidden; margin: 4px 0; }
+.znxstudio-learning-bar-fill { height: 100%; background: var(--z-accent); transition: width 120ms linear; }
+.znxstudio-learning-item {
+  display: block;
+  width: 100%;
+  text-align: left;
+  background: none;
+  border: none;
+  color: inherit;
+  padding: 4px 6px;
+  cursor: pointer;
+  border-radius: 3px;
+  font-size: 12px;
+}
+.znxstudio-learning-item:hover:not(:disabled) { background: var(--z-hover); }
+.znxstudio-learning-item:disabled { opacity: 0.4; cursor: not-allowed; }
+.znxstudio-learning-item.is-done { opacity: 0.75; }
+.znxstudio-learning-item.is-next { border-left: 2px solid var(--z-accent); }
+
+.znxstudio-tutorial-header { font-weight: 600; margin-bottom: 4px; }
+.znxstudio-tutorial-body { padding: 8px 0; max-height: 40vh; }
+.znxstudio-tutorial-footer { font-size: 10px; opacity: 0.6; margin-top: 4px; }
+.znxstudio-tutorial-editor, .znxstudio-exercise-editor {
+  width: 100%;
+  font-family: var(--znxstudio-font-mono, monospace);
+  font-size: 12px;
+  background: var(--z-bg-panel);
+  color: var(--z-fg);
+  border: 1px solid var(--z-border);
+  border-radius: 4px;
+  padding: 8px;
+  resize: vertical;
+}
+.znxstudio-exercise {
+  border: 1px solid var(--z-border);
+  border-radius: 4px;
+  padding: 8px 10px;
+  margin: 8px 0;
+}
+.znxstudio-exercise.is-passed { border-color: var(--znxstudio-success, #6cc78a); }
+.znxstudio-exercise-prompt { font-size: 12px; margin-bottom: 6px; line-height: 1.5; }
+
+/* ------------------------------------ Diagnostics / Health (Phase 19) ---- */
+.znxstudio-log, .znxstudio-health {
+  height: 100%;
+  overflow: auto;
+  padding: 8px 10px;
+  font-size: 12px;
+}
+.znxstudio-log-toolbar, .znxstudio-health-toolbar {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+  margin-bottom: 6px;
+}
+.znxstudio-log-counts { font-size: 10px; opacity: 0.6; margin-left: auto; }
+.znxstudio-log-records {
+  font-family: var(--znxstudio-font-mono, monospace);
+  font-size: 11px;
+  line-height: 1.5;
+  background: var(--z-bg-panel);
+  border: 1px solid var(--z-border);
+  border-radius: 4px;
+  padding: 8px;
+  margin: 0;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+.znxstudio-health-note {
+  font-size: 10px;
+  opacity: 0.65;
+  margin-bottom: 8px;
+  font-style: italic;
+}
+.znxstudio-health-empty { font-size: 11px; opacity: 0.7; padding: 8px 2px; }
+.znxstudio-health-summary { font-size: 11px; opacity: 0.85; margin-bottom: 6px; }
+.znxstudio-health-checks, .znxstudio-health-lines { list-style: none; margin: 4px 0; padding: 0; }
+.znxstudio-health-check {
+  display: flex;
+  gap: 8px;
+  align-items: baseline;
+  padding: 3px 6px;
+  border-radius: 3px;
+  border-left: 3px solid transparent;
+}
+.znxstudio-health-check.is-pass { border-left-color: var(--znxstudio-success, #6cc78a); }
+.znxstudio-health-check.is-warn { border-left-color: var(--znxstudio-warning, #d19a66); }
+.znxstudio-health-check.is-fail { border-left-color: var(--znxstudio-error, #e06c75); }
+/* An unmeasured check reads as unknown, never as a quiet pass. */
+.znxstudio-health-check.is-unknown { border-left-color: var(--z-fg-muted); opacity: 0.8; }
+.znxstudio-health-label { font-weight: 600; flex: 0 0 auto; }
+.znxstudio-health-detail { font-size: 11px; opacity: 0.8; }
+.znxstudio-health-section {
+  margin-top: 10px;
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  opacity: 0.7;
+}
+.znxstudio-health-lines li {
+  font-family: var(--znxstudio-font-mono, monospace);
+  font-size: 11px;
+  opacity: 0.85;
+  padding: 1px 0;
+}
+
+/* =====================================================================
+   UX-7 — Visual polish, accessibility, responsiveness, performance
+   ===================================================================== */
+
+/* Accessible keyboard focus: a clear ring only for keyboard users
+   (focus-visible), never a mouse-click halo. Applies across the chrome. */
+.znxstudio-workbench :focus-visible,
+.znxstudio-menu :focus-visible {
+  outline: 2px solid var(--z-accent);
+  outline-offset: -1px;
+  border-radius: 4px;
+}
+/* Suppress the legacy always-on outline now that focus-visible carries it. */
+.znxstudio-workbench :focus:not(:focus-visible) {
+  outline: none;
+}
+
+/* Selected activity/panel tabs expose an accent so state isn't colour-only. */
+.znxstudio-activity-item[aria-selected='true'] {
+  color: var(--z-fg);
+}
+
+/* Respect the OS "reduce motion" setting (mirrored to data-motion). */
+.znxstudio-workbench[data-motion='reduced'] * {
+  transition: none !important;
+  animation: none !important;
+  scroll-behavior: auto !important;
+}
+@media (prefers-reduced-motion: reduce) {
+  .znxstudio-workbench * {
+    transition: none !important;
+    animation: none !important;
+  }
+}
+
+/* Performance: let the browser skip layout/paint for off-screen scroll
+   bodies (panels, sidebars, long lists) until they approach the viewport. */
+.znxstudio-panel-view,
+.znxstudio-explorer-cs-body,
+.znxstudio-open-editors,
+.znxstudio-outline,
+.znxstudio-bookmarks {
+  content-visibility: auto;
+  contain-intrinsic-size: auto 400px;
+}
+
+/* Responsiveness: compact the chrome as the window narrows (JS toggles the
+   classes via a ResizeObserver; the media queries are the CSS-only backstop). */
+.znxstudio-workbench.is-narrow .znxstudio-titlebar-subtitle {
+  display: none;
+}
+.znxstudio-workbench.is-compact .znxstudio-activitybar {
+  /* keep icons but tighten the rail */
+  width: 40px;
+}
+.znxstudio-workbench.is-compact .znxstudio-editor-tab {
+  max-width: 150px;
+}
+@media (max-width: 640px) {
+  .znxstudio-titlebar-subtitle {
+    display: none;
+  }
+  .znxstudio-menubar {
+    overflow-x: auto;
+  }
+}
+
+/* ---- Settings form UI (UX-8) ---- */
+.znxstudio-settings-ui {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  background: var(--z-bg);
+  color: var(--z-fg);
+}
+.znxstudio-settings-ui-header {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  padding: 12px 16px;
+  border-bottom: 1px solid var(--z-border);
+}
+.znxstudio-settings-ui-search {
+  flex: 1;
+  padding: 8px 12px;
+  font-size: 13px;
+  color: var(--z-fg);
+  background: var(--z-bg-elevated);
+  border: 1px solid var(--z-border);
+  border-radius: 6px;
+  outline: none;
+}
+.znxstudio-settings-ui-json {
+  white-space: nowrap;
+}
+.znxstudio-settings-ui-body {
+  flex: 1;
+  display: flex;
+  min-height: 0;
+}
+.znxstudio-settings-ui-nav {
+  flex: 0 0 180px;
+  border-right: 1px solid var(--z-border);
+  overflow: auto;
+  padding: 8px 0;
+}
+.znxstudio-settings-ui-navitem {
+  display: block;
+  width: 100%;
+  text-align: left;
+  padding: 6px 16px;
+  border: none;
+  background: transparent;
+  color: var(--z-fg-muted);
+  font-size: 12px;
+  cursor: pointer;
+}
+.znxstudio-settings-ui-navitem:hover {
+  background: var(--z-hover);
+  color: var(--z-fg);
+}
+.znxstudio-settings-ui-list {
+  flex: 1;
+  overflow: auto;
+  padding: 8px 24px 40px;
+}
+/* Cap the content width and center it so a setting's control sits next to its
+   description instead of being flung to the far edge of a wide window (where it
+   reads as "hidden"). On narrow windows this is a no-op (max-width > available). */
+.znxstudio-settings-ui-group {
+  max-width: 920px;
+  margin: 0 auto;
+}
+.znxstudio-settings-ui-group h2 {
+  font-size: 13px;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--z-fg-muted);
+  margin: 20px 0 8px;
+  padding-bottom: 4px;
+  border-bottom: 1px solid var(--z-border);
+}
+.znxstudio-settings-ui-row {
+  display: flex;
+  align-items: flex-start;
+  gap: 16px;
+  padding: 10px 0;
+  border-bottom: 1px solid var(--z-border);
+}
+.znxstudio-settings-ui-info {
+  flex: 1;
+  min-width: 0;
+}
+.znxstudio-settings-ui-title {
+  font-size: 13px;
+  font-weight: 600;
+}
+.znxstudio-settings-ui-badge {
+  margin-left: 8px;
+  padding: 1px 6px;
+  border: 1px solid var(--z-border);
+  border-radius: 999px;
+  font-size: 10px;
+  font-weight: 500;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--z-fg-muted);
+  vertical-align: middle;
+}
+.znxstudio-settings-ui-badge.is-override {
+  color: var(--z-accent-fg);
+  background: var(--z-accent);
+  border-color: var(--z-accent);
+}
+.znxstudio-settings-ui-reset {
+  margin-left: 8px;
+  padding: 1px 8px;
+  font-size: 11px;
+  background: transparent;
+  border: 1px solid var(--z-border);
+  border-radius: 4px;
+  color: var(--z-fg-muted);
+  cursor: pointer;
+}
+.znxstudio-settings-ui-reset:hover {
+  color: var(--z-fg);
+  border-color: var(--z-fg-muted);
+}
+/* User / Workspace scope switch (post-1.0) */
+.znxstudio-settings-ui-scope {
+  display: inline-flex;
+  border: 1px solid var(--z-border);
+  border-radius: 6px;
+  overflow: hidden;
+}
+.znxstudio-settings-ui-scopebtn {
+  padding: 6px 12px;
+  font-size: 12px;
+  background: transparent;
+  border: none;
+  color: var(--z-fg-muted);
+  cursor: pointer;
+}
+.znxstudio-settings-ui-scopebtn + .znxstudio-settings-ui-scopebtn {
+  border-left: 1px solid var(--z-border);
+}
+.znxstudio-settings-ui-scopebtn[aria-selected='true'] {
+  background: var(--z-accent);
+  color: var(--z-accent-fg);
+}
+.znxstudio-settings-ui-key {
+  font-size: 11px;
+  color: var(--z-fg-muted);
+}
+.znxstudio-settings-ui-desc {
+  font-size: 12px;
+  color: var(--z-fg-muted);
+  margin-top: 3px;
+}
+.znxstudio-settings-ui-control {
+  flex: 0 0 200px;
+  display: flex;
+  justify-content: flex-end;
+  align-items: center;
+}
+.znxstudio-settings-ui-control input[type='text'],
+.znxstudio-settings-ui-control input[type='number'],
+.znxstudio-settings-ui-control select {
+  width: 100%;
+  padding: 6px 8px;
+  font-size: 13px;
+  color: var(--z-fg);
+  background: var(--z-bg-elevated);
+  border: 1px solid var(--z-border);
+  border-radius: 6px;
+  outline: none;
+}
+.znxstudio-settings-ui-control input.is-invalid {
+  border-color: #e5484d;
+}
+.znxstudio-settings-ui-control input[type='checkbox'] {
+  width: 16px;
+  height: 16px;
+  accent-color: var(--z-accent);
+}
+.znxstudio-settings-ui-empty {
+  padding: 24px 0;
+  color: var(--z-fg-muted);
+  font-size: 13px;
+}
+
+/* ---- Checkable menu items (SB-3: View → Panels) ---- */
+.znxstudio-menu-check {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.znxstudio-menu-check-mark {
+  display: inline-block;
+  width: 14px;
+  text-align: center;
+  color: var(--z-accent);
+}
+
+/* ---------------------------------------------------------------- Modal (20J) */
+/* Accessible dialog primitive: role=dialog + aria-modal, focus-trapped. No
+   entrance animation, so it is inert under any reduced-motion preference. */
+.znxstudio-modal-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+}
+.znxstudio-modal {
+  background: var(--z-bg-elevated);
+  color: var(--z-fg);
+  border: 1px solid var(--z-border);
+  border-radius: 8px;
+  box-shadow: 0 12px 48px rgba(0, 0, 0, 0.4);
+  width: min(520px, calc(100vw - 48px));
+  max-height: calc(100vh - 96px);
+  overflow: auto;
+  padding: 20px 22px 16px;
+}
+.znxstudio-modal-title {
+  font-size: 15px;
+  font-weight: 600;
+  margin: 0 0 10px;
+}
+.znxstudio-modal-body {
+  font-size: 13px;
+  line-height: 1.5;
+}
+.znxstudio-modal-body p { margin: 0 0 10px; }
+.znxstudio-modal-muted { color: var(--z-fg-muted); white-space: pre-wrap; font-size: 12px; }
+.znxstudio-modal-footer {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  margin-top: 16px;
+  flex-wrap: wrap;
+}
+.znxstudio-modal-btn {
+  background: var(--z-bg-panel);
+  color: var(--z-fg);
+  border: 1px solid var(--z-border);
+  border-radius: 5px;
+  padding: 6px 14px;
+  font-size: 13px;
+  cursor: pointer;
+}
+.znxstudio-modal-btn:hover { background: var(--z-hover); }
+.znxstudio-modal-btn.is-primary {
+  background: var(--z-accent);
+  color: var(--z-accent-fg);
+  border-color: var(--z-accent);
+}
+
+/* --------------------------------------------------------- Trust banner (20J) */
+.znxstudio-trust-banner {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 6px 14px;
+  background: var(--z-status-bg);
+  color: var(--z-status-fg);
+  font-size: 12px;
+  border-bottom: 1px solid var(--z-border);
+  flex: 0 0 auto;
+}
+.znxstudio-trust-banner-btn {
+  margin-left: auto;
+  background: transparent;
+  color: inherit;
+  border: 1px solid currentColor;
+  border-radius: 4px;
+  padding: 2px 10px;
+  font-size: 12px;
+  cursor: pointer;
+}
+.znxstudio-trust-banner-btn:hover { background: rgba(255, 255, 255, 0.12); }

@@ -1,0 +1,3 @@
+// Invalid: the string on the next line is never closed.
+define name to "Alice
+say name

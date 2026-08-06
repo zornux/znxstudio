@@ -1,0 +1,324 @@
+import * as monaco from 'monaco-editor';
+import {
+  ServiceKeys,
+  type CompilerService,
+  type EditorService,
+  type OutputService,
+  type ProfileService,
+  type SettingsService,
+  type StatusService,
+  type WorkspaceService,
+} from '../core/Contracts';
+import type { IModule, ModuleContext } from '../core/Module';
+import { CommandIds } from '../commands/CommandIds';
+import type { WorkspaceInfo } from '../../shared/types';
+import type { CompilerDiagnostic } from '../../shared/compilerProtocol';
+import { LanguageServiceKeys, type DiagnosticSink } from '../language/api';
+import { DiagnosticSources } from '../language/diagnosticSources';
+import { DocumentManager } from '../language/DocumentManager';
+import { toPlatformDiagnostics } from '../compiler/compilerDiagnostics';
+import { buildSummary, groupByFile } from './buildDiagnostics';
+
+/**
+ * Run & Build pipeline. For Zornux workspaces it drives the real compiler:
+ *   - Build → `zornux build <entry>` (request/response). Errors become clickable
+ *     Problems (for files not already covered live) + an Output log + status.
+ *   - Run   → `zornux run <entry>` streamed through the Task service.
+ * For generic (non-Zornux) projects it falls back to the manifest `scripts`.
+ * Consumes Workspace/Output/Status/Editor/Compiler + the DiagnosticsEngine — no
+ * sibling-module imports.
+ */
+export class RunBuildModule implements IModule {
+  readonly id = 'znxstudio.runBuild';
+  readonly displayName = 'Run & Build';
+
+  private context!: ModuleContext;
+  /** Uris carrying diagnostics from the last build, so we can clear them. */
+  private lastBuildUris: string[] = [];
+
+  activate(context: ModuleContext): void {
+    this.context = context;
+
+    context.commands.register(CommandIds.RunStart, () => this.run(), 'Zornux: Run Project');
+    context.commands.register(CommandIds.BuildStart, () => this.build(), 'Zornux: Build Project');
+    context.commands.register(CommandIds.BuildRebuild, () => this.rebuild(), 'Zornux: Rebuild Project');
+    context.commands.register(CommandIds.RunScript, (name: string) => this.runScript(name), 'Zornux: Run Script');
+
+    const status = this.status();
+    status?.setItem('run.action', {
+      text: '▶ Run',
+      tooltip: 'Run project',
+      command: CommandIds.RunStart,
+      side: 'right',
+      priority: 32,
+    });
+    status?.setItem('build.action', {
+      text: '⚙ Build',
+      tooltip: 'Build project',
+      command: CommandIds.BuildStart,
+      side: 'right',
+      priority: 31,
+    });
+
+    // Run & Debug workspace (UX-1): one of the five default Activity Bar items,
+    // surfacing the existing run/build/debug commands in a sidebar.
+    context.layout.addActivityItem({
+      id: 'run-debug',
+      label: 'Run & Debug',
+      icon: '▷',
+      onSelect: () => this.revealRunDebug(),
+    });
+
+    // Reflect streamed task (Run) completion in the status bar.
+    window.znxstudio.task.onExit((event) =>
+      status?.setItem('runbuild.status', {
+        text: event.code === 0 ? '✓ task ok' : `✗ task (${event.code ?? '—'})`,
+        side: 'right',
+        priority: 30,
+        autoHideMs: 4000,
+      }),
+    );
+
+    // When a file flagged by the last build is opened, the live compiler layer
+    // takes over — drop the build's diagnostics for it to avoid duplicates.
+    const documents = context.services.tryGet<DocumentManager>(LanguageServiceKeys.Documents);
+    documents?.onDidOpen((doc) => this.engine()?.clear(doc.uri, DiagnosticSources.ZornuxBuild));
+  }
+
+  /** Build and reveal the Run & Debug sidebar of action buttons. */
+  private revealRunDebug(): void {
+    const view = document.createElement('div');
+    view.className = 'znxstudio-rundebug';
+
+    const actions: { label: string; command: string }[] = [
+      { label: '▶  Run Project', command: CommandIds.RunStart },
+      { label: '⚙  Build Project', command: CommandIds.BuildStart },
+      { label: '🐞  Start Debugging', command: CommandIds.DebugStart },
+      { label: '⏭  Step Over', command: CommandIds.DebugStepOver },
+      { label: '▶▶  Continue', command: CommandIds.DebugContinue },
+      { label: '⏸  Pause', command: CommandIds.DebugPause },
+      { label: '⏹  Stop', command: CommandIds.DebugStop },
+    ];
+    for (const action of actions) {
+      const button = document.createElement('button');
+      button.className = 'znxstudio-btn-small znxstudio-rundebug-action';
+      button.textContent = action.label;
+      button.disabled = !this.context.commands.has(action.command);
+      button.addEventListener('click', () => {
+        if (this.context.commands.has(action.command)) void this.context.commands.execute(action.command);
+      });
+      view.appendChild(button);
+    }
+
+    this.context.layout.setSideBar('Run & Debug', view);
+    this.context.layout.focusSideBar();
+  }
+
+  /** Rebuild: drop the compiler cache first so the build runs from scratch. */
+  private async rebuild(): Promise<void> {
+    const compiler = this.context.services.tryGet<CompilerService>(ServiceKeys.Compiler);
+    if (compiler) await compiler.cacheClear();
+    await this.build();
+  }
+
+  /* ----- Build ----- */
+  /**
+   * Persist unsaved editor edits before running/building. The compiler and runner
+   * read files from disk, so without this a dirty buffer would run stale content
+   * (the on-disk version), and the output wouldn't match what's on screen.
+   */
+  private async saveOpenDocuments(): Promise<void> {
+    const documents = this.context.services.tryGet<DocumentManager>(LanguageServiceKeys.Documents);
+    await documents?.saveAllDirty();
+  }
+
+  private async build(): Promise<void> {
+    const info = this.workspaceInfo();
+    if (!info) {
+      this.context.layout.showToast('Open a folder to build.', 'error');
+      return;
+    }
+    await this.saveOpenDocuments();
+
+    const compiler = this.context.services.tryGet<CompilerService>(ServiceKeys.Compiler);
+    const entry = this.zornuxEntry(info);
+    const compilerAvailable = compiler ? (await compiler.info()).available : false;
+
+    if (compiler && compilerAvailable && entry) {
+      await this.compilerBuild(compiler, entry, info);
+      return;
+    }
+    // Fall back to a manifest script for generic projects.
+    if (info.project?.scripts?.build) {
+      await this.runScript('build');
+      return;
+    }
+    this.context.layout.showToast(
+      entry ? 'Zornux compiler not available for build.' : 'Open a .zx file or add src/main.zx to build.',
+      'error',
+    );
+  }
+
+  private async compilerBuild(compiler: CompilerService, entry: string, info: WorkspaceInfo): Promise<void> {
+    const output = this.output();
+    output?.clear();
+    output?.show();
+    output?.appendLine(`> zornux build ${entry}`);
+    this.status()?.setItem('runbuild.status', { text: '⏳ building…', side: 'right', priority: 30 });
+
+    const result = await compiler.build({
+      path: entry,
+      workspaceRoot: info.root,
+      compilerPath: this.compilerPathOverride(),
+    });
+
+    if (!result.available) {
+      output?.appendLine(`Zornux compiler unavailable${result.error ? `: ${result.error}` : ''}.`);
+      this.status()?.setItem('runbuild.status', { text: '✗ no compiler', side: 'right', priority: 30, autoHideMs: 4000 });
+      return;
+    }
+    if (!result.ran) {
+      // Usage / file-not-found / internal error — surface it plainly.
+      output?.appendLine(`Build could not run (${result.outcome})${result.error ? `: ${result.error}` : ''}.`);
+      this.status()?.setItem('runbuild.status', { text: '✗ build error', side: 'right', priority: 30, autoHideMs: 4000 });
+      return;
+    }
+
+    this.publishBuildDiagnostics(result.diagnostics, info.root);
+
+    const errors = result.diagnostics.filter((d) => d.severity === 'error').length;
+    const warnings = result.diagnostics.filter((d) => d.severity === 'warning').length;
+    const took = `${result.durationMs.toFixed(0)}ms`;
+
+    if (result.ok) {
+      const suffix = result.cached ? ' (cached, unchanged)' : '';
+      output?.appendLine(`✓ Built ${result.artifact ?? '(artifact)'} in ${took}${suffix}.`);
+      this.status()?.setItem('runbuild.status', { text: '✓ build ok', side: 'right', priority: 30, autoHideMs: 4000 });
+    } else {
+      output?.appendLine(`✗ Build failed — ${buildSummary(errors, warnings)} in ${took}.`);
+      this.status()?.setItem('runbuild.status', {
+        text: `✗ build (${errors})`,
+        side: 'right',
+        priority: 30,
+        autoHideMs: 4000,
+      });
+      // Bring the clickable Problems list forward.
+      if (this.context.commands.has(CommandIds.ViewProblems)) {
+        await this.context.commands.execute(CommandIds.ViewProblems);
+      }
+    }
+  }
+
+  /**
+   * Publish build diagnostics per file. Files already open are covered by the
+   * live compiler layer, so we skip them here (no duplicate squiggles); closed
+   * files get a `zornux-build` source so their errors are visible + clickable.
+   */
+  private publishBuildDiagnostics(diagnostics: CompilerDiagnostic[], workspaceRoot: string): void {
+    const engine = this.engine();
+    if (!engine) return;
+    const documents = this.context.services.tryGet<DocumentManager>(LanguageServiceKeys.Documents);
+
+    for (const uri of this.lastBuildUris) engine.clear(uri, DiagnosticSources.ZornuxBuild);
+    this.lastBuildUris = [];
+
+    for (const [path, list] of groupByFile(diagnostics, workspaceRoot)) {
+      const uri = monaco.Uri.file(path).toString();
+      if (documents?.get(uri)) continue; // open → live layer owns it
+      engine.set(uri, DiagnosticSources.ZornuxBuild, toPlatformDiagnostics(list, DiagnosticSources.ZornuxBuild));
+      this.lastBuildUris.push(uri);
+    }
+  }
+
+  /* ----- Run ----- */
+  private async run(): Promise<void> {
+    const info = this.workspaceInfo();
+    if (!info) {
+      this.context.layout.showToast('Open a folder to run.', 'error');
+      return;
+    }
+    await this.saveOpenDocuments();
+
+    const compiler = this.context.services.tryGet<CompilerService>(ServiceKeys.Compiler);
+    const entry = this.zornuxEntry(info);
+    const compilerInfo = compiler ? await compiler.info() : null;
+
+    if (compiler && compilerInfo?.available && compilerInfo.path && entry) {
+      // Thread the workspace's active environment profile (Phase 5F) into run.
+      const profile = this.context.services.tryGet<ProfileService>(ServiceKeys.Profile)?.active();
+      const profileArg = profile ? ` --profile ${profile}` : '';
+      const command = `"${compilerInfo.path}" run "${entry}"${profileArg}`;
+      await this.streamTask('run', command, info.root, `> zornux run ${entry}${profileArg}`);
+      return;
+    }
+    if (info.project?.scripts?.run) {
+      await this.runScript('run');
+      return;
+    }
+    this.context.layout.showToast(
+      entry ? 'Zornux compiler not available to run.' : 'Open a .zx file or add src/main.zx to run.',
+      'error',
+    );
+  }
+
+  /* ----- generic manifest script (fallback + palette "Run Script") ----- */
+  private async runScript(name: string): Promise<void> {
+    const info = this.workspaceInfo();
+    if (!info) {
+      this.context.layout.showToast('Open a folder to run tasks.', 'error');
+      return;
+    }
+    const command = info.project?.scripts?.[name];
+    if (!command) {
+      this.context.layout.showToast(`No "${name}" script defined for this project.`, 'error');
+      return;
+    }
+    await this.streamTask(name, command, info.root, `> ${command}`);
+  }
+
+  private async streamTask(name: string, command: string, cwd: string, banner: string): Promise<void> {
+    const output = this.output();
+    output?.clear();
+    output?.show();
+    output?.appendLine(banner);
+    this.status()?.setItem('runbuild.status', { text: `⏳ ${name}…`, side: 'right', priority: 30 });
+    try {
+      await window.znxstudio.task.run({ id: `task-${name}`, command, cwd });
+    } catch (error) {
+      output?.appendLine(`Failed to start task: ${(error as Error).message}`);
+    }
+  }
+
+  /* ----- helpers ----- */
+  private zornuxEntry(info: WorkspaceInfo): string | null {
+    const editor = this.context.services.tryGet<EditorService>(ServiceKeys.Editor);
+    const active = editor?.currentFile();
+    if (active && active.toLowerCase().endsWith('.zx')) return active;
+    const targetsZornux =
+      info.detectedType === 'zornux-api' || info.detectedType === 'zornux-zoijs-fullstack';
+    if (targetsZornux) return `${info.root.replace(/[\\/]+$/, '')}/src/main.zx`;
+    return null;
+  }
+
+  private compilerPathOverride(): string | null {
+    const settings = this.context.services.tryGet<SettingsService>(ServiceKeys.Settings);
+    const value = settings?.get('zornux.compiler.path', '');
+    return typeof value === 'string' && value.trim() ? value.trim() : null;
+  }
+
+  private workspaceInfo(): WorkspaceInfo | null {
+    return this.context.services.tryGet<WorkspaceService>(ServiceKeys.Workspace)?.currentWorkspace() ?? null;
+  }
+
+  private engine(): DiagnosticSink | undefined {
+    return this.context.services.tryGet<DiagnosticSink>(LanguageServiceKeys.Diagnostics);
+  }
+
+  private output(): OutputService | undefined {
+    return this.context.services.tryGet<OutputService>(ServiceKeys.Output);
+  }
+
+  private status(): StatusService | undefined {
+    return this.context.services.tryGet<StatusService>(ServiceKeys.Status);
+  }
+}

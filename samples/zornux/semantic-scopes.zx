@@ -1,0 +1,13 @@
+// Scope resolution: 'local' lives in outer() and is NOT visible in other().
+define shared to 10
+
+function outer(param) {
+  let local is param
+  say shared
+  say local
+}
+
+function other() {
+  say shared
+  say local
+}
