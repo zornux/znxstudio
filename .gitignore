@@ -11,4 +11,6 @@ Thumbs.db
 .env.local
 
 # Staged bundled Zornux runtime — published binaries; the placeholder README stays.
+# win-x64 is vendored so CI bundles the toolchain into the Windows installer.
 build/zornux/*/
+!build/zornux/win-x64/
