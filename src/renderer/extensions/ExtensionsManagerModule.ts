@@ -41,6 +41,9 @@ export class ExtensionsManagerModule implements IModule {
   private remoteLoading = false;
   private remoteError = '';
   private searchTimer: ReturnType<typeof setTimeout> | undefined;
+  /** Persistent shell elements — kept stable so typing never rebuilds the search box. */
+  private searchInput?: HTMLInputElement;
+  private listEl?: HTMLElement;
 
   activate(context: ModuleContext): void {
     this.context = context;
@@ -70,7 +73,13 @@ export class ExtensionsManagerModule implements IModule {
     return !this.query || text.toLowerCase().includes(this.query.toLowerCase());
   }
 
-  private render(): void {
+  /**
+   * Build the persistent shell ONCE: the search box and a results container. Keeping the
+   * input element stable across renders is what makes typing smooth — re-creating it on
+   * each keystroke (the old behaviour) dropped focus and jumped the caret.
+   */
+  private ensureShell(): void {
+    if (this.searchInput && this.listEl) return;
     this.root.replaceChildren();
 
     const search = document.createElement('input');
@@ -79,32 +88,51 @@ export class ExtensionsManagerModule implements IModule {
     search.value = this.query;
     search.addEventListener('input', () => {
       this.query = search.value;
-      this.render();
+      this.renderList(); // only the results re-render — the input keeps focus + caret
       this.scheduleRemoteSearch();
     });
-    this.root.appendChild(search);
+    this.searchInput = search;
+
+    const list = document.createElement('div');
+    list.className = 'znxstudio-extmgr-list';
+    this.listEl = list;
+
+    this.root.append(search, list);
+  }
+
+  private render(): void {
+    this.ensureShell();
+    // Keep the input's value in sync when the query changes programmatically (not on typing).
+    if (this.searchInput && this.searchInput.value !== this.query) this.searchInput.value = this.query;
+    this.renderList();
+  }
+
+  private renderList(): void {
+    const list = this.listEl;
+    if (!list) return;
+    list.replaceChildren();
 
     // Installed — bundled extensions + remote (live-marketplace) extensions.
     const installed = this.extensions.list().filter((e) => this.matches(`${e.name} ${e.id} ${e.publisher}`));
     const remoteInstalled = this.marketplace
       .installedRemote()
       .filter((e) => this.matches(`${e.name} ${e.id} ${e.publisher}`));
-    this.root.appendChild(this.sectionHeader(`Installed — ${installed.length + remoteInstalled.length}`));
-    if (installed.length + remoteInstalled.length === 0) this.root.appendChild(this.empty('Nothing installed matches.'));
-    for (const info of installed) this.root.appendChild(this.installedRow(info));
-    for (const info of remoteInstalled) this.root.appendChild(this.remoteInstalledRow(info));
+    list.appendChild(this.sectionHeader(`Installed — ${installed.length + remoteInstalled.length}`));
+    if (installed.length + remoteInstalled.length === 0) list.appendChild(this.empty('Nothing installed matches.'));
+    for (const info of installed) list.appendChild(this.installedRow(info));
+    for (const info of remoteInstalled) list.appendChild(this.remoteInstalledRow(info));
 
     // Marketplace — live results + any bundled samples not yet installed.
     const bundled = searchMarketplace(this.marketplace.catalog(), this.query).filter((e) => !this.marketplace.isInstalled(e.id));
     const remote = this.remoteResults.filter((e) => !this.marketplace.isInstalled(e.id));
-    this.root.appendChild(this.sectionHeader(`Marketplace — ${remote.length + bundled.length}`));
-    if (this.remoteLoading) this.root.appendChild(this.empty('Searching the marketplace…'));
-    if (this.remoteError) this.root.appendChild(this.errorLine(`Marketplace unavailable: ${this.remoteError}`));
+    list.appendChild(this.sectionHeader(`Marketplace — ${remote.length + bundled.length}`));
+    if (this.remoteLoading) list.appendChild(this.empty('Searching the marketplace…'));
+    if (this.remoteError) list.appendChild(this.errorLine(`Marketplace unavailable: ${this.remoteError}`));
     if (!this.remoteLoading && !this.remoteError && remote.length + bundled.length === 0) {
-      this.root.appendChild(this.empty('No matching extensions available.'));
+      list.appendChild(this.empty('No matching extensions available.'));
     }
-    for (const entry of remote) this.root.appendChild(this.marketplaceRow(entry));
-    for (const entry of bundled) this.root.appendChild(this.marketplaceRow(entry));
+    for (const entry of remote) list.appendChild(this.marketplaceRow(entry));
+    for (const entry of bundled) list.appendChild(this.marketplaceRow(entry));
   }
 
   /** Debounce live-marketplace search so we don't fire a request per keystroke. */

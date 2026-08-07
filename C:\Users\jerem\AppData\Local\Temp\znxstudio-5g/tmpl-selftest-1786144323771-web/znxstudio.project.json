@@ -1,0 +1,24 @@
+{
+  "name": "tmpl-selftest-1786144323771-web",
+  "type": "zoijs-frontend",
+  "version": "0.1.0",
+  "scripts": {
+    "run": "zornux run src/main.zx"
+  },
+  "languageTargets": [],
+  "frameworkTargets": [
+    "zoijs"
+  ],
+  "extensionRequirements": [],
+  "workspace": {
+    "sourceDirs": [
+      "src"
+    ],
+    "generatedDirs": [
+      "dist"
+    ],
+    "configFiles": [
+      "znxstudio.project.json"
+    ]
+  }
+}

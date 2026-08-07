@@ -4592,7 +4592,7 @@ body.is-resizing {
   display: flex;
   flex-direction: column;
   height: 100%;
-  overflow-y: auto;
+  overflow: hidden; /* the results list scrolls; the search box stays pinned */
   padding: 8px;
   gap: 6px;
 }
@@ -4603,6 +4603,16 @@ body.is-resizing {
   border-radius: 6px;
   padding: 5px 8px;
   font-size: 12.5px;
+  flex: 0 0 auto;
+}
+/* Scrollable results region — pinned search above, rows scroll within. */
+.znxstudio-extmgr-list {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
 }
 .znxstudio-extmgr-section {
   font-size: 10.5px;

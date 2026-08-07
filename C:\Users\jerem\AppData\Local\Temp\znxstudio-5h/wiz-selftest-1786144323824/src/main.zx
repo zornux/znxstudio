@@ -1,0 +1,4 @@
+show "Hello from wiz-selftest-1786144323824!"
+
+let name = ask "What is your name? "
+show "Nice to meet you, " + name + "."

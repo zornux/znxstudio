@@ -1,0 +1,4 @@
+show "Hello from tmpl-selftest-1786144595463!"
+
+let name = ask "What is your name? "
+show "Nice to meet you, " + name + "."

@@ -1,0 +1,4 @@
+name = tmpl-selftest-1786144323771
+version = 0.1.0
+entry = main.zx
+source = src/
