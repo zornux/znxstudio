@@ -2070,6 +2070,18 @@ body.is-resizing {
   padding: 8px;
   gap: 6px;
 }
+/* VS Code-style search/replace fields: grow with content (no fixed height), wrap long
+   patterns, and never show a manual resize grip. Height is driven by JS (autosize). */
+.znxstudio-search-field {
+  resize: none;
+  overflow-y: hidden;
+  min-height: 22px;
+  line-height: 1.4;
+  white-space: pre-wrap;
+  word-break: break-word;
+  font-family: inherit;
+}
+
 .znxstudio-search-options,
 .znxstudio-search-modes {
   display: flex;

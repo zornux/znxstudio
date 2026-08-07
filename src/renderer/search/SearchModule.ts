@@ -9,6 +9,15 @@ import { buildSearchRegex } from '../../shared/textSearch';
 import { expandReplacement, replaceAll } from '../../shared/textReplace';
 import type { ReplaceFileResult, SearchFileResult, SearchSymbolHit } from '../../shared/types';
 
+/** Grow a search textarea to fit its content, up to a few rows, then scroll. */
+const SEARCH_FIELD_MAX_HEIGHT = 120;
+function autosize(field: HTMLTextAreaElement): void {
+  field.style.height = 'auto';
+  const next = Math.min(field.scrollHeight, SEARCH_FIELD_MAX_HEIGHT);
+  field.style.height = `${next}px`;
+  field.style.overflowY = field.scrollHeight > SEARCH_FIELD_MAX_HEIGHT ? 'auto' : 'hidden';
+}
+
 const KIND_ICON: Record<string, string> = {
   function: '🔧',
   class: '🏛',
@@ -34,8 +43,8 @@ export class SearchModule implements IModule {
   private context!: ModuleContext;
   private workspace!: WorkspaceService;
   private results!: HTMLElement;
-  private input?: HTMLInputElement;
-  private replaceInput?: HTMLInputElement;
+  private input?: HTMLTextAreaElement;
+  private replaceInput?: HTMLTextAreaElement;
   private mode: 'text' | 'symbols' = 'text';
   private caseSensitive = false;
   private wholeWord = false;
@@ -70,22 +79,10 @@ export class SearchModule implements IModule {
     const shell = document.createElement('div');
     shell.className = 'znxstudio-search';
 
-    const input = document.createElement('input');
-    input.className = 'znxstudio-input';
-    input.placeholder = 'Search…';
-    input.value = this.input?.value ?? '';
-    input.addEventListener('keydown', (event) => {
-      if (event.key === 'Enter') void this.run();
-    });
+    const input = this.searchField('Search…', this.input?.value ?? '');
     this.input = input;
 
-    const replace = document.createElement('input');
-    replace.className = 'znxstudio-input';
-    replace.placeholder = 'Replace… (leave blank to search only)';
-    replace.value = this.replaceInput?.value ?? '';
-    replace.addEventListener('keydown', (event) => {
-      if (event.key === 'Enter') void this.run();
-    });
+    const replace = this.searchField('Replace… (leave blank to search only)', this.replaceInput?.value ?? '');
     this.replaceInput = replace;
 
     const options = document.createElement('div');
@@ -105,6 +102,30 @@ export class SearchModule implements IModule {
 
     shell.append(input, replace, options, modes, this.results);
     return shell;
+  }
+
+  /**
+   * A VS Code-style search field: a textarea that grows with its content (up to a few
+   * rows, then scrolls) rather than a fixed single line, so long queries and multi-line
+   * regex stay fully visible. Enter runs the search; Shift+Enter inserts a newline.
+   */
+  private searchField(placeholder: string, value: string): HTMLTextAreaElement {
+    const field = document.createElement('textarea');
+    field.className = 'znxstudio-input znxstudio-search-field';
+    field.placeholder = placeholder;
+    field.rows = 1;
+    field.value = value;
+    field.spellcheck = false;
+    field.addEventListener('keydown', (event) => {
+      if (event.key === 'Enter' && !event.shiftKey) {
+        event.preventDefault();
+        void this.run();
+      }
+    });
+    field.addEventListener('input', () => autosize(field));
+    // Fit the restored value once the field is attached to the DOM.
+    queueMicrotask(() => autosize(field));
+    return field;
   }
 
   private toggle(label: string, title: string, get: () => boolean, set: (v: boolean) => void): HTMLButtonElement {
