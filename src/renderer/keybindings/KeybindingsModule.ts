@@ -1,7 +1,7 @@
 import { ServiceKeys, type KeybindingService, type SettingsService } from '../core/Contracts';
 import { Emitter } from '../core/Emitter';
 import { selfTestCoordinator } from '../core/SelfTestCoordinator';
-import type { IModule, ModuleContext } from '../core/Module';
+import type { Disposable, IModule, ModuleContext } from '../core/Module';
 import { CommandIds } from '../commands/CommandIds';
 import {
   chordFromEvent,
@@ -72,6 +72,7 @@ export class KeybindingsModule implements IModule, KeybindingService {
     (typeof navigator !== 'undefined' && (navigator.platform || navigator.userAgent)) || '',
   );
   private defaults: Keybinding[] = [];
+  private external: Keybinding[] = [];
   private user: Keybinding[] = [];
   private pending: Chord[] = [];
   private pendingTimer: ReturnType<typeof setTimeout> | undefined;
@@ -110,13 +111,29 @@ export class KeybindingsModule implements IModule, KeybindingService {
 
   /* ----- KeybindingService ----- */
   bindings(): Keybinding[] {
-    return resolveBindings(this.defaults, this.user);
+    // Extension bindings rank after built-in defaults but before user overrides.
+    return resolveBindings([...this.defaults, ...this.external], this.user);
   }
 
   registerDefault(keys: string, command: string): void {
     const chords = parseKeybinding(keys);
     if (!chords) throw new Error(`Not a keybinding: ${keys}`);
     this.defaults.push({ chords, command, source: 'default' });
+  }
+
+  registerExternal(keys: string, command: string): Disposable {
+    const chords = parseKeybinding(keys);
+    if (!chords) throw new Error(`Not a keybinding: ${keys}`);
+    const binding: Keybinding = { chords, command, source: 'default' };
+    this.external.push(binding);
+    this.changeEmitter.fire();
+    return {
+      dispose: () => {
+        const index = this.external.indexOf(binding);
+        if (index >= 0) this.external.splice(index, 1);
+        this.changeEmitter.fire();
+      },
+    };
   }
 
   setUserBindings(bindings: Record<string, string>): void {

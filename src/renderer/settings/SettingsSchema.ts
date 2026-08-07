@@ -61,6 +61,7 @@ export interface ZnxStudioSettings {
   'ai.model': string;
   'ai.apiKey': string;
   'ai.baseUrl': string;
+  'marketplace.baseUrl': string;
   'ai.deployment': string;
   'ai.apiVersion': string;
   'ai.temperature': number;
@@ -106,6 +107,7 @@ export const SETTINGS_DEFAULTS: ZnxStudioSettings = {
   'ai.model': '',
   'ai.apiKey': '',
   'ai.baseUrl': '',
+  'marketplace.baseUrl': 'https://marketplace.zornux.com',
   'ai.deployment': '',
   'ai.apiVersion': '',
   'ai.temperature': 0.2,
@@ -232,6 +234,10 @@ export const SETTINGS_JSON_SCHEMA = {
     'ai.baseUrl': {
       type: 'string',
       description: 'Override endpoint (Ollama host, Azure resource endpoint, or custom base URL).',
+    },
+    'marketplace.baseUrl': {
+      type: 'string',
+      description: 'Extension marketplace URL. Honored only in development builds; production is pinned to the canonical host.',
     },
     'ai.deployment': {
       type: 'string',
@@ -371,6 +377,7 @@ export const SETTINGS_DESCRIPTIONS: { key: keyof ZnxStudioSettings; description:
   { key: 'ai.provider', description: 'AI provider (none / openai / anthropic / google / ollama / azure / custom).' },
   { key: 'ai.model', description: 'AI model / deployment (blank = provider default).' },
   { key: 'ai.apiKey', description: 'AI provider API key (blank = use environment variable).' },
+  { key: 'marketplace.baseUrl', description: 'Extension marketplace URL (development builds only).' },
 ];
 
 export const SETTINGS_MODEL_URI = 'inmemory://model/znxstudio-settings.json';

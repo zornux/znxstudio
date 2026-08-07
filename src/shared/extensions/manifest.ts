@@ -12,10 +12,44 @@ export interface ContributedCommand {
   command: string;
   title: string;
   category?: string;
+  /**
+   * Declarative alias: when invoked, run this EXISTING command id instead of
+   * executing extension code. Marketplace (data-only) extensions contribute
+   * palette entries this way; the target must be on the extension-contributable
+   * allowlist (see `shared/extensions/registry.ts`). Bundled code extensions
+   * leave this unset and provide a handler instead.
+   */
+  runs?: string;
+}
+
+/** A declarative snippet contribution (data only — inserted as literal text). */
+export interface ContributedSnippet {
+  language: string;
+  prefix: string;
+  body: string;
+  description?: string;
+}
+
+/** A declarative keybinding contribution — binds a chord to an allowlisted command. */
+export interface ContributedKeybinding {
+  key: string;
+  command: string;
+  when?: string;
+}
+
+/** A declarative color theme — validated tokens only, mapped to the IDE's theme system. */
+export interface ContributedTheme {
+  id: string;
+  label: string;
+  type: 'light' | 'dark';
+  colors: Record<string, string>;
 }
 
 export interface ExtensionContributions {
   commands?: ContributedCommand[];
+  snippets?: ContributedSnippet[];
+  keybindings?: ContributedKeybinding[];
+  themes?: ContributedTheme[];
 }
 
 export interface ExtensionManifest {
@@ -119,7 +153,8 @@ export function parseExtensionManifest(raw: unknown): ManifestParseResult {
           errors.push(`Command "${cmd}" must be namespaced under the extension id ("${id}.…").`);
         }
         const category = typeof command!.category === 'string' ? command!.category : undefined;
-        commands.push({ command: cmd, title, category });
+        const runs = typeof command!.runs === 'string' && command!.runs.trim() ? command!.runs.trim() : undefined;
+        commands.push({ command: cmd, title, category, runs });
       });
       contributes.commands = commands;
     }

@@ -22,3 +22,8 @@ export function setPackaged(value: boolean): void {
 export function isSelfTest(): boolean {
   return process.env.ZNXSTUDIO_SELFTEST === '1' && !packaged;
 }
+
+/** Whether this is a shipped, packaged binary (true in production). */
+export function isPackaged(): boolean {
+  return packaged;
+}

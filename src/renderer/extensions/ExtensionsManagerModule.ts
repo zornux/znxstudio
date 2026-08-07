@@ -3,11 +3,16 @@ import {
   type ExtensionInfo,
   type ExtensionService,
   type MarketplaceService,
+  type RemoteInstalled,
 } from '../core/Contracts';
 import { selfTestCoordinator } from '../core/SelfTestCoordinator';
 import type { IModule, ModuleContext } from '../core/Module';
 import { CommandIds } from '../commands/CommandIds';
-import { isInstallable, searchMarketplace } from '../../shared/extensions/marketplace';
+import { isInstallable, searchMarketplace, type MarketplaceEntry } from '../../shared/extensions/marketplace';
+
+function cap(value: string): string {
+  return value ? value.charAt(0).toUpperCase() + value.slice(1) : value;
+}
 
 const STATE_LABEL: Record<ExtensionInfo['state'], string> = {
   active: 'Enabled',
@@ -31,6 +36,11 @@ export class ExtensionsManagerModule implements IModule {
   private marketplace!: MarketplaceService;
   private root!: HTMLElement;
   private query = '';
+  /** Cached live-marketplace results for the current query (async; render reads this). */
+  private remoteResults: MarketplaceEntry[] = [];
+  private remoteLoading = false;
+  private remoteError = '';
+  private searchTimer: ReturnType<typeof setTimeout> | undefined;
 
   activate(context: ModuleContext): void {
     this.context = context;
@@ -65,25 +75,103 @@ export class ExtensionsManagerModule implements IModule {
 
     const search = document.createElement('input');
     search.className = 'znxstudio-extmgr-search';
-    search.placeholder = 'Search extensions…';
+    search.placeholder = 'Search the marketplace…';
     search.value = this.query;
     search.addEventListener('input', () => {
       this.query = search.value;
       this.render();
+      this.scheduleRemoteSearch();
     });
     this.root.appendChild(search);
 
-    // Installed.
+    // Installed — bundled extensions + remote (live-marketplace) extensions.
     const installed = this.extensions.list().filter((e) => this.matches(`${e.name} ${e.id} ${e.publisher}`));
-    this.root.appendChild(this.sectionHeader(`Installed — ${installed.length}`));
-    if (installed.length === 0) this.root.appendChild(this.empty('Nothing installed matches.'));
+    const remoteInstalled = this.marketplace
+      .installedRemote()
+      .filter((e) => this.matches(`${e.name} ${e.id} ${e.publisher}`));
+    this.root.appendChild(this.sectionHeader(`Installed — ${installed.length + remoteInstalled.length}`));
+    if (installed.length + remoteInstalled.length === 0) this.root.appendChild(this.empty('Nothing installed matches.'));
     for (const info of installed) this.root.appendChild(this.installedRow(info));
+    for (const info of remoteInstalled) this.root.appendChild(this.remoteInstalledRow(info));
 
-    // Marketplace (entries not yet installed).
-    const catalog = searchMarketplace(this.marketplace.catalog(), this.query).filter((e) => !this.marketplace.isInstalled(e.id));
-    this.root.appendChild(this.sectionHeader(`Marketplace — ${catalog.length}`));
-    if (catalog.length === 0) this.root.appendChild(this.empty('No matching extensions available.'));
-    for (const entry of catalog) this.root.appendChild(this.marketplaceRow(entry));
+    // Marketplace — live results + any bundled samples not yet installed.
+    const bundled = searchMarketplace(this.marketplace.catalog(), this.query).filter((e) => !this.marketplace.isInstalled(e.id));
+    const remote = this.remoteResults.filter((e) => !this.marketplace.isInstalled(e.id));
+    this.root.appendChild(this.sectionHeader(`Marketplace — ${remote.length + bundled.length}`));
+    if (this.remoteLoading) this.root.appendChild(this.empty('Searching the marketplace…'));
+    if (this.remoteError) this.root.appendChild(this.errorLine(`Marketplace unavailable: ${this.remoteError}`));
+    if (!this.remoteLoading && !this.remoteError && remote.length + bundled.length === 0) {
+      this.root.appendChild(this.empty('No matching extensions available.'));
+    }
+    for (const entry of remote) this.root.appendChild(this.marketplaceRow(entry));
+    for (const entry of bundled) this.root.appendChild(this.marketplaceRow(entry));
+  }
+
+  /** Debounce live-marketplace search so we don't fire a request per keystroke. */
+  private scheduleRemoteSearch(): void {
+    if (this.searchTimer) clearTimeout(this.searchTimer);
+    this.searchTimer = setTimeout(() => void this.runRemoteSearch(), 300);
+  }
+
+  private async runRemoteSearch(): Promise<void> {
+    this.remoteLoading = true;
+    this.remoteError = '';
+    this.render();
+    try {
+      this.remoteResults = await this.marketplace.search(this.query);
+    } catch (error) {
+      this.remoteResults = [];
+      this.remoteError = (error as Error).message;
+    } finally {
+      this.remoteLoading = false;
+      this.render();
+    }
+  }
+
+  private errorLine(text: string): HTMLElement {
+    const el = document.createElement('div');
+    el.className = 'znxstudio-extmgr-error';
+    el.textContent = text;
+    return el;
+  }
+
+  /** An installed remote extension: enable/disable + uninstall, with trust facts. */
+  private remoteInstalledRow(info: RemoteInstalled): HTMLElement {
+    const row = document.createElement('div');
+    row.className = 'znxstudio-extmgr-row';
+
+    const head = document.createElement('div');
+    head.className = 'znxstudio-extmgr-head';
+    const name = document.createElement('span');
+    name.className = 'znxstudio-extmgr-name';
+    name.textContent = info.name;
+    const version = document.createElement('span');
+    version.className = 'znxstudio-extmgr-version';
+    version.textContent = `v${info.version}`;
+    const badge = document.createElement('span');
+    badge.className = `znxstudio-extmgr-badge is-${info.enabled ? 'active' : 'registered'}`;
+    badge.textContent = info.enabled ? 'Enabled' : 'Disabled';
+    head.append(name, version, badge);
+    row.appendChild(head);
+
+    const meta = document.createElement('div');
+    meta.className = 'znxstudio-extmgr-meta';
+    meta.textContent = `${info.publisher} · Integrity verified ✓ · Signature: not available`;
+    row.appendChild(meta);
+
+    const actions = document.createElement('div');
+    actions.className = 'znxstudio-extmgr-actions';
+    const toggle = document.createElement('button');
+    toggle.className = 'znxstudio-btn-small';
+    toggle.textContent = info.enabled ? 'Disable' : 'Enable';
+    toggle.addEventListener('click', () => void this.marketplace.setRemoteEnabled(info.id, !info.enabled));
+    const uninstall = document.createElement('button');
+    uninstall.className = 'znxstudio-btn-small';
+    uninstall.textContent = 'Uninstall';
+    uninstall.addEventListener('click', () => void this.marketplace.uninstall(info.id));
+    actions.append(toggle, uninstall);
+    row.appendChild(actions);
+    return row;
   }
 
   private sectionHeader(text: string): HTMLElement {
@@ -197,19 +285,41 @@ export class ExtensionsManagerModule implements IModule {
 
     const meta = document.createElement('div');
     meta.className = 'znxstudio-extmgr-meta';
-    const rating = entry.rating ? `★ ${entry.rating.toFixed(1)}` : '';
-    const installs = entry.installs ? `${entry.installs.toLocaleString()} installs` : '';
-    meta.textContent = [entry.publisher, installs, rating].filter(Boolean).join(' · ');
+    // Only fields the marketplace actually returns — no ratings (the API has none). Publisher
+    // status and integrity/signature are shown as SEPARATE facts, never conflated.
+    const downloads = entry.downloads ?? entry.installs;
+    const bits = [entry.publisher];
+    if (entry.trustTier) bits.push(cap(entry.trustTier));
+    if (entry.verified) bits.push('Verified publisher');
+    if (downloads) bits.push(`${downloads.toLocaleString()} downloads`);
+    if (entry.updatedAt) bits.push(`updated ${entry.updatedAt.slice(0, 10)}`);
+    meta.textContent = bits.join(' · ');
     row.appendChild(meta);
+
+    if (entry.remote) {
+      const trust = document.createElement('div');
+      trust.className = 'znxstudio-extmgr-meta';
+      trust.textContent = 'Integrity verified on install · Artifact signature: not available';
+      row.appendChild(trust);
+    }
 
     const actions = document.createElement('div');
     actions.className = 'znxstudio-extmgr-actions';
     const install = document.createElement('button');
     install.className = 'znxstudio-btn-small';
-    const compatible = isInstallable(entry);
+    // Remote entries carry no engine range in the card; compatibility is validated at install.
+    const compatible = entry.remote ? true : isInstallable(entry);
     if (compatible) {
       install.textContent = 'Install';
-      install.addEventListener('click', () => void this.marketplace.install(entry.id));
+      install.addEventListener('click', () => {
+        install.disabled = true;
+        install.textContent = 'Installing…';
+        this.marketplace.install(entry).catch((error: unknown) => {
+          this.context.layout.showToast(`Install failed: ${(error as Error).message}`, 'error');
+          install.disabled = false;
+          install.textContent = 'Install';
+        });
+      });
     } else {
       install.textContent = 'Incompatible';
       install.disabled = true;

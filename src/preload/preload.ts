@@ -199,6 +199,18 @@ const api: ZnxStudioApi = {
       return () => ipcRenderer.send(IpcChannels.AiStreamCancel, { id });
     },
   },
+  marketplace: {
+    search: (params) => ipcRenderer.invoke(IpcChannels.MarketplaceSearch, params),
+    detail: (publisher, slug) => ipcRenderer.invoke(IpcChannels.MarketplaceDetail, { publisher, slug }),
+    install: (publisher, slug, version) =>
+      ipcRenderer.invoke(IpcChannels.ExtensionsInstall, { publisher, slug, version }),
+    uninstall: (publisher, slug, version) =>
+      ipcRenderer.invoke(IpcChannels.ExtensionsUninstall, { publisher, slug, version }),
+    setEnabled: (publisher, slug, version, enabled) =>
+      ipcRenderer.invoke(IpcChannels.ExtensionsSetEnabled, { publisher, slug, version, enabled }),
+    listInstalled: () => ipcRenderer.invoke(IpcChannels.ExtensionsList),
+    loadEnabled: () => ipcRenderer.invoke(IpcChannels.ExtensionsLoadEnabled),
+  },
   git: {
     exec: (request) => ipcRenderer.invoke(IpcChannels.GitExec, request),
   },

@@ -19,6 +19,22 @@ export interface MarketplaceEntry {
   rating?: number;
   /** Ships enabled and cannot be uninstalled. */
   preinstalled?: boolean;
+  // --- Remote (live marketplace) entries carry these; bundled entries leave them unset. ---
+  /** Marks a live-marketplace result (vs a bundled sample). Drives the remote install path. */
+  remote?: boolean;
+  /** Publisher handle + asset slug — the identity used to install/detail from the API. */
+  publisherHandle?: string;
+  slug?: string;
+  /** Publisher trust tier (`official` | `verified` | `community`) — displayed, never conflated. */
+  trustTier?: string;
+  /** Whether the publisher is verified. Publisher status only — NOT an artifact signature. */
+  verified?: boolean;
+  /** Download count as reported by the marketplace (no ratings — the API doesn't provide them). */
+  downloads?: number;
+  updatedAt?: string;
+  /** The marketplace asset type (e.g. `znxstudio-extension`). */
+  assetType?: string;
+  iconUrl?: string;
 }
 
 export type MarketplaceSort = 'installs' | 'rating' | 'name';

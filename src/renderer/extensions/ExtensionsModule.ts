@@ -3,20 +3,30 @@ import {
   type ExtensionInfo,
   type ExtensionService,
   type MarketplaceService,
+  type RemoteInstalled,
 } from '../core/Contracts';
 import { tp } from '../i18n';
 import { Emitter } from '../core/Emitter';
 import { selfTestCoordinator } from '../core/SelfTestCoordinator';
-import type { IModule, ModuleContext } from '../core/Module';
+import type { Disposable, IModule, ModuleContext } from '../core/Module';
 import { CommandIds } from '../commands/CommandIds';
 import { parseExtensionManifest, type ExtensionManifest } from '../../shared/extensions/manifest';
 import type { MarketplaceEntry } from '../../shared/extensions/marketplace';
+import { assetCardToEntry, type ValidatedExtension } from '../../shared/extensions/registry';
 import type { ZnxStudioExtension } from './sdk';
 import { createExtensionApi } from './ExtensionApi';
 import { ExtensionRuntime } from './ExtensionRuntime';
 import { DEFAULT_LIMITS, createSandboxedApi } from './sandbox';
 import { ExtensionDiagnostics } from './diagnostics';
 import { BUNDLED_PACKAGES } from './bundled';
+import { applyContributions } from './DeclarativeContributions';
+
+/** A remote extension the user has installed, with its applied contributions (if enabled). */
+interface RemoteRecord {
+  summary: RemoteInstalled;
+  extension?: ValidatedExtension;
+  disposable?: Disposable;
+}
 
 /**
  * Extension System foundation (Phase 11A). Wires the SDK runtime into the
@@ -35,6 +45,8 @@ export class ExtensionsModule implements IModule {
   private readonly marketplaceEmitter = new Emitter<void>();
   /** Ids the user has installed this session (beyond the pre-installed ones). */
   private readonly installed = new Set<string>();
+  /** Remote (live-marketplace) extensions installed on this machine, keyed by extension id. */
+  private readonly remote = new Map<string, RemoteRecord>();
 
   async activate(context: ModuleContext): Promise<void> {
     this.context = context;
@@ -83,10 +95,13 @@ export class ExtensionsModule implements IModule {
 
     const marketplace: MarketplaceService = {
       catalog: () => BUNDLED_PACKAGES.map((p) => p.entry),
-      isInstalled: (id) => this.runtime.has(id),
-      install: (id) => this.install(id),
-      uninstall: (id) => this.uninstall(id),
+      isInstalled: (id) => this.runtime.has(id) || this.remote.has(id),
+      install: (entry) => this.installEntry(entry),
+      uninstall: (id) => this.uninstallEntry(id),
       onDidChange: this.marketplaceEmitter.event,
+      search: (query) => this.searchRemote(query),
+      installedRemote: () => [...this.remote.values()].map((r) => r.summary),
+      setRemoteEnabled: (id, enabled) => this.setRemoteEnabled(id, enabled),
     };
     context.services.register(ServiceKeys.Marketplace, marketplace);
 
@@ -95,6 +110,7 @@ export class ExtensionsModule implements IModule {
     this.registerBuiltIns();
     await this.runtime.activateForTrigger('onStartup');
     this.fireChange();
+    await this.loadRemote();
 
     void selfTestCoordinator.run('extensions', () => this.maybeSelfTest());
   }
@@ -106,8 +122,17 @@ export class ExtensionsModule implements IModule {
     }
   }
 
+  /** Dispatch install to the bundled or the remote (live-marketplace) path. */
+  private installEntry(entry: MarketplaceEntry): Promise<boolean> {
+    return entry.remote ? this.installRemote(entry) : this.installBundled(entry.id);
+  }
+  /** Dispatch uninstall: remote extensions dispose their contributions; bundled use the runtime. */
+  private uninstallEntry(id: string): Promise<void> {
+    return this.remote.has(id) ? this.uninstallRemote(id) : this.uninstallBundled(id);
+  }
+
   /** Install a bundled marketplace package: register + activate its extension. */
-  private async install(id: string): Promise<boolean> {
+  private async installBundled(id: string): Promise<boolean> {
     if (this.runtime.has(id)) return true;
     const pkg = BUNDLED_PACKAGES.find((p) => p.manifest.id === id);
     if (!pkg) return false;
@@ -119,13 +144,105 @@ export class ExtensionsModule implements IModule {
     return true;
   }
 
-  private async uninstall(id: string): Promise<void> {
+  private async uninstallBundled(id: string): Promise<void> {
     const pkg = BUNDLED_PACKAGES.find((p) => p.manifest.id === id);
     if (pkg?.preinstalled) return; // pre-installed packages can't be removed
     await this.runtime.remove(id);
     this.installed.delete(id);
     this.fireChange();
     this.marketplaceEmitter.fire();
+  }
+
+  /* ----- live marketplace (remote) ----- */
+
+  /** Search the live marketplace; maps catalog cards to entries. Throws on transport error. */
+  private async searchRemote(query: string): Promise<MarketplaceEntry[]> {
+    const { items } = await window.znxstudio.marketplace.search({ query });
+    const entries: MarketplaceEntry[] = [];
+    for (const card of items) {
+      const entry = assetCardToEntry(card);
+      if (entry) entries.push(entry);
+    }
+    return entries;
+  }
+
+  /** Install a remote extension: main verifies + validates, we apply the returned model. */
+  private async installRemote(entry: MarketplaceEntry): Promise<boolean> {
+    if (!entry.publisherHandle || !entry.slug) throw new Error('Extension is missing its marketplace identity.');
+    const ext = await window.znxstudio.marketplace.install(entry.publisherHandle, entry.slug, entry.version);
+    const disposable = applyContributions(this.context, ext);
+    this.remote.set(ext.id, {
+      summary: {
+        id: ext.id,
+        name: ext.name,
+        publisher: entry.publisher || entry.publisherHandle,
+        publisherHandle: entry.publisherHandle,
+        slug: entry.slug,
+        version: ext.version,
+        enabled: true,
+      },
+      extension: ext,
+      disposable,
+    });
+    this.fireChange();
+    this.marketplaceEmitter.fire();
+    return true;
+  }
+
+  private async uninstallRemote(id: string): Promise<void> {
+    const record = this.remote.get(id);
+    if (!record) return;
+    record.disposable?.dispose();
+    await window.znxstudio.marketplace.uninstall(record.summary.publisherHandle, record.summary.slug, record.summary.version);
+    this.remote.delete(id);
+    this.fireChange();
+    this.marketplaceEmitter.fire();
+  }
+
+  /** Enable/disable an installed remote extension: apply or dispose its contributions. */
+  private async setRemoteEnabled(id: string, enabled: boolean): Promise<void> {
+    const record = this.remote.get(id);
+    if (!record || record.summary.enabled === enabled) return;
+    if (enabled) {
+      if (record.extension) record.disposable = applyContributions(this.context, record.extension);
+    } else {
+      record.disposable?.dispose();
+      record.disposable = undefined;
+    }
+    record.summary.enabled = enabled;
+    await window.znxstudio.marketplace.setEnabled(record.summary.publisherHandle, record.summary.slug, record.summary.version, enabled);
+    this.marketplaceEmitter.fire();
+  }
+
+  /** At startup, list installed remote extensions and apply the enabled (revalidated) ones. */
+  private async loadRemote(): Promise<void> {
+    try {
+      const [installed, loaded] = await Promise.all([
+        window.znxstudio.marketplace.listInstalled(),
+        window.znxstudio.marketplace.loadEnabled(),
+      ]);
+      const enabledById = new Map(loaded.apply.map((e) => [e.id, e]));
+      for (const summary of installed) {
+        const ext = enabledById.get(summary.id);
+        const record: RemoteRecord = {
+          summary: {
+            id: summary.id,
+            name: summary.name,
+            publisher: summary.publisher,
+            publisherHandle: summary.publisher,
+            slug: summary.slug,
+            version: summary.version,
+            enabled: summary.enabled && !!ext,
+          },
+          extension: ext,
+        };
+        if (summary.enabled && ext) record.disposable = applyContributions(this.context, ext);
+        this.remote.set(summary.id, record);
+      }
+      this.marketplaceEmitter.fire();
+    } catch {
+      /* marketplace unavailable at startup — leave remote empty, never block boot */
+    }
   }
 
   private fireChange(): void {
@@ -199,9 +316,9 @@ export class ExtensionsModule implements IModule {
     log(`extensions reload(hello): reactivated=${reactivated} active=${this.runtime.isActive('acme.hello-world')} cmd=${this.context.commands.has('acme.hello-world.say')}`);
 
     // Marketplace install → activate → uninstall on the live runtime (11D).
-    const installedOk = await this.install('acme.line-counter');
+    const installedOk = await this.installBundled('acme.line-counter');
     log(`extensions install(line-counter): ok=${installedOk} active=${this.runtime.isActive('acme.line-counter')} cmd=${this.context.commands.has('acme.line-counter.count')}`);
-    await this.uninstall('acme.line-counter');
+    await this.uninstallBundled('acme.line-counter');
     log(`extensions uninstall(line-counter): stillHas=${this.runtime.has('acme.line-counter')} cmd=${this.context.commands.has('acme.line-counter.count')}`);
   }
 }

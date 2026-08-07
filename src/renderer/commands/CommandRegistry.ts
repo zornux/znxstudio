@@ -1,4 +1,5 @@
 import type { Disposable } from '../core/Module';
+import { EXTENSION_CONTRIBUTABLE_COMMANDS } from '../../shared/extensions/registry';
 
 export type CommandHandler = (...args: any[]) => unknown;
 
@@ -87,6 +88,17 @@ export class CommandRegistry {
 
   has(id: string): boolean {
     return this.commands.has(id);
+  }
+
+  /**
+   * Whether a command may be targeted by a marketplace (declarative) extension — a `runs`
+   * alias or a contributed keybinding. Only the curated, benign allowlist qualifies;
+   * privileged/internal commands (terminal, fs, workspace mutation, git, debug, trust) are
+   * never contributable, so declarative data can never reach privileged execution. This is
+   * defence-in-depth: the main-process validator already enforces the same allowlist.
+   */
+  isExtensionContributable(id: string): boolean {
+    return EXTENSION_CONTRIBUTABLE_COMMANDS.includes(id) && this.commands.has(id);
   }
 
   /**

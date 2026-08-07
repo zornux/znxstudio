@@ -3,9 +3,10 @@ import {
   ServiceKeys,
   type EditorService,
   type SettingsService,
+  type SnippetService,
 } from '../core/Contracts';
 import { selfTestCoordinator } from '../core/SelfTestCoordinator';
-import type { IModule, ModuleContext } from '../core/Module';
+import type { Disposable, IModule, ModuleContext } from '../core/Module';
 import { CommandIds } from '../commands/CommandIds';
 import { LanguageServiceKeys } from '../language/api';
 import type { DocumentManager } from '../language/DocumentManager';
@@ -38,6 +39,7 @@ export class SnippetsModule implements IModule {
   private documents!: DocumentManager;
   private settings: SettingsService | undefined;
   private userSnippets: Snippet[] = [];
+  private externalSnippets: Snippet[] = [];
   private picker: HTMLElement | undefined;
 
   activate(context: ModuleContext): void {
@@ -51,6 +53,9 @@ export class SnippetsModule implements IModule {
       if (event.key === USER_KEY) this.userSnippets = parseUserSnippets(event.value as unknown[]);
     });
 
+    const snippetService: SnippetService = { addExternal: (snippets) => this.addExternal(snippets) };
+    context.services.register<SnippetService>(ServiceKeys.Snippets, snippetService);
+
     context.subscriptions.push(this.registerProvider());
     context.commands.register(CommandIds.SnippetInsert, () => this.openPicker(), 'Editor: Insert Snippet');
     context.commands.register(
@@ -63,7 +68,20 @@ export class SnippetsModule implements IModule {
   }
 
   private allSnippets(): Snippet[] {
-    return [...BUILTIN_SNIPPETS, ...this.userSnippets];
+    return [...BUILTIN_SNIPPETS, ...this.userSnippets, ...this.externalSnippets];
+  }
+
+  /** Add extension-contributed snippets; the completion provider reads them live. */
+  private addExternal(snippets: Snippet[]): Disposable {
+    this.externalSnippets.push(...snippets);
+    return {
+      dispose: () => {
+        for (const snippet of snippets) {
+          const index = this.externalSnippets.indexOf(snippet);
+          if (index >= 0) this.externalSnippets.splice(index, 1);
+        }
+      },
+    };
   }
 
   private activeLanguage(): string {

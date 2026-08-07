@@ -74,6 +74,8 @@ import './extensionruntime.test';
 import './extensionapi.test';
 import './extensionsandbox.test';
 import './marketplace.test';
+import './marketplaceregistry.test';
+import './extensioninstaller.test';
 import './extensiondiagnostics.test';
 import './gitstatus.test';
 import './github.test';

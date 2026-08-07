@@ -18,6 +18,7 @@ import { registerTaskIpc } from './taskIpc';
 import { registerTerminalIpc } from './terminalIpc';
 import { registerTrustIpc } from './trustIpc';
 import { registerUpdateIpc } from './updateIpc';
+import { registerMarketplaceIpc } from './marketplaceIpc';
 
 /**
  * Wires every privileged endpoint the renderer can reach. Each domain lives in
@@ -47,4 +48,5 @@ export function registerIpcHandlers(): void {
   registerCollabIpc();
   registerWindowIpc();
   registerUpdateIpc();
+  registerMarketplaceIpc();
 }

@@ -88,6 +88,15 @@ export const IpcChannels = {
   AiStreamData: 'ai:stream-data',
   AiStreamDone: 'ai:stream-done',
 
+  // Marketplace + extensions (live registry; main owns integrity + persistence).
+  MarketplaceSearch: 'marketplace:search',
+  MarketplaceDetail: 'marketplace:detail',
+  ExtensionsInstall: 'extensions:install',
+  ExtensionsUninstall: 'extensions:uninstall',
+  ExtensionsSetEnabled: 'extensions:setEnabled',
+  ExtensionsList: 'extensions:list',
+  ExtensionsLoadEnabled: 'extensions:loadEnabled',
+
   // Source control (Phase 12) — runs the real `git` binary (+ optional `gh`)
   GitExec: 'git:exec',
   GhExec: 'gh:exec',

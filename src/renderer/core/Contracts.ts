@@ -40,6 +40,8 @@ import type { OffsetEdit } from '../collab/ot';
 import type { LayoutState } from '../layout/layoutModel';
 import type { PanelPreferences } from '../layout/panels';
 import type { Keybinding } from '../keybindings/keybindings';
+import type { Snippet } from '../snippets/snippets';
+import type { Disposable } from './Module';
 import type { DocCoverage, DocOptions, DocResult, DocSummary } from '../docs/apiReference';
 import type { LogLevel, LogRecord } from '../health/logging';
 import type { BudgetVerdict, MetricSummary, ProcessSnapshot, StartupReport } from '../health/perf';
@@ -80,6 +82,7 @@ export const ServiceKeys = {
   Ai: 'znxstudio.service.ai',
   Extensions: 'znxstudio.service.extensions',
   Marketplace: 'znxstudio.service.marketplace',
+  Snippets: 'znxstudio.service.snippets',
   SourceControl: 'znxstudio.service.sourceControl',
   Deployment: 'znxstudio.service.deployment',
   Performance: 'znxstudio.service.performance',
@@ -339,6 +342,8 @@ export interface KeybindingService {
   bindings(): Keybinding[];
   /** Register a default binding for a command. Later registrations shadow earlier ones. */
   registerDefault(keys: string, command: string): void;
+  /** Register an extension-contributed binding; dispose removes it. */
+  registerExternal(keys: string, command: string): Disposable;
   /** Replace the user's overrides. Persisted. */
   setUserBindings(bindings: Record<string, string>): void;
   /** The keys bound to a command, canonical, for a menu or tooltip. */
@@ -536,13 +541,36 @@ export interface ExtensionService {
   readonly onDidChange: Event<ExtensionInfo[]>;
 }
 
-/** The extension marketplace (Phase 11D) — browse + install bundled extensions. */
+/** A remote (live-marketplace) extension the user has installed. */
+export interface RemoteInstalled {
+  id: string;
+  name: string;
+  publisher: string;
+  publisherHandle: string;
+  slug: string;
+  version: string;
+  enabled: boolean;
+}
+
+/**
+ * The extension marketplace. `catalog()` is the bundled sample set (sync); `search()`
+ * queries the LIVE Zornux Marketplace (async). Installing a bundled entry registers its
+ * code; installing a remote entry downloads + validates it in the main process and applies
+ * its declarative contributions here. Both go through `install(entry)`.
+ */
 export interface MarketplaceService {
   catalog(): MarketplaceEntry[];
   isInstalled(id: string): boolean;
-  install(id: string): Promise<boolean>;
+  install(entry: MarketplaceEntry): Promise<boolean>;
   uninstall(id: string): Promise<void>;
   readonly onDidChange: Event<void>;
+  // --- live marketplace (remote) ---
+  /** Search the live marketplace; returns mapped entries (empty on error — see lastError). */
+  search(query: string): Promise<MarketplaceEntry[]>;
+  /** Remote extensions currently installed (cached; drives the Installed section). */
+  installedRemote(): RemoteInstalled[];
+  /** Enable/disable an installed remote extension (applies/removes its contributions). */
+  setRemoteEnabled(id: string, enabled: boolean): Promise<void>;
 }
 
 /** A workspace database connection with its resolved table schema (Phase 8). */
@@ -729,12 +757,29 @@ export interface EditorService {
   onDidChangeSelections(handler: (selections: CursorSelection[]) => void): void;
 }
 
+/** A validated, data-only theme contributed by a marketplace extension. */
+export interface ExternalThemeData {
+  id: string;
+  label: string;
+  type: 'light' | 'dark';
+  /** `--z-*` CSS variable → hex color (already validated). */
+  cssVars: Record<string, string>;
+}
+
 export interface ThemeService {
   apply(name: string): void;
   toggle(): void;
   current(): string;
   list(): string[];
+  /** Register an extension-contributed theme; dispose removes it (reverting if active). */
+  register(theme: ExternalThemeData): Disposable;
   readonly onDidChange: Event<string>;
+}
+
+/** Snippet registry (Phase: marketplace) — lets extensions contribute completion snippets. */
+export interface SnippetService {
+  /** Add extension snippets; dispose removes them from completion. */
+  addExternal(snippets: Snippet[]): Disposable;
 }
 
 export interface SettingsChangeEvent {

@@ -1,13 +1,14 @@
 import * as monaco from 'monaco-editor';
 import {
   ServiceKeys,
+  type ExternalThemeData,
   type SettingsService,
   type StatusService,
   type ThemeService,
 } from '../core/Contracts';
 import { Emitter } from '../core/Emitter';
 import { selfTestCoordinator } from '../core/SelfTestCoordinator';
-import type { IModule, ModuleContext } from '../core/Module';
+import type { Disposable, IModule, ModuleContext } from '../core/Module';
 import { CommandIds } from '../commands/CommandIds';
 import { showModal } from '../ui/modal';
 import type { ServiceRegistry } from '../core/ServiceRegistry';
@@ -34,6 +35,10 @@ export class ThemeModule implements IModule, ThemeService {
   private theme: string = 'znxstudio-dark';
   private keywordColor = DEFAULT_KEYWORD_COLOR;
   private services: ServiceRegistry | undefined;
+  /** Extension-contributed themes, by id. */
+  private readonly external = new Map<string, ExternalThemeData>();
+  /** Inline `--z-*` custom properties currently set on <html> for an external theme. */
+  private appliedVars: string[] = [];
 
   private readonly changeEmitter = new Emitter<string>();
   readonly onDidChange = this.changeEmitter.event;
@@ -158,6 +163,17 @@ export class ThemeModule implements IModule, ThemeService {
   }
 
   apply(name: string): void {
+    // An unknown name (e.g. a persisted external theme not yet re-registered at startup)
+    // falls back to the default so the workbench never lands on a theme with no variables.
+    if (!THEMES.includes(name as (typeof THEMES)[number]) && !this.external.has(name)) {
+      name = 'znxstudio-dark';
+    }
+    if (this.external.has(name)) {
+      this.applyExternal(this.external.get(name)!);
+      return;
+    }
+    // Built-in theme: clear any external inline overrides so its CSS block governs fully.
+    this.clearExternalVars();
     this.theme = name;
     document.documentElement.dataset.theme = name;
     monaco.editor.setTheme(name);
@@ -165,14 +181,63 @@ export class ThemeModule implements IModule, ThemeService {
     // Persist if settings is available (guarded to avoid a feedback loop —
     // SettingsService.set is a no-op when the value is unchanged).
     this.services?.tryGet<SettingsService>(ServiceKeys.Settings)?.set('workbench.theme', name);
+    this.setStatus(name);
+    this.changeEmitter.fire(name);
+  }
+
+  /** Register an extension-contributed theme; dispose removes it (reverting if it's active). */
+  register(theme: ExternalThemeData): Disposable {
+    this.external.set(theme.id, theme);
+    this.changeEmitter.fire(this.theme);
+    return {
+      dispose: () => {
+        this.external.delete(theme.id);
+        if (this.theme === theme.id) this.apply('znxstudio-dark');
+        else this.changeEmitter.fire(this.theme);
+      },
+    };
+  }
+
+  /** Apply an external theme: base data-theme fills gaps; validated tokens override inline. */
+  private applyExternal(theme: ExternalThemeData): void {
+    this.theme = theme.id;
+    const base = theme.type === 'dark' ? 'znxstudio-dark' : 'znxstudio-light';
+    document.documentElement.dataset.theme = base;
+    this.clearExternalVars();
+    for (const [cssVar, color] of Object.entries(theme.cssVars)) {
+      document.documentElement.style.setProperty(cssVar, color);
+      this.appliedVars.push(cssVar);
+    }
+    const monacoId = `ext-${theme.id}`;
+    monaco.editor.defineTheme(monacoId, {
+      base: theme.type === 'dark' ? 'vs-dark' : 'vs',
+      inherit: true,
+      rules: [{ token: 'keyword', foreground: this.keywordColor.replace('#', '') }],
+      colors: {
+        'editor.background': theme.cssVars['--z-bg'] ?? (theme.type === 'dark' ? '#1a1b1e' : '#ffffff'),
+        'editor.foreground': theme.cssVars['--z-fg'] ?? (theme.type === 'dark' ? '#d7d9de' : '#1f2328'),
+      },
+    });
+    monaco.editor.setTheme(monacoId);
+    this.services?.tryGet<SettingsService>(ServiceKeys.Settings)?.set('workbench.theme', theme.id);
+    this.setStatus(theme.id);
+    this.changeEmitter.fire(theme.id);
+  }
+
+  private clearExternalVars(): void {
+    for (const cssVar of this.appliedVars) document.documentElement.style.removeProperty(cssVar);
+    this.appliedVars = [];
+  }
+
+  private setStatus(name: string): void {
+    const label = THEME_LABELS[name] ?? this.external.get(name)?.label ?? name;
     this.services?.tryGet<StatusService>(ServiceKeys.Status)?.setItem('theme', {
-      text: `🎨 ${THEME_LABELS[name] ?? name}`,
+      text: `🎨 ${label}`,
       tooltip: 'Toggle color theme',
       command: CommandIds.ThemeToggle,
       side: 'right',
       priority: 20,
     });
-    this.changeEmitter.fire(name);
   }
 
   toggle(): void {
@@ -184,7 +249,7 @@ export class ThemeModule implements IModule, ThemeService {
   }
 
   list(): string[] {
-    return [...THEMES];
+    return [...THEMES, ...this.external.keys()];
   }
 }
 

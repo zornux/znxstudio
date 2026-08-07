@@ -1,0 +1,34 @@
+{
+  "manifest": {
+    "schemaVersion": 1,
+    "id": "zornux.midnight-theme",
+    "name": "Midnight Theme",
+    "publisher": "zornux",
+    "version": "1.0.0",
+    "description": "An official dark theme for ZnxStudio, tuned for long editing sessions.",
+    "engines": { "znxstudio": ">=1.0.0" },
+    "contributes": {
+      "themes": [
+        {
+          "id": "midnight",
+          "label": "Midnight",
+          "type": "dark",
+          "colors": {
+            "editor.background": "#0f1117",
+            "editor.foreground": "#d7dae0",
+            "panel.background": "#12141c",
+            "elevated.background": "#171a23",
+            "border": "#242833",
+            "foreground.muted": "#8b90a0",
+            "accent": "#6ea8fe",
+            "accent.foreground": "#0b0d12",
+            "activityBar.background": "#0b0d12",
+            "statusBar.background": "#1b3a7a",
+            "statusBar.foreground": "#eaf0ff",
+            "hover.background": "#1e2230"
+          }
+        }
+      ]
+    }
+  }
+}

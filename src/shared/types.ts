@@ -12,6 +12,11 @@ import type { CrashRecord, ProcessSnapshot, SessionState } from './health';
 import type { ZornuxInfo } from './toolchain/contracts';
 import type { TrustState } from './workspaceTrust';
 import type { UpdateChannel, UpdateStatus } from './update';
+import type {
+  ValidatedExtension,
+  InstalledExtensionSummary,
+  LoadEnabledResult,
+} from './extensions/registry';
 
 export type { PackageCommandResult, PackageDiagnostic } from './packageProtocol';
 
@@ -847,6 +852,19 @@ export interface ZnxStudioApi {
       request: AiCompletionRequest,
       callbacks: { onDelta(delta: string): void; onDone(result: AiCompletionResult): void },
     ): () => void;
+  };
+  marketplace: {
+    /** Search the live marketplace for extensions (returns raw catalog cards). */
+    search(params: { query?: string; page?: number; perPage?: number; sort?: string }): Promise<{ items: unknown[]; total: number }>;
+    /** Full asset detail for one extension. */
+    detail(publisher: string, slug: string): Promise<unknown>;
+    /** Install: main verifies integrity + validates, returns the data-only contribution model. */
+    install(publisher: string, slug: string, version: string): Promise<ValidatedExtension>;
+    uninstall(publisher: string, slug: string, version: string): Promise<void>;
+    setEnabled(publisher: string, slug: string, version: string, enabled: boolean): Promise<void>;
+    listInstalled(): Promise<InstalledExtensionSummary[]>;
+    /** Enabled extensions to apply at startup (+ quarantined records). */
+    loadEnabled(): Promise<LoadEnabledResult>;
   };
   git: {
     /** Run the real `git` binary and return its raw result. */
