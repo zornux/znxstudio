@@ -41,6 +41,9 @@ jobs:
       - run: npm run build
       # Launch the real app headlessly (xvfb) with the self-test harness and
       # confirm it boots — the startup line proves activation completed.
+      # --no-sandbox: GitHub's runner ships chrome-sandbox without the root:root
+      # mode-4755 setup Chromium's SUID sandbox requires, so Electron aborts with
+      # SIGTRAP otherwise. The sandbox is irrelevant to a headless boot smoke test.
       - name: Launch + verify startup
         run: |
-          xvfb-run -a bash -c 'ZNXSTUDIO_SELFTEST=1 timeout --preserve-status -k 5 60 npx electron . --enable-logging 2>&1 | tee boot.log; grep -q "\[perf\] startup" boot.log'
+          xvfb-run -a bash -c 'ZNXSTUDIO_SELFTEST=1 timeout --preserve-status -k 5 60 npx electron . --no-sandbox --enable-logging 2>&1 | tee boot.log; grep -q "\[perf\] startup" boot.log'
