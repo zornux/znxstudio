@@ -76,6 +76,39 @@ describe('renderTemplate substitution', () => {
     }
   });
 
+  test('the ZoiJS manifest is technology-specific — no Zornux run/language leaks', () => {
+    const rendered = renderTemplate(findTemplate('zoijs-frontend')!, 'Web');
+    const manifest = rendered.files.find((f) => f.path === 'znxstudio.project.json')!;
+    const parsed = JSON.parse(manifest.content) as {
+      scripts: Record<string, string>;
+      languageTargets: string[];
+      frameworkTargets: string[];
+    };
+    // A pure-JS project must never carry a `zornux run` command or the zornux language.
+    const scripts = Object.values(parsed.scripts).join(' ');
+    expect(scripts.includes('zornux')).toBeFalsy();
+    expect(scripts.includes('.zx')).toBeFalsy();
+    expect(parsed.scripts.serve).toBeTruthy(); // served statically, no build
+    expect(parsed.languageTargets).toContain('javascript');
+    expect(parsed.languageTargets.includes('zornux')).toBeFalsy();
+    expect(parsed.frameworkTargets).toContain('zoijs');
+  });
+
+  test('the Zornux CLI manifest runs the compiler on its .zx entry', () => {
+    const rendered = renderTemplate(findTemplate('zornux-cli')!, 'Cli');
+    const manifest = rendered.files.find((f) => f.path === 'znxstudio.project.json')!;
+    const parsed = JSON.parse(manifest.content) as { scripts: Record<string, string> };
+    expect(parsed.scripts.run).toBe('zornux run src/main.zx');
+  });
+
+  test('the fullstack manifest runs Zornux for the backend and serves the web/ frontend', () => {
+    const rendered = renderTemplate(findTemplate('zornux-zoijs-fullstack')!, 'Shop');
+    const manifest = rendered.files.find((f) => f.path === 'znxstudio.project.json')!;
+    const parsed = JSON.parse(manifest.content) as { scripts: Record<string, string> };
+    expect(parsed.scripts.run).toContain('zornux run');
+    expect(parsed.scripts.serve).toContain('web');
+  });
+
   test('the configured service ships layered .zxcfg files', () => {
     const service = findTemplate('zornux-service')!;
     const rendered = renderTemplate(service, 'Api');

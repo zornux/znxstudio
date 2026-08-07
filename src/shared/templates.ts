@@ -35,16 +35,49 @@ export interface RenderedTemplate {
   files: TemplateFile[];
 }
 
+/**
+ * Technology-specific run/serve scripts. A ZoiJS-only project is served statically (no
+ * build, no compiler) and must NEVER carry a `zornux run` command — that would point a
+ * pure-JS project at a compiler and a `.zx` entry it doesn't have. Zornux and full-stack
+ * projects run the compiler on their `.zx` entry; full-stack also serves its web/ folder.
+ */
+function scriptsFor(type: WorkspaceType): Record<string, string> {
+  switch (type) {
+    case 'zornux-api':
+      return { run: 'zornux run src/main.zx' };
+    case 'zornux-zoijs-fullstack':
+      return { run: 'zornux run src/main.zx', serve: 'python3 -m http.server 8000 --directory web' };
+    case 'zoijs-frontend':
+      return { serve: 'python3 -m http.server 8000' };
+    default:
+      return {};
+  }
+}
+
+/** Source/generated dirs per technology (a no-build ZoiJS project has no generated dir). */
+function workspaceDirsFor(type: WorkspaceType): { sourceDirs: string[]; generatedDirs: string[]; configFiles: string[] } {
+  const configFiles = ['znxstudio.project.json'];
+  switch (type) {
+    case 'zornux-zoijs-fullstack':
+      return { sourceDirs: ['src', 'web'], generatedDirs: ['dist'], configFiles };
+    case 'zoijs-frontend':
+      return { sourceDirs: ['src'], generatedDirs: [], configFiles };
+    case 'zornux-api':
+    default:
+      return { sourceDirs: ['src'], generatedDirs: ['dist'], configFiles };
+  }
+}
+
 function znxstudioManifest(name: string, type: WorkspaceType, langs: string[], frameworks: string[]): string {
   const manifest = {
     name,
     type,
     version: '0.1.0',
-    scripts: { run: `zornux run src/main.zx` },
+    scripts: scriptsFor(type),
     languageTargets: langs,
     frameworkTargets: frameworks,
     extensionRequirements: [],
-    workspace: { sourceDirs: ['src'], generatedDirs: ['dist'], configFiles: ['znxstudio.project.json'] },
+    workspace: workspaceDirsFor(type),
   };
   return `${JSON.stringify(manifest, null, 2)}\n`;
 }
@@ -181,8 +214,8 @@ export function findTemplate(id: string): ProjectTemplate | undefined {
 export function renderTemplate(template: ProjectTemplate, name: string): RenderedTemplate {
   const macros: Record<string, string> = {
     'znxstudio-api': znxstudioManifest(name, 'zornux-api', ['zornux'], []),
-    'znxstudio-fullstack': znxstudioManifest(name, 'zornux-zoijs-fullstack', ['zornux'], ['zoijs']),
-    'znxstudio-zoijs': znxstudioManifest(name, 'zoijs-frontend', [], ['zoijs']),
+    'znxstudio-fullstack': znxstudioManifest(name, 'zornux-zoijs-fullstack', ['zornux', 'javascript'], ['zoijs']),
+    'znxstudio-zoijs': znxstudioManifest(name, 'zoijs-frontend', ['javascript'], ['zoijs']),
   };
   const files = template.files.map((file) => ({
     path: file.path,
