@@ -30,11 +30,17 @@ extraResources:
       - "**/*"
       - "!*.md"
 
-# Update feed. The channel is derived from the version's prerelease tag
-# (see channelForVersion in src/shared/update.ts): stable / preview (rc,beta) / nightly.
+# Update feed — GitHub Releases. electron-builder embeds app-update.yml pointing
+# here, so electron-updater reads latest.yml straight from the public repo's
+# releases (no token needed once the repo is public). `--publish always` (tag
+# builds only) generates + uploads latest.yml + installers + blockmaps.
+# releaseType: prerelease keeps rc/beta builds off the "Latest release" slot;
+# switch to `release` when cutting a stable x.y.0.
 publish:
-  provider: generic
-  url: https://updates.znxstudio.dev/${channel}
+  provider: github
+  owner: zornux
+  repo: znxstudio
+  releaseType: prerelease
 
 win:
   target:
