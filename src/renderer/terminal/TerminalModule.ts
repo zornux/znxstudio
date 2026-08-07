@@ -253,6 +253,18 @@ export class TerminalModule implements IModule {
   }
 
   /** Create a pane inside `group`, wire it to a PTY, and make it the active pane. */
+  /**
+   * The folder a new terminal should open in — the Explorer's primary (workspace) root,
+   * resolved LIVE at spawn time. Resolving lazily (rather than trusting a value cached at
+   * activate) keeps the terminal aligned with the Explorer even when the Workspace service
+   * registered after this module activated, so `cd`-ing into the project's subfolders works
+   * the way it does in VS Code. Falls back to the cached root, then the shell default.
+   */
+  private explorerRoot(): string | undefined {
+    if (!this.workspace) this.workspace = this.context.services.tryGet<WorkspaceService>(ServiceKeys.Workspace);
+    return this.workspace?.currentFolder() ?? this.cwd;
+  }
+
   private async spawnPane(group: TerminalGroup, shellId?: string, cwd?: string): Promise<void> {
     const term = new Terminal({
       fontSize: 13,
@@ -293,7 +305,7 @@ export class TerminalModule implements IModule {
 
     try {
       fit.fit();
-      await window.znxstudio.terminal.create({ id, cwd: cwd ?? this.cwd, cols: term.cols, rows: term.rows, shellId });
+      await window.znxstudio.terminal.create({ id, cwd: cwd ?? this.explorerRoot(), cols: term.cols, rows: term.rows, shellId });
       this.available = true;
       this.setStatus(`⌂ Terminal: ${this.groups.length}`, 'Integrated terminal is running');
     } catch {
