@@ -47,7 +47,10 @@ win:
   # bytes. Absent Trusted Signing env vars ⇒ the hook no-ops ⇒ unsigned dev build.
   # Env consumed by the hook: TRUSTED_SIGNING_ENDPOINT / _ACCOUNT / _PROFILE plus
   # AZURE_TENANT_ID / AZURE_CLIENT_ID / AZURE_CLIENT_SECRET. See build/win-sign.js.
-  sign: build/win-sign.js
+  # NOTE: in electron-builder v26 the Windows signing options live under
+  # `signtoolOptions` (they were at the `win` root in v24).
+  signtoolOptions:
+    sign: build/win-sign.js
 
 nsis:
   oneClick: false
