@@ -34,8 +34,10 @@ jobs:
           dotnet-version: '8.0.x'
       - name: Install Trusted Signing tool
         # `sign` (github.com/dotnet/sign) publishes as prerelease on NuGet.
-        # Pin an exact version here once you've confirmed one you trust.
-        run: dotnet tool install --global sign --prerelease
+        # Pinned to the version verified to sign successfully (2026-08-07) so the
+        # release toolchain is reproducible and immune to a future build removing
+        # the (now-obsolete) `trusted-signing` command. Bump deliberately.
+        run: dotnet tool install --global sign --version 0.9.1-beta.26371.2
 
       - run: npm ci
       - run: npm run build
