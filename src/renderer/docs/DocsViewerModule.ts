@@ -10,6 +10,7 @@ import { selfTestCoordinator } from '../core/SelfTestCoordinator';
 import type { IModule, ModuleContext } from '../core/Module';
 import { CommandIds } from '../commands/CommandIds';
 import { classifyLink, headingSlug, inlineText, parseMarkdown, renderMarkdown, resolveDocPath } from './markdown';
+import { PRODUCT_GUIDE } from './productGuide';
 
 /** A document currently on the viewer's history stack. */
 interface HistoryEntry {
@@ -69,6 +70,7 @@ export class DocsViewerModule implements IModule, DocsService {
 
     context.commands.register(CommandIds.DocsBack, () => this.back(), 'Docs: Back');
     context.commands.register(CommandIds.DocsForward, () => this.forward(), 'Docs: Forward');
+    context.commands.register(CommandIds.DocsOpenProductGuide, () => this.openProductGuide(), 'Help: ZnxStudio Documentation');
     context.commands.register(CommandIds.DocsOpenWorkspaceReadme, () => void this.openWorkspaceReadme(), 'Docs: Open README');
 
     void selfTestCoordinator.run('docs-viewer', () => this.maybeSelfTest());
@@ -187,6 +189,10 @@ export class DocsViewerModule implements IModule, DocsService {
     }
     await this.openFile({ label: 'Workspace', root }, 'README.md');
     this.reveal();
+  }
+
+  private openProductGuide(): void {
+    this.openText('ZnxStudio Documentation', PRODUCT_GUIDE, { label: 'ZnxStudio', root: null });
   }
 
   /* ----- UI ----- */

@@ -5,6 +5,7 @@ import {
   type EditorService,
   type OutputService,
   type ProfileService,
+  type QuickPickService,
   type SettingsService,
   type StatusService,
   type WorkspaceService,
@@ -42,7 +43,7 @@ export class RunBuildModule implements IModule {
     context.commands.register(CommandIds.RunStart, () => this.run(), 'Zornux: Run Project');
     context.commands.register(CommandIds.BuildStart, () => this.build(), 'Zornux: Build Project');
     context.commands.register(CommandIds.BuildRebuild, () => this.rebuild(), 'Zornux: Rebuild Project');
-    context.commands.register(CommandIds.RunScript, (name: string) => this.runScript(name), 'Zornux: Run Script');
+    context.commands.register(CommandIds.RunScript, (name?: string) => this.runScript(name), 'Zornux: Run Script');
 
     const status = this.status();
     status?.setItem('run.action', {
@@ -262,13 +263,37 @@ export class RunBuildModule implements IModule {
   }
 
   /* ----- generic manifest script (fallback + palette "Run Script") ----- */
-  private async runScript(name: string): Promise<void> {
+  private async runScript(name?: string): Promise<void> {
     const info = this.workspaceInfo();
     if (!info) {
       this.context.layout.showToast('Open a folder to run tasks.', 'error');
       return;
     }
-    const command = info.project?.scripts?.[name];
+    const scripts = info.project?.scripts ?? {};
+    if (!name) {
+      const choices = Object.entries(scripts)
+        .filter((entry): entry is [string, string] => Boolean(entry[0].trim() && entry[1].trim()))
+        .sort(([left], [right]) => left.localeCompare(right));
+      if (choices.length === 0) {
+        this.context.layout.showToast('No project scripts are defined.', 'info');
+        return;
+      }
+      const quickPick = this.context.services.tryGet<QuickPickService>(ServiceKeys.QuickPick);
+      if (!quickPick) {
+        this.context.layout.showToast('The script picker is not available.', 'error');
+        return;
+      }
+      name = await quickPick.pick(
+        choices.map(([scriptName, scriptCommand]) => ({
+          label: scriptName,
+          description: scriptCommand,
+          value: scriptName,
+        })),
+        { placeholder: 'Select a project script to run' },
+      );
+      if (!name) return;
+    }
+    const command = scripts[name];
     if (!command) {
       this.context.layout.showToast(`No "${name}" script defined for this project.`, 'error');
       return;

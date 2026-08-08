@@ -121,6 +121,9 @@ export class LayoutModule implements IModule, LayoutService {
     context.layout.onDidRequestOpenPanel(() => this.openPanelPicker());
     context.layout.onDidRequestMaximizePanel(() => this.update(maximizePanel(this.current)));
     context.layout.onDidRequestHidePanel(() => this.update(togglePanel(this.current, false)));
+    // Imperative reveals (Terminal, Output, Tests, etc.) must update the persisted
+    // layout model as well as the DOM so a later toggle sees the truthful state.
+    context.layout.onDidTogglePanel((visible) => this.update(togglePanel(this.current, visible)));
     context.layout.onDidChangeActivePanel((id) => {
       // Revealing a panel also OPENS it: a module calling showPanelView on a
       // panel that's in overflow (e.g. Run → Output) must actually surface it.
@@ -352,7 +355,7 @@ export class LayoutModule implements IModule, LayoutService {
       { separator: true },
       exec('Select All', 'selectAll'),
       { separator: true },
-      { label: 'Find in File', onClick: () => this.runCommand(CommandIds.QuickOpen) },
+      this.menuItem('Find in File', CommandIds.EditorFind),
     ];
   }
 
@@ -501,7 +504,8 @@ export class LayoutModule implements IModule, LayoutService {
   /** The Help menu — version + docs. */
   private buildHelpMenu(): MenuEntry[] {
     return [
-      { label: 'ZnxStudio Documentation', onClick: () => this.runCommand(CommandIds.DocsOpenWorkspaceReadme) },
+      this.menuItem('ZnxStudio Documentation', CommandIds.DocsOpenProductGuide),
+      this.menuItem('Workspace README', CommandIds.DocsOpenWorkspaceReadme),
       { separator: true },
       { label: 'About ZnxStudio', onClick: () => void this.showAbout() },
     ];

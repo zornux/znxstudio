@@ -1,13 +1,20 @@
 import '@xterm/xterm/css/xterm.css';
 import { Terminal } from '@xterm/xterm';
 import { FitAddon } from '@xterm/addon-fit';
-import { ServiceKeys, type QuickPickService, type StatusService, type WorkspaceService } from '../core/Contracts';
+import {
+  ServiceKeys,
+  type LayoutService,
+  type QuickPickService,
+  type StatusService,
+  type WorkspaceService,
+} from '../core/Contracts';
 import { selfTestCoordinator } from '../core/SelfTestCoordinator';
 import type { Disposable } from '../core/Module';
 import type { IModule, ModuleContext } from '../core/Module';
 import { CommandIds } from '../commands/CommandIds';
 import { resizeSplit } from './split';
 import type { ShellProfile, Unsubscribe } from '../../shared/types';
+import { togglePanel } from '../layout/layoutModel';
 
 /** One terminal: an xterm instance bound to a main-process PTY. */
 interface TerminalPane {
@@ -124,7 +131,7 @@ export class TerminalModule implements IModule {
 
     context.commands.register(
       CommandIds.TerminalToggle,
-      () => this.revealTerminal(),
+      () => this.toggleTerminal(),
       'Terminal: Toggle',
     );
     context.commands.register(CommandIds.TerminalNew, () => void this.requestNewTerminal(), 'Terminal: New Terminal');
@@ -170,6 +177,16 @@ export class TerminalModule implements IModule {
 
   private revealTerminal(): void {
     this.context.layout.showPanelView('terminal');
+  }
+
+  private toggleTerminal(): void {
+    const layout = this.context.services.tryGet<LayoutService>(ServiceKeys.Layout);
+    const terminalIsVisible = layout?.layout().panel.visible && layout.panels().active === 'terminal';
+    if (layout && terminalIsVisible) {
+      layout.setLayout(togglePanel(layout.layout(), false));
+      return;
+    }
+    this.revealTerminal();
   }
 
   private async requestNewTerminal(): Promise<void> {

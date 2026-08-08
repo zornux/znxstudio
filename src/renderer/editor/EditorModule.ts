@@ -205,6 +205,11 @@ export class EditorModule implements IModule, EditorService {
   }
 
   private bindTabCommands(context: ModuleContext): void {
+    context.commands.register(
+      CommandIds.EditorFind,
+      () => this.runEditorAction('actions.find'),
+      'Find in File',
+    );
     context.commands.register(CommandIds.EditorClose, () => this.closeActive(), 'Close Editor');
     context.commands.register(
       CommandIds.EditorCloseOthers,
