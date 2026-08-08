@@ -5,6 +5,9 @@
 export const CommandIds = {
   ViewWelcome: 'znxstudio.view.welcome',
   CheckForUpdates: 'znxstudio.update.check',
+  UpdateDownload: 'znxstudio.update.download',
+  UpdateInstall: 'znxstudio.update.install',
+  UpdateRollback: 'znxstudio.update.rollback',
   ThemeSelect: 'znxstudio.theme.select',
   ZoomIn: 'znxstudio.view.zoomIn',
   ZoomOut: 'znxstudio.view.zoomOut',

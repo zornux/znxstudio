@@ -134,6 +134,7 @@ const api: ZnxStudioApi = {
     check: (options) => ipcRenderer.invoke(IpcChannels.UpdateCheck, options),
     download: () => ipcRenderer.invoke(IpcChannels.UpdateDownload),
     install: () => ipcRenderer.invoke(IpcChannels.UpdateInstall),
+    rollback: () => ipcRenderer.invoke(IpcChannels.UpdateRollback),
     status: () => ipcRenderer.invoke(IpcChannels.UpdateStatusGet),
     onStatus: (callback) => subscribe<UpdateStatus>(IpcChannels.UpdateStatusEvent, callback),
   },

@@ -14,6 +14,16 @@ export type UpdateChannel = 'stable' | 'preview' | 'nightly';
 /** Ordered from most to least stable; the index is the "risk tolerance". */
 export const UPDATE_CHANNELS: UpdateChannel[] = ['stable', 'preview', 'nightly'];
 
+export function isUpdateChannel(value: unknown): value is UpdateChannel {
+  return typeof value === 'string' && UPDATE_CHANNELS.includes(value as UpdateChannel);
+}
+
+/** electron-updater feed names used by the GitHub provider. */
+export function providerChannel(channel: UpdateChannel): 'latest' | 'rc' | 'nightly' {
+  if (channel === 'preview') return 'rc';
+  return channel === 'nightly' ? 'nightly' : 'latest';
+}
+
 /** Channels a subscriber to `channel` will accept, most-stable first. */
 export function eligibleChannels(channel: UpdateChannel): UpdateChannel[] {
   const cutoff = UPDATE_CHANNELS.indexOf(channel);
@@ -217,6 +227,10 @@ export interface UpdateStatus {
   error?: string;
   /** True when a real in-app install is possible (electron-updater present). */
   canInstall: boolean;
+  /** True when a previous version was snapshotted and can be restored. */
+  canRollback: boolean;
+  /** The version a rollback would restore, or null when none is available. */
+  rollbackVersion: string | null;
 }
 
 /** Constant-time-ish equality is unnecessary here; a checksum is not a secret. */

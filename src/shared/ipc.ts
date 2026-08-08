@@ -143,6 +143,7 @@ export const IpcChannels = {
   UpdateCheck: 'update:check',
   UpdateDownload: 'update:download',
   UpdateInstall: 'update:install',
+  UpdateRollback: 'update:rollback',
   UpdateStatusGet: 'update:status',
   UpdateStatusEvent: 'update:status-event',
 

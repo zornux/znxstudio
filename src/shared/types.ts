@@ -797,9 +797,11 @@ export interface ZnxStudioApi {
   };
   /** Auto-update (Phase 20J WI3). */
   update: {
-    check(options: { channel: UpdateChannel; feedUrl: string }): Promise<UpdateStatus>;
+    check(options: { channel: UpdateChannel }): Promise<UpdateStatus>;
     download(): Promise<UpdateStatus | null>;
-    install(): Promise<void>;
+    install(): Promise<UpdateStatus | null>;
+    /** Restore the previously-installed version and relaunch (last-known-good). */
+    rollback(): Promise<UpdateStatus | null>;
     status(): Promise<UpdateStatus | null>;
     onStatus(callback: (status: UpdateStatus) => void): Unsubscribe;
   };
