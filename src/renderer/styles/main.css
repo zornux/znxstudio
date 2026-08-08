@@ -3753,31 +3753,59 @@ body.is-resizing {
   display: flex;
   flex-direction: column;
   height: 100%;
+  min-height: 0;
+  background: var(--z-bg-sidebar, var(--z-bg-panel));
 }
 .znxstudio-tests-toolbar {
   display: flex;
+  align-items: center;
   gap: 6px;
-  padding: 6px 10px;
+  padding: 8px 10px;
   border-bottom: 1px solid var(--z-border);
 }
+.znxstudio-tests-run-all { font-weight: 600; }
+.znxstudio-tests-icon-button { width: 28px; padding-inline: 0; font-size: 14px; }
+.znxstudio-tests-icon-button.is-spinning { animation: znxstudio-tests-spin 0.8s linear infinite; }
+@keyframes znxstudio-tests-spin { to { transform: rotate(360deg); } }
 .znxstudio-tests-tree {
+  flex: 1;
+  min-height: 0;
   overflow-y: auto;
-  padding: 4px 0;
+  padding: 6px;
 }
 .znxstudio-tests-empty {
-  padding: 12px;
+  margin: 8px;
+  padding: 24px 14px;
+  border: 1px dashed var(--z-border);
+  border-radius: 6px;
   color: var(--z-fg-muted);
   font-size: 12px;
+  line-height: 1.5;
+  text-align: center;
+}
+.znxstudio-tests-file {
+  margin-bottom: 3px;
+  border: 1px solid transparent;
+  border-radius: 5px;
+  overflow: hidden;
 }
 .znxstudio-tests-file-head {
   display: flex;
   align-items: center;
   gap: 6px;
-  padding: 4px 10px;
+  min-height: 30px;
+  padding: 3px 6px;
   cursor: pointer;
+  border-radius: 4px;
 }
 .znxstudio-tests-file-head:hover {
-  background: var(--z-bg-elevated);
+  background: var(--z-hover, var(--z-bg-elevated));
+}
+.znxstudio-tests-file-head:focus-visible,
+.znxstudio-tests-case:focus-visible,
+.znxstudio-testresults-row:focus-visible {
+  outline: 1px solid var(--z-accent);
+  outline-offset: -1px;
 }
 .znxstudio-tests-caret {
   width: 12px;
@@ -3786,19 +3814,23 @@ body.is-resizing {
 }
 .znxstudio-tests-file-name {
   flex: 1;
+  min-width: 0;
+  overflow: hidden;
   font-weight: 600;
   font-size: 12px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 .znxstudio-tests-summary {
   font-size: 11px;
   color: var(--z-fg-muted);
 }
 .znxstudio-tests-kind {
-  font-size: 9px;
+  font-size: 9.5px;
   font-weight: 700;
   letter-spacing: 0.03em;
   padding: 0 4px;
-  border-radius: 3px;
+  border-radius: 999px;
   border: 1px solid var(--z-border);
   color: var(--z-fg-muted);
 }
@@ -3811,22 +3843,24 @@ body.is-resizing {
   display: flex;
   align-items: center;
   gap: 6px;
-  padding: 2px 10px 2px 26px;
+  min-height: 28px;
+  padding: 3px 6px 3px 24px;
   cursor: pointer;
   flex-wrap: wrap;
+  border-radius: 4px;
 }
 .znxstudio-tests-case:hover {
-  background: var(--z-bg-elevated);
+  background: var(--z-hover, var(--z-bg-elevated));
 }
 .znxstudio-tests-icon {
   width: 14px;
   text-align: center;
 }
 .znxstudio-tests-case--passed .znxstudio-tests-icon {
-  color: #2fa84f;
+  color: var(--znxstudio-success, #2fa84f);
 }
 .znxstudio-tests-case--failed .znxstudio-tests-icon {
-  color: #e5484d;
+  color: var(--znxstudio-error, #e5484d);
 }
 .znxstudio-tests-case-name {
   flex: 1;
@@ -3840,9 +3874,14 @@ body.is-resizing {
 .znxstudio-tests-failure {
   flex-basis: 100%;
   margin-left: 20px;
+  padding: 5px 7px;
+  border-left: 2px solid var(--znxstudio-error, #e5484d);
+  border-radius: 2px;
+  background: color-mix(in srgb, var(--znxstudio-error, #e5484d) 8%, transparent);
   font-size: 11px;
-  color: #e5484d;
-  font-family: var(--z-mono, monospace);
+  color: var(--znxstudio-error, #e5484d);
+  font-family: var(--znxstudio-font-mono, monospace);
+  line-height: 1.45;
 }
 
 /* Unit Runner options + results (Phase 9B) */
@@ -3850,12 +3889,16 @@ body.is-resizing {
   display: flex;
   align-items: center;
   gap: 6px;
-  padding: 4px 10px;
+  padding: 6px 10px;
   border-bottom: 1px solid var(--z-border);
+  background: color-mix(in srgb, var(--z-fg) 2%, transparent);
 }
 .znxstudio-tests-options .znxstudio-query-select {
   flex: none;
-  padding: 2px 4px;
+  min-width: 0;
+  min-height: 26px;
+  padding: 3px 7px;
+  border-radius: 4px;
   font-size: 11px;
 }
 .znxstudio-tests-options input.znxstudio-query-select {
@@ -3866,42 +3909,61 @@ body.is-resizing {
   color: var(--z-fg-muted);
   display: flex;
   align-items: center;
-  gap: 2px;
+  gap: 5px;
   white-space: nowrap;
 }
 .znxstudio-testresults {
-  padding: 6px 12px;
+  height: 100%;
+  padding: 10px 12px;
   overflow-y: auto;
   font-size: 12px;
+  background: var(--z-bg-panel);
 }
 .znxstudio-testresults-empty {
+  padding: 24px 12px;
   color: var(--z-fg-muted);
+  text-align: center;
 }
 .znxstudio-testresults-banner {
-  padding: 4px 8px;
-  border-radius: 4px;
-  margin-bottom: 6px;
+  padding: 8px 10px;
+  border: 1px solid transparent;
+  border-radius: 6px;
+  margin-bottom: 8px;
   font-weight: 600;
 }
 .znxstudio-testresults-banner.is-pass {
-  background: rgba(47, 168, 79, 0.15);
-  color: #2fa84f;
+  border-color: color-mix(in srgb, var(--znxstudio-success, #2fa84f) 35%, transparent);
+  background: color-mix(in srgb, var(--znxstudio-success, #2fa84f) 12%, transparent);
+  color: var(--znxstudio-success, #2fa84f);
 }
 .znxstudio-testresults-banner.is-fail {
-  background: rgba(229, 72, 77, 0.15);
-  color: #e5484d;
+  border-color: color-mix(in srgb, var(--znxstudio-error, #e5484d) 35%, transparent);
+  background: color-mix(in srgb, var(--znxstudio-error, #e5484d) 12%, transparent);
+  color: var(--znxstudio-error, #e5484d);
 }
 .znxstudio-testresults-row {
   display: flex;
+  align-items: center;
   justify-content: space-between;
-  padding: 2px 0;
-  border-bottom: 1px dotted var(--z-border);
+  gap: 12px;
+  padding: 7px 8px;
+  border-bottom: 1px solid var(--z-border);
+  border-radius: 4px;
+  cursor: pointer;
+}
+.znxstudio-testresults-row:hover {
+  background: var(--z-hover, var(--z-bg-elevated));
 }
 .znxstudio-testresults-row .is-pass {
-  color: #2fa84f;
+  color: var(--znxstudio-success, #2fa84f);
 }
 .znxstudio-testresults-row .is-fail {
-  color: #e5484d;
+  color: var(--znxstudio-error, #e5484d);
+}
+.znxstudio-testresults-file { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+@media (max-width: 360px) {
+  .znxstudio-tests-options { flex-wrap: wrap; }
+  .znxstudio-tests-options input.znxstudio-query-select { flex-basis: 100%; }
 }
 
 /* Coverage (Phase 9D) */

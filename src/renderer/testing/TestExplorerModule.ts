@@ -66,6 +66,10 @@ export class TestExplorerModule implements IModule {
   private readonly options: TestRunOptions = { engine: 'interpreter', failFast: false, filter: '' };
   private resultsPanel!: HTMLElement;
   private lastRun: FileSummary[] = [];
+  private runAllButton!: HTMLButtonElement;
+  private refreshButton!: HTMLButtonElement;
+  private discovering = false;
+  private runningAll = false;
 
   activate(context: ModuleContext): void {
     this.context = context;
@@ -76,6 +80,7 @@ export class TestExplorerModule implements IModule {
     this.resultsPanel = document.createElement('div');
     this.resultsPanel.className = 'znxstudio-testresults';
     context.layout.addPanelView({ id: 'testresults', title: 'Test Results', element: this.resultsPanel });
+    this.renderResults();
 
     context.commands.register(CommandIds.TestExplorerShow, () => this.reveal(), 'Test: Show Test Explorer');
     context.commands.register(CommandIds.TestRunAll, () => void this.runAll(), 'Test: Run All Tests');
@@ -98,16 +103,17 @@ export class TestExplorerModule implements IModule {
 
     const toolbar = document.createElement('div');
     toolbar.className = 'znxstudio-tests-toolbar';
-    const runAll = document.createElement('button');
-    runAll.className = 'znxstudio-btn-small';
-    runAll.textContent = '▶ Run All';
-    runAll.addEventListener('click', () => void this.runAll());
-    const refresh = document.createElement('button');
-    refresh.className = 'znxstudio-btn-small';
-    refresh.textContent = '⟳';
-    refresh.title = 'Refresh';
-    refresh.addEventListener('click', () => void this.discover());
-    toolbar.append(runAll, refresh);
+    this.runAllButton = document.createElement('button');
+    this.runAllButton.className = 'znxstudio-btn-small znxstudio-tests-run-all';
+    this.runAllButton.textContent = '▶ Run All';
+    this.runAllButton.addEventListener('click', () => void this.runAll());
+    this.refreshButton = document.createElement('button');
+    this.refreshButton.className = 'znxstudio-btn-small znxstudio-tests-icon-button';
+    this.refreshButton.textContent = '⟳';
+    this.refreshButton.title = 'Refresh test discovery';
+    this.refreshButton.setAttribute('aria-label', 'Refresh test discovery');
+    this.refreshButton.addEventListener('click', () => void this.discover());
+    toolbar.append(this.runAllButton, this.refreshButton);
 
     // Runner options (Phase 9B): engine · fail-fast · filter.
     const optionsRow = document.createElement('div');
@@ -116,6 +122,7 @@ export class TestExplorerModule implements IModule {
     const engine = document.createElement('select');
     engine.className = 'znxstudio-query-select';
     engine.title = 'Engine';
+    engine.setAttribute('aria-label', 'Test engine');
     for (const value of ['interpreter', 'vm']) {
       const option = document.createElement('option');
       option.value = value;
@@ -130,14 +137,16 @@ export class TestExplorerModule implements IModule {
     failFast.className = 'znxstudio-tests-check';
     const failFastBox = document.createElement('input');
     failFastBox.type = 'checkbox';
+    failFastBox.setAttribute('aria-label', 'Stop after the first failed test');
     failFastBox.addEventListener('change', () => {
       this.options.failFast = failFastBox.checked;
     });
-    failFast.append(failFastBox, document.createTextNode(' fail-fast'));
+    failFast.append(failFastBox, document.createTextNode('Fail fast'));
 
     const filter = document.createElement('input');
     filter.className = 'znxstudio-query-select';
-    filter.placeholder = 'filter…';
+    filter.placeholder = 'Filter test names…';
+    filter.setAttribute('aria-label', 'Filter test names when running');
     filter.addEventListener('input', () => {
       this.options.filter = filter.value;
     });
@@ -151,6 +160,7 @@ export class TestExplorerModule implements IModule {
     identity.className = 'znxstudio-query-select';
     identity.placeholder = 'identity…';
     identity.title = '--identity (integration context)';
+    identity.setAttribute('aria-label', 'Integration test identity');
     identity.addEventListener('input', () => {
       this.options.identity = identity.value;
     });
@@ -158,6 +168,7 @@ export class TestExplorerModule implements IModule {
     role.className = 'znxstudio-query-select';
     role.placeholder = 'role…';
     role.title = '--role (integration context)';
+    role.setAttribute('aria-label', 'Integration test role');
     role.addEventListener('input', () => {
       this.options.role = role.value;
     });
@@ -179,50 +190,80 @@ export class TestExplorerModule implements IModule {
   }
 
   private async discover(): Promise<void> {
+    if (this.discovering) return;
+    this.discovering = true;
+    this.updateControls();
     const root = this.workspace.currentFolder();
     if (!root) {
       this.files = [];
+      this.discovering = false;
+      this.updateControls();
       this.render();
+      this.updateStatus();
       return;
     }
-    const result = await window.znxstudio.search.text({ root, query: '^test\\s+"', isRegex: true });
-    const previous = new Map(this.files.map((f) => [f.file, f]));
-    const files: UiFile[] = [];
-    for (const hit of result.files) {
-      let text: string;
-      try {
-        text = await window.znxstudio.fs.readFile(hit.file);
-      } catch {
-        continue;
+    try {
+      const result = await window.znxstudio.search.text({ root, query: '^test\\s+"', isRegex: true });
+      const previous = new Map(this.files.map((f) => [f.file, f]));
+      const files: UiFile[] = [];
+      for (const hit of result.files) {
+        let text: string;
+        try {
+          text = await window.znxstudio.fs.readFile(hit.file);
+        } catch {
+          continue;
+        }
+        const blocks = parseTestBlocks(text);
+        if (blocks.length === 0) continue;
+        const prior = previous.get(hit.file);
+        const classification = classifyTestFile(text);
+        files.push({
+          file: hit.file,
+          expanded: prior?.expanded ?? false,
+          running: false,
+          kind: classification.kind,
+          markers: classification.markers,
+          tests: blocks.map((block) => {
+            const before = prior?.tests.find((t) => t.name === block.name);
+            return { name: block.name, line: block.line, status: before?.status ?? 'none', durationMs: before?.durationMs, message: before?.message };
+          }),
+        });
       }
-      const blocks = parseTestBlocks(text);
-      if (blocks.length === 0) continue;
-      const prior = previous.get(hit.file);
-      const classification = classifyTestFile(text);
-      files.push({
-        file: hit.file,
-        expanded: prior?.expanded ?? false,
-        running: false,
-        kind: classification.kind,
-        markers: classification.markers,
-        tests: blocks.map((block) => {
-          const before = prior?.tests.find((t) => t.name === block.name);
-          return { name: block.name, line: block.line, status: before?.status ?? 'none', durationMs: before?.durationMs, message: before?.message };
-        }),
-      });
+      files.sort((a, b) => a.file.localeCompare(b.file));
+      this.files = files;
+    } catch (error) {
+      this.context.layout.showToast(`Test discovery failed: ${(error as Error).message}`, 'error');
+    } finally {
+      this.discovering = false;
+      this.updateControls();
+      this.render();
+      this.updateStatus();
     }
-    files.sort((a, b) => a.file.localeCompare(b.file));
-    this.files = files;
-    this.render();
-    this.updateStatus();
   }
 
   private async runAll(): Promise<void> {
+    if (this.runningAll) return;
+    if (this.files.length === 0) {
+      this.context.layout.showToast('No tests were discovered to run.', 'info');
+      return;
+    }
+    if (!(await this.compilerPath())) {
+      this.context.layout.showToast('Zornux compiler not available.', 'error');
+      return;
+    }
+    this.runningAll = true;
     this.lastRun = [];
-    for (const file of this.files) await this.runFile(file);
+    this.updateControls();
+    try {
+      for (const file of this.files) await this.runFile(file);
+    } finally {
+      this.runningAll = false;
+      this.updateControls();
+    }
   }
 
   private async runFile(file: UiFile, singleTest?: string): Promise<void> {
+    if (file.running) return;
     const compilerPath = await this.compilerPath();
     if (!compilerPath) {
       this.context.layout.showToast('Zornux compiler not available.', 'error');
@@ -234,11 +275,13 @@ export class TestExplorerModule implements IModule {
     // A single-test run overrides the global filter with the exact name.
     const options: TestRunOptions = { ...this.options, filter: singleTest ?? this.options.filter };
     const args = buildTestArgs(options);
-    const { output } = await captureTask(`"${compilerPath}" test "${file.file}" ${args}`, this.dirOf(file.file));
-    const parsed = parseTestResult(output);
-    file.running = false;
-
-    if (parsed) {
+    try {
+      const { output } = await captureTask(`"${compilerPath}" test "${file.file}" ${args}`, this.dirOf(file.file));
+      const parsed = parseTestResult(output);
+      if (!parsed) {
+        this.context.layout.showToast(`Could not parse test output for ${this.basename(file.file)}.`, 'error');
+        return;
+      }
       // A filtered/fail-fast run only reports a subset; reset those not reported.
       for (const result of parsed.tests) {
         const test = file.tests.find((t) => t.name === result.name);
@@ -256,12 +299,22 @@ export class TestExplorerModule implements IModule {
         failed: parsed.failed,
         durationMs: totalDuration(parsed),
       });
-    } else {
-      this.context.layout.showToast(`Could not parse test output for ${this.basename(file.file)}.`, 'error');
+    } catch (error) {
+      this.context.layout.showToast(`Test run failed: ${(error as Error).message}`, 'error');
+    } finally {
+      file.running = false;
+      this.render();
+      this.updateStatus();
+      this.renderResults();
     }
-    this.render();
-    this.updateStatus();
-    this.renderResults();
+  }
+
+  private updateControls(): void {
+    if (!this.runAllButton || !this.refreshButton) return;
+    this.runAllButton.disabled = this.runningAll || this.discovering;
+    this.runAllButton.textContent = this.runningAll ? 'Running…' : '▶ Run All';
+    this.refreshButton.disabled = this.discovering || this.runningAll;
+    this.refreshButton.classList.toggle('is-spinning', this.discovering);
   }
 
   private recordSummary(summary: FileSummary): void {
@@ -308,6 +361,9 @@ export class TestExplorerModule implements IModule {
     for (const summary of [...this.lastRun].sort((a, b) => a.file.localeCompare(b.file))) {
       const row = document.createElement('div');
       row.className = 'znxstudio-testresults-row';
+      row.tabIndex = 0;
+      row.setAttribute('role', 'button');
+      row.setAttribute('aria-label', `Open ${this.basename(summary.file)}`);
       const name = document.createElement('span');
       name.className = 'znxstudio-testresults-file';
       name.textContent = this.basename(summary.file);
@@ -315,12 +371,27 @@ export class TestExplorerModule implements IModule {
       stats.className = summary.failed > 0 ? 'is-fail' : 'is-pass';
       stats.textContent = `${summary.passed}/${summary.total}${summary.failed ? ` ✗${summary.failed}` : ''} · ${summary.durationMs}ms`;
       row.append(name, stats);
+      const open = (): void => void this.open(summary.file, 0);
+      row.addEventListener('click', open);
+      row.addEventListener('keydown', (event) => {
+        if (event.key === 'Enter' || event.key === ' ') {
+          event.preventDefault();
+          open();
+        }
+      });
       this.resultsPanel.appendChild(row);
     }
   }
 
   private render(): void {
     this.tree.replaceChildren();
+    if (this.discovering && this.files.length === 0) {
+      const loading = document.createElement('div');
+      loading.className = 'znxstudio-tests-empty';
+      loading.textContent = 'Discovering tests…';
+      this.tree.appendChild(loading);
+      return;
+    }
     if (this.files.length === 0) {
       const empty = document.createElement('div');
       empty.className = 'znxstudio-tests-empty';
@@ -337,6 +408,10 @@ export class TestExplorerModule implements IModule {
 
     const header = document.createElement('div');
     header.className = 'znxstudio-tests-file-head';
+    header.tabIndex = 0;
+    header.setAttribute('role', 'button');
+    header.setAttribute('aria-expanded', String(file.expanded));
+    header.setAttribute('aria-label', `${this.basename(file.file)}, ${file.tests.length} tests`);
     const caret = document.createElement('span');
     caret.className = 'znxstudio-tests-caret';
     caret.textContent = file.expanded ? '▾' : '▸';
@@ -356,14 +431,24 @@ export class TestExplorerModule implements IModule {
     run.className = 'znxstudio-btn-small';
     run.textContent = '▶';
     run.title = 'Run this file';
+    run.setAttribute('aria-label', `Run all tests in ${this.basename(file.file)}`);
+    run.disabled = file.running || this.runningAll;
     run.addEventListener('click', (event) => {
       event.stopPropagation();
       void this.runFile(file);
     });
     header.append(caret, name, kind, summary, run);
-    header.addEventListener('click', () => {
+    const toggle = (): void => {
       file.expanded = !file.expanded;
       this.render();
+    };
+    header.addEventListener('click', toggle);
+    header.addEventListener('keydown', (event) => {
+      if (event.target !== header) return;
+      if (event.key === 'Enter' || event.key === ' ') {
+        event.preventDefault();
+        toggle();
+      }
     });
     wrap.appendChild(header);
 
@@ -376,6 +461,9 @@ export class TestExplorerModule implements IModule {
   private renderTest(file: UiFile, test: UiTest): HTMLElement {
     const row = document.createElement('div');
     row.className = `znxstudio-tests-case znxstudio-tests-case--${test.status}`;
+    row.tabIndex = 0;
+    row.setAttribute('role', 'button');
+    row.setAttribute('aria-label', `${test.name}, ${test.status === 'none' ? 'not run' : test.status}`);
     const icon = document.createElement('span');
     icon.className = 'znxstudio-tests-icon';
     icon.textContent = STATUS_ICON[test.status] ?? '○';
@@ -390,12 +478,22 @@ export class TestExplorerModule implements IModule {
     run.className = 'znxstudio-btn-small';
     run.textContent = '▶';
     run.title = 'Run this test';
+    run.setAttribute('aria-label', `Run test ${test.name}`);
+    run.disabled = file.running || this.runningAll;
     run.addEventListener('click', (event) => {
       event.stopPropagation();
       void this.runFile(file, test.name);
     });
     row.append(icon, name, meta, run);
-    row.addEventListener('click', () => void this.open(file.file, test.line));
+    const open = (): void => void this.open(file.file, test.line);
+    row.addEventListener('click', open);
+    row.addEventListener('keydown', (event) => {
+      if (event.target !== row) return;
+      if (event.key === 'Enter' || event.key === ' ') {
+        event.preventDefault();
+        open();
+      }
+    });
 
     if (test.status === 'failed' && test.message) {
       const message = document.createElement('div');
