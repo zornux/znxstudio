@@ -51,15 +51,10 @@ jobs:
           TRUSTED_SIGNING_PROFILE: ${{ secrets.TRUSTED_SIGNING_PROFILE }}
           GPG_PRIVATE_KEY: ${{ secrets.GPG_PRIVATE_KEY }}
           GPG_PASSPHRASE: ${{ secrets.GPG_PASSPHRASE }}
-          CSC_LINK: ${{ secrets.CSC_LINK }}
-          CSC_KEY_PASSWORD: ${{ secrets.CSC_KEY_PASSWORD }}
-          APPLE_ID: ${{ secrets.APPLE_ID }}
-          APPLE_APP_SPECIFIC_PASSWORD: ${{ secrets.APPLE_APP_SPECIFIC_PASSWORD }}
-          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
           ZORNUX_REF: ${{ vars.ZORNUX_REF }}
         run: |
           missing=()
-          for name in AZURE_TENANT_ID AZURE_CLIENT_ID AZURE_CLIENT_SECRET TRUSTED_SIGNING_ENDPOINT TRUSTED_SIGNING_ACCOUNT TRUSTED_SIGNING_PROFILE GPG_PRIVATE_KEY GPG_PASSPHRASE CSC_LINK CSC_KEY_PASSWORD APPLE_ID APPLE_APP_SPECIFIC_PASSWORD APPLE_TEAM_ID ZORNUX_REF; do
+          for name in AZURE_TENANT_ID AZURE_CLIENT_ID AZURE_CLIENT_SECRET TRUSTED_SIGNING_ENDPOINT TRUSTED_SIGNING_ACCOUNT TRUSTED_SIGNING_PROFILE GPG_PRIVATE_KEY GPG_PASSPHRASE ZORNUX_REF; do
             [ -n "${!name}" ] || missing+=("$name")
           done
           if [ ${#missing[@]} -ne 0 ]; then
@@ -199,50 +194,10 @@ jobs:
             release/znxstudio-signing-public.asc
           if-no-files-found: error
 
-  macos:
-    name: package (macos)
-    needs: validate
-    runs-on: macos-latest
-    steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
-        with: { node-version: 20, cache: npm }
-      - uses: actions/setup-dotnet@v4
-        with: { dotnet-version: '8.0.x' }
-      - run: npm ci
-      - name: Stage architecture-matched Zornux runtimes
-        env:
-          ZORNUX_REF: ${{ vars.ZORNUX_REF }}
-        run: |
-          git init ../zornux
-          git -C ../zornux remote add origin https://github.com/zornux/zornux.git
-          git -C ../zornux fetch --depth 1 origin "${ZORNUX_REF:-main}"
-          git -C ../zornux checkout --detach FETCH_HEAD
-          ZORNUX_REPO="$(cd ../zornux && pwd)" npm run stage:zornux -- osx-x64 osx-arm64
-      - run: npm run build
-      - name: Package, notarize, and publish
-        run: npx electron-builder --mac --publish "${{ needs.validate.outputs.publish == 'true' && 'always' || 'never' }}" --config electron-builder.yml -c.publish.releaseType=${{ needs.validate.outputs.release_type }} -c.publish.channel=${{ needs.validate.outputs.update_channel }} -c.mac.notarize=${{ needs.validate.outputs.publish }}
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          CSC_LINK: ${{ secrets.CSC_LINK }}
-          CSC_KEY_PASSWORD: ${{ secrets.CSC_KEY_PASSWORD }}
-          APPLE_ID: ${{ secrets.APPLE_ID }}
-          APPLE_APP_SPECIFIC_PASSWORD: ${{ secrets.APPLE_APP_SPECIFIC_PASSWORD }}
-          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
-      - uses: actions/upload-artifact@v4
-        with:
-          name: znxstudio-macos
-          path: |
-            release/*.dmg
-            release/*.zip
-            release/*.blockmap
-            release/*.yml
-          if-no-files-found: error
-
   finalize:
     name: finalize release
     if: needs.validate.outputs.publish == 'true'
-    needs: [validate, windows, linux, macos]
+    needs: [validate, windows, linux]
     runs-on: ubuntu-latest
     steps:
       - uses: actions/download-artifact@v4
