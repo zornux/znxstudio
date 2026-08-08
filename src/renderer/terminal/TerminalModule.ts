@@ -6,6 +6,8 @@ import {
   type LayoutService,
   type QuickPickService,
   type StatusService,
+  type TerminalRunOptions,
+  type TerminalRunnerService,
   type WorkspaceService,
 } from '../core/Contracts';
 import { selfTestCoordinator } from '../core/SelfTestCoordinator';
@@ -28,6 +30,11 @@ interface TerminalPane {
   exited: boolean;
   /** Which shell this pane launched — persisted so layouts restore the same shells. */
   shellId?: string;
+  /**
+   * A one-shot "Run" pane (a program, not a shell). Excluded from the persisted
+   * layout — a saved run tab has nothing meaningful to restore into.
+   */
+  ephemeral?: boolean;
   /** Relative size within its split (flex-grow weight); the divider adjusts it. */
   flexGrow: number;
 }
@@ -79,7 +86,7 @@ interface TabMeta {
  * Bash, …), can split a tab into panes, rename tabs, and manage them from a
  * right-click menu. The session cwd tracks the workspace root at spawn time.
  */
-export class TerminalModule implements IModule {
+export class TerminalModule implements IModule, TerminalRunnerService {
   readonly id = 'znxstudio.terminal';
   readonly displayName = 'Integrated Terminal';
 
@@ -105,6 +112,8 @@ export class TerminalModule implements IModule {
   private initialized = false;
   private initPromise: Promise<void> | null = null;
   private pendingInitialCwd: string | undefined;
+  /** A program to run once the panel finishes its first initialization. */
+  private pendingRun: TerminalRunOptions | undefined;
   /** True while restoring a persisted layout, so intermediate steps don't save. */
   private restoring = false;
 
@@ -113,6 +122,8 @@ export class TerminalModule implements IModule {
     this.status = context.services.tryGet<StatusService>(ServiceKeys.Status);
     this.workspace = context.services.tryGet<WorkspaceService>(ServiceKeys.Workspace);
     this.quickPick = context.services.tryGet<QuickPickService>(ServiceKeys.QuickPick);
+    // Publish the runner so Run/Build can execute a program in a real PTY tab.
+    context.services.register(ServiceKeys.Terminal, this satisfies TerminalRunnerService);
 
     this.container = document.createElement('div');
     this.container.className = 'znxstudio-terminal';
@@ -230,6 +241,34 @@ export class TerminalModule implements IModule {
     this.themeObserver?.disconnect();
   }
 
+  /* ----- TerminalRunnerService (Run in Terminal) ----- */
+
+  /** False once a PTY spawn has failed — the native module is missing here. */
+  isAvailable(): boolean {
+    return this.available;
+  }
+
+  /**
+   * Run a program in a fresh terminal tab (Run/Build). Reveals the panel,
+   * finishes first-time init, then opens the run tab. Rejects if the PTY can't
+   * spawn, so the caller can fall back to the streamed Output panel.
+   */
+  async runCommand(options: TerminalRunOptions): Promise<void> {
+    // When we're the ones triggering first init, suppress the default empty
+    // shell — we add the run tab ourselves right after, so it becomes the first
+    // tab. runCommand always owns run-tab creation, so a spawn failure surfaces
+    // here (to fall back) instead of poisoning init().
+    const willInit = !this.initialized && !this.initPromise;
+    if (willInit) this.pendingRun = options;
+    this.revealTerminal();
+    try {
+      await this.ensureInitialized();
+      await this.newTerminal(undefined, options.cwd, options);
+    } finally {
+      if (willInit) this.pendingRun = undefined;
+    }
+  }
+
   /**
    * Discover shells, then restore the persisted layout (tabs, splits, sizes,
    * shells) — or open a single default terminal on a first run. The shell
@@ -248,7 +287,9 @@ export class TerminalModule implements IModule {
     const saved = this.loadLayout();
     if (saved && saved.groups.length > 0) {
       await this.restoreLayout(saved);
-    } else {
+    } else if (!this.pendingRun) {
+      // Skip the default shell when a Run is pending — runCommand adds the run
+      // tab next, so it becomes the first tab instead of an empty shell.
       await this.newTerminal(undefined, this.pendingInitialCwd);
     }
     this.pendingInitialCwd = undefined;
@@ -293,16 +334,21 @@ export class TerminalModule implements IModule {
     return this.shells.find((s) => s.id === shellId)?.label ?? this.shells[0]?.label ?? 'Terminal';
   }
 
-  /** Open a new tab (group) with a single pane. `shellId` → the chosen shell; `cwd` overrides the workspace root. */
-  private async newTerminal(shellId?: string, cwd?: string): Promise<void> {
-    if (!this.available && this.groups.length > 0) return;
+  /**
+   * Open a new tab (group) with a single pane. `shellId` → the chosen shell;
+   * `cwd` overrides the workspace root; `run` launches a program instead of a
+   * shell (a one-shot Run tab). A failed run spawn removes the tab and rethrows
+   * so the caller can fall back.
+   */
+  private async newTerminal(shellId?: string, cwd?: string, run?: TerminalRunOptions): Promise<void> {
+    if (!run && !this.available && this.groups.length > 0) return;
 
     const container = document.createElement('div');
     container.className = 'znxstudio-term-group';
     this.body.appendChild(container);
     const group: TerminalGroup = {
       id: `group-${++this.groupCounter}`,
-      label: this.shellLabel(shellId),
+      label: run ? run.label ?? 'Run' : this.shellLabel(shellId),
       container,
       panes: [],
       activePaneId: null,
@@ -310,7 +356,13 @@ export class TerminalModule implements IModule {
     };
     this.groups.push(group);
     this.setActiveGroup(group.id);
-    await this.spawnPane(group, shellId, cwd);
+    try {
+      await this.spawnPane(group, shellId, cwd, run);
+    } catch (error) {
+      // Only run tabs propagate: drop the dead tab so the caller can fall back.
+      this.closeGroup(group.id);
+      throw error;
+    }
     this.renderTabStrip();
     this.saveLayout();
   }
@@ -369,7 +421,12 @@ export class TerminalModule implements IModule {
     }
   }
 
-  private async spawnPane(group: TerminalGroup, shellId?: string, cwd?: string): Promise<void> {
+  private async spawnPane(
+    group: TerminalGroup,
+    shellId?: string,
+    cwd?: string,
+    run?: TerminalRunOptions,
+  ): Promise<void> {
     const term = new Terminal({
       fontSize: 14,
       lineHeight: 1.2,
@@ -400,6 +457,7 @@ export class TerminalModule implements IModule {
       }),
       exited: false,
       shellId,
+      ephemeral: Boolean(run),
       flexGrow: 1,
     };
     // Clicking a pane focuses it and makes it the group's active pane.
@@ -410,11 +468,28 @@ export class TerminalModule implements IModule {
 
     try {
       fit.fit();
-      await window.znxstudio.terminal.create({ id, cwd: cwd ?? this.explorerRoot(), cols: term.cols, rows: term.rows, shellId });
+      await window.znxstudio.terminal.create({
+        id,
+        cwd: cwd ?? this.explorerRoot(),
+        cols: term.cols,
+        rows: term.rows,
+        shellId,
+        command: run?.command,
+        args: run?.args,
+      });
       this.available = true;
       this.setStatus(`⌂ Terminal: ${this.groups.length}`, 'Integrated terminal is running');
-    } catch {
+      if (run) {
+        // Echo the command so the tab reads like a run log, then the program's
+        // own output (and interactive prompts) follow inline.
+        const shown = [run.command, ...(run.args ?? [])].join(' ');
+        term.write(`\x1b[90m> ${shown}\x1b[0m\r\n`);
+      }
+    } catch (error) {
       this.available = false;
+      // A run tab is torn down and retried elsewhere by the caller — rethrow
+      // rather than leaving an "unavailable" message in a tab about to close.
+      if (run) throw error;
       term.write('\r\n\x1b[31mIntegrated terminal unavailable.\x1b[0m ');
       term.write('The native PTY module failed to load on this platform.\r\n');
       this.setStatus('⌂ Terminal: off', 'Native PTY module unavailable');
@@ -764,13 +839,18 @@ export class TerminalModule implements IModule {
 
   /* ----- layout persistence (structure only; sessions are always fresh) ----- */
   private snapshot(): SavedLayout {
+    // Persist shell tabs only. Run tabs (ephemeral panes) have nothing to restore
+    // into, so a group left with no persistable panes is dropped entirely.
+    const persistable = this.groups.filter((group) => group.panes.some((pane) => !pane.ephemeral));
     return {
-      groups: this.groups.map((group) => ({
+      groups: persistable.map((group) => ({
         label: group.label,
         orientation: group.orientation,
-        panes: group.panes.map((pane) => ({ shellId: pane.shellId, flexGrow: pane.flexGrow })),
+        panes: group.panes
+          .filter((pane) => !pane.ephemeral)
+          .map((pane) => ({ shellId: pane.shellId, flexGrow: pane.flexGrow })),
       })),
-      activeIndex: Math.max(0, this.groups.findIndex((g) => g.id === this.activeGroupId)),
+      activeIndex: Math.max(0, persistable.findIndex((g) => g.id === this.activeGroupId)),
     };
   }
 

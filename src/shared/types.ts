@@ -116,6 +116,14 @@ export interface TerminalCreateOptions {
   rows?: number;
   /** Which discovered shell to launch; falls back to the platform default. */
   shellId?: string;
+  /**
+   * Launch this program directly in the PTY instead of an interactive shell
+   * (Run in Terminal). When set, `shellId` is ignored and the pane closes when
+   * the program exits. The real TTY is what makes interactive stdin — e.g. a
+   * `read_line(...)` prompt — work.
+   */
+  command?: string;
+  args?: string[];
 }
 export interface TerminalDataEvent {
   id: string;

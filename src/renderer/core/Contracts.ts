@@ -100,7 +100,30 @@ export const ServiceKeys = {
   Trust: 'znxstudio.service.trust',
   QuickPick: 'znxstudio.service.quickPick',
   InputBox: 'znxstudio.service.inputBox',
+  Terminal: 'znxstudio.service.terminal',
 } as const;
+
+/** A program to run in a new integrated-terminal tab. */
+export interface TerminalRunOptions {
+  /** Executable to launch (e.g. the resolved compiler path). */
+  command: string;
+  args?: string[];
+  cwd?: string;
+  /** Tab label; defaults to "Run". */
+  label?: string;
+}
+
+/**
+ * The integrated terminal, exposed so other modules (Run/Build) can run a
+ * program in a real PTY tab — the only path with interactive stdin, so a
+ * `read_line(...)` prompt can actually be typed into. Backed by node-pty;
+ * `isAvailable()` is false when the native module can't load on this platform.
+ */
+export interface TerminalRunnerService {
+  isAvailable(): boolean;
+  /** Open a new terminal tab running `command`. Rejects if the PTY can't spawn. */
+  runCommand(options: TerminalRunOptions): Promise<void>;
+}
 
 /** Options for {@link InputBoxService.prompt}. */
 export interface InputBoxOptions {

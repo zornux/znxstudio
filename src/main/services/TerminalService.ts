@@ -66,9 +66,13 @@ export class TerminalService {
 
   create(options: TerminalCreateOptions, sender: WebContents): void {
     const pty = this.load();
-    const shell = this.resolveShell(options.shellId);
+    // Run in Terminal: launch the program itself in the PTY (no shell wrapper),
+    // so it gets a real TTY and interactive reads work. Otherwise open a shell.
+    const target = options.command
+      ? { file: options.command, args: options.args ?? [] }
+      : this.resolveShell(options.shellId);
 
-    const child = pty.spawn(shell.file, shell.args, {
+    const child = pty.spawn(target.file, target.args, {
       name: 'xterm-color',
       cols: options.cols ?? 80,
       rows: options.rows ?? 24,

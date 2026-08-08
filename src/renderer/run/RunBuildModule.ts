@@ -8,6 +8,7 @@ import {
   type QuickPickService,
   type SettingsService,
   type StatusService,
+  type TerminalRunnerService,
   type WorkspaceService,
 } from '../core/Contracts';
 import type { IModule, ModuleContext } from '../core/Module';
@@ -279,6 +280,32 @@ export class RunBuildModule implements IModule {
     if (compiler && compilerInfo?.available && compilerInfo.path && entry) {
       // Thread the workspace's active environment profile (Phase 5F) into run.
       const profile = this.context.services.tryGet<ProfileService>(ServiceKeys.Profile)?.active();
+
+      // Prefer a real PTY terminal tab: it has interactive stdin, so a program
+      // that calls read_line(...) can actually be typed into. The Output panel is
+      // one-way, so fall back to it only when the PTY is unavailable.
+      const terminal = this.context.services.tryGet<TerminalRunnerService>(ServiceKeys.Terminal);
+      if (terminal) {
+        const args = ['run', entry, ...(profile ? ['--profile', profile] : [])];
+        try {
+          await terminal.runCommand({
+            command: compilerInfo.path,
+            args,
+            cwd: info.root,
+            label: `Run ${baseName(entry)}`,
+          });
+          this.status()?.setItem('runbuild.status', {
+            text: '▶ running…',
+            side: 'right',
+            priority: 30,
+            autoHideMs: 2500,
+          });
+          return;
+        } catch {
+          // PTY missing on this platform — fall through to the streamed Output panel.
+        }
+      }
+
       const profileArg = profile ? ` --profile ${profile}` : '';
       const command = `"${compilerInfo.path}" run "${entry}"${profileArg}`;
       await this.streamTask('run', command, info.root, `> zornux run ${entry}${profileArg}`);
@@ -401,4 +428,9 @@ export class RunBuildModule implements IModule {
   private status(): StatusService | undefined {
     return this.context.services.tryGet<StatusService>(ServiceKeys.Status);
   }
+}
+
+/** The final path segment (the file name) of a `/`- or `\`-separated path. */
+function baseName(path: string): string {
+  return path.split(/[\\/]/).pop() || path;
 }
