@@ -50,6 +50,7 @@ export class SourceControlModule implements IModule, SourceControlService {
   private defaultBase = 'main';
   private branchList: Branch[] = [];
   private commitMessage = '';
+  private commitInput: HTMLTextAreaElement | undefined;
   private refreshing = false;
   private refreshGeneration = 0;
   private detectGeneration = 0;
@@ -69,7 +70,7 @@ export class SourceControlModule implements IModule, SourceControlService {
     context.layout.addActivityItem({ id: 'scm', label: 'Source Control', icon: '⎇', onSelect: () => this.reveal() });
     context.commands.register(CommandIds.ScmShow, () => this.reveal(), 'Source Control: Show');
     context.commands.register(CommandIds.ScmRefresh, () => void this.refresh(), 'Source Control: Refresh');
-    context.commands.register(CommandIds.ScmCommit, () => void this.commitFromInput(), 'Source Control: Commit');
+    context.commands.register(CommandIds.ScmCommit, () => void this.revealCommitComposer(), 'Source Control: Commit');
     context.commands.register(CommandIds.ScmStageAll, () => void this.stageAll(), 'Source Control: Stage All');
     context.commands.register(CommandIds.ScmOpenOnGitHub, () => this.openActiveOnGitHub(), 'Source Control: Open File on GitHub');
     context.commands.register(CommandIds.ScmAcceptOurs, () => void this.resolveActive('ours'), 'Source Control: Accept Ours');
@@ -77,6 +78,13 @@ export class SourceControlModule implements IModule, SourceControlService {
     context.commands.register(CommandIds.ScmAcceptBoth, () => void this.resolveActive('both'), 'Source Control: Accept Both');
     context.commands.register(CommandIds.ScmCheckout, () => this.showBranchPicker(), 'Source Control: Checkout Branch');
     context.commands.register(CommandIds.ScmCreateBranch, () => void this.createBranchPrompt(), 'Source Control: Create Branch');
+    context.commands.addEnablementRule((id) => {
+      if (id === CommandIds.ScmCommit) return this.repoRoot !== null && this.entries.some((entry) => entry.staged);
+      if (id === CommandIds.ScmStageAll) return this.repoRoot !== null && this.entries.some((entry) => entry.unstaged);
+      if (id === CommandIds.HistoryShow) return this.repoRoot !== null;
+      if (id === CommandIds.PrShow) return this.gitHubRepo !== null;
+      return undefined;
+    });
 
     this.workspace.onDidChangeWorkspace(() => void this.detectAndRefresh());
     await this.detectAndRefresh();
@@ -166,8 +174,11 @@ export class SourceControlModule implements IModule, SourceControlService {
     if (!folder) {
       this.repoRoot = null;
       this.entries = [];
+      this.remoteList = [];
+      this.gitHubRepo = null;
       this.render();
       this.updateStatusBar();
+      this.context.commands.notifyEnablementChanged();
       return;
     }
     const top = await window.znxstudio.git.exec({ args: ['rev-parse', '--show-toplevel'], cwd: folder });
@@ -193,6 +204,7 @@ export class SourceControlModule implements IModule, SourceControlService {
       this.entries = [];
       this.render();
       this.updateStatusBar();
+      this.context.commands.notifyEnablementChanged();
       return;
     }
     const generation = ++this.refreshGeneration;
@@ -214,6 +226,7 @@ export class SourceControlModule implements IModule, SourceControlService {
     this.changeEmitter.fire();
     this.render();
     this.updateStatusBar();
+    this.context.commands.notifyEnablementChanged();
   }
 
   async stage(path: string): Promise<void> {
@@ -280,6 +293,15 @@ export class SourceControlModule implements IModule, SourceControlService {
     void this.refresh();
   }
 
+  /** Open Source Control and put keyboard focus where a commit begins. */
+  private async revealCommitComposer(): Promise<void> {
+    this.render();
+    this.context.layout.setSideBar('Source Control', this.view);
+    this.context.layout.focusSideBar();
+    await this.refresh();
+    this.commitInput?.focus();
+  }
+
   private updateStatusBar(): void {
     if (!this.statusBar) return;
     if (!this.repoRoot) {
@@ -297,6 +319,7 @@ export class SourceControlModule implements IModule, SourceControlService {
   }
 
   private render(): void {
+    this.commitInput = undefined;
     this.view.replaceChildren();
 
     if (!this.repoRoot) {
@@ -360,6 +383,7 @@ export class SourceControlModule implements IModule, SourceControlService {
     input.placeholder = `Message (commit on ${this.currentBranch ?? 'HEAD'})`;
     input.setAttribute('aria-label', 'Commit message');
     input.value = this.commitMessage;
+    this.commitInput = input;
     input.addEventListener('input', () => {
       this.commitMessage = input.value;
       commit.disabled = stagedCount === 0 || !this.commitMessage.trim();

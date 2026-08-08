@@ -40,6 +40,24 @@ import {
   type TabsState,
 } from './editorTabs';
 
+const ACTIVE_EDITOR_COMMANDS = new Set<string>([
+  CommandIds.FileSave,
+  CommandIds.EditorFind,
+  CommandIds.EditorClose,
+  CommandIds.EditorPin,
+  CommandIds.MultiCursorAddAbove,
+  CommandIds.MultiCursorAddBelow,
+  CommandIds.MultiCursorAddNext,
+  CommandIds.MultiCursorPerLine,
+  CommandIds.MultiCursorSelectAll,
+  CommandIds.FoldAll,
+  CommandIds.UnfoldAll,
+  CommandIds.FoldAtCursor,
+  CommandIds.UnfoldAtCursor,
+  CommandIds.ToggleFold,
+  CommandIds.BookmarkToggle,
+]);
+
 /**
  * Editor Engine. Wraps Monaco and tracks the active file, but delegates all
  * model ownership to the Language Platform's DocumentManager — the editor talks
@@ -69,6 +87,7 @@ export class EditorModule implements IModule, EditorService {
   /** Session persist/restore is disabled under the self-test harness. */
   private sessionEnabled = false;
   private persistTimer: ReturnType<typeof setTimeout> | undefined;
+  private notifyCommandEnablement: () => void = () => undefined;
 
   private readonly activeFileEmitter = new Emitter<string | null>();
   readonly onDidChangeActiveFile = this.activeFileEmitter.event;
@@ -147,6 +166,7 @@ export class EditorModule implements IModule, EditorService {
     this.bindSettings(context);
     this.bindSaving(context);
     this.bindTabCommands(context);
+    this.bindEditorCommandEnablement(context);
 
     // Enable session persistence + restore only outside the self-test harness
     // (which opens its own synthetic tabs). Restore reopens last session's tabs.
@@ -186,7 +206,11 @@ export class EditorModule implements IModule, EditorService {
     more.addEventListener('click', () => {
       const rect = more.getBoundingClientRect();
       context.layout.openFloatingMenu(rect.right - 210, rect.bottom + 2, () => [
-        { label: t('action.stop'), onClick: () => void context.commands.execute(CommandIds.DebugStop) },
+        {
+          label: t('action.stop'),
+          disabled: !context.commands.isEnabled(CommandIds.DebugStop),
+          onClick: () => void context.commands.execute(CommandIds.DebugStop),
+        },
         { separator: true },
         { label: t('action.build'), onClick: () => void context.commands.execute(CommandIds.BuildStart) },
         { label: t('action.rebuild'), onClick: () => void context.commands.execute(CommandIds.BuildRebuild) },
@@ -231,6 +255,19 @@ export class EditorModule implements IModule, EditorService {
     // Palette-discoverable close for the editor-area overlay (Settings, Welcome, Docs, …) — the same
     // dismiss as the floating ✕ / Esc, so the active view can be closed from the command palette too.
     context.commands.register(CommandIds.ViewClose, () => this.hideView(), 'Close Active View');
+  }
+
+  private bindEditorCommandEnablement(context: ModuleContext): void {
+    this.notifyCommandEnablement = () => context.commands.notifyEnablementChanged();
+    context.subscriptions.push(
+      context.commands.addEnablementRule((id) => {
+        if (id === CommandIds.MultiCursorClear) return this.active !== null && this.getSelections().length > 1;
+        return ACTIVE_EDITOR_COMMANDS.has(id) ? this.active !== null : undefined;
+      }),
+    );
+    context.subscriptions.push(
+      this.editor.onDidChangeCursorSelection(() => context.commands.notifyEnablementChanged()),
+    );
   }
 
   currentFile(): string | null {
@@ -549,6 +586,7 @@ export class EditorModule implements IModule, EditorService {
     this.activeUri = managed.uri;
     this.activeName = managed.path.split(/[\\/]/).pop() ?? 'Untitled';
     this.activeFileEmitter.fire(managed.path);
+    this.notifyCommandEnablement();
     this.status?.setItem('editor.activeFile', {
       text: `📄 ${this.activeName}`,
       tooltip: managed.path,
@@ -569,6 +607,7 @@ export class EditorModule implements IModule, EditorService {
       this.active = null;
       this.activeUri = null;
       this.activeFileEmitter.fire(null);
+      this.notifyCommandEnablement();
       this.status?.setItem('editor.activeFile', { text: t('status.noFile'), side: 'left', priority: 40 });
     }
     this.renderTabs();

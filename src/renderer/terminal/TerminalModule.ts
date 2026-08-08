@@ -152,6 +152,9 @@ export class TerminalModule implements IModule {
     context.commands.register(CommandIds.TerminalKill, () => this.closeGroup(this.activeGroupId), 'Terminal: Kill Active Terminal');
     context.commands.register(CommandIds.TerminalKillOthers, () => this.killOthers(this.activeGroupId), 'Terminal: Kill Other Terminals');
     context.commands.register(CommandIds.TerminalNext, () => this.cycleTab(), 'Terminal: Focus Next Terminal');
+    context.subscriptions.push(
+      context.commands.addEnablementRule((id) => this.terminalCommandEnabled(id)),
+    );
 
     this.cwd = this.workspace?.currentFolder() ?? undefined;
     // New terminals adopt the latest workspace root; existing ones keep running.
@@ -187,6 +190,18 @@ export class TerminalModule implements IModule {
       return;
     }
     this.revealTerminal();
+  }
+
+  private terminalCommandEnabled(id: string): boolean | undefined {
+    if (
+      id === CommandIds.TerminalSplit ||
+      id === CommandIds.TerminalSplitDown ||
+      id === CommandIds.TerminalKill
+    ) {
+      return this.activeGroupId !== null && this.groups.some((group) => group.id === this.activeGroupId);
+    }
+    if (id === CommandIds.TerminalKillOthers || id === CommandIds.TerminalNext) return this.groups.length > 1;
+    return undefined;
   }
 
   private async requestNewTerminal(): Promise<void> {
@@ -546,6 +561,7 @@ export class TerminalModule implements IModule {
       }
     }
     this.renderTabStrip();
+    this.context.commands.notifyEnablementChanged();
   }
 
   private setActivePane(group: TerminalGroup, paneId: string): void {
@@ -585,6 +601,7 @@ export class TerminalModule implements IModule {
     const index = this.groups.findIndex((g) => g.id === id);
     if (index < 0) return;
     const [group] = this.groups.splice(index, 1);
+    this.context.commands.notifyEnablementChanged();
     for (const pane of group.panes) this.teardownPane(pane);
     group.container.remove();
 

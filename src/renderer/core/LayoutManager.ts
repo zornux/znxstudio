@@ -67,6 +67,8 @@ export class LayoutManager {
   private readonly activitySelectHandlers: ((id: string, wasActive: boolean) => void)[] = [];
   /** UX-3 menu bar: named buttons in the title bar that open dropdown menus. */
   private readonly menuButtons = new Map<string, HTMLElement>();
+  private readonly menuBarEntries: Array<{ button: HTMLElement; build: () => MenuEntry[] }> = [];
+  private activeMenuButton: HTMLElement | null = null;
 
   mount(root: HTMLElement): void {
     this.root = root;
@@ -550,8 +552,14 @@ export class LayoutManager {
       event.stopPropagation();
       this.openMenuBar(button, build);
     });
+    button.addEventListener('mouseenter', () => {
+      if (this.menuEl && this.activeMenuButton && this.activeMenuButton !== button) {
+        this.openMenuBar(button, build);
+      }
+    });
     this.el.menubar.appendChild(button);
     this.menuButtons.set(label, button);
+    this.menuBarEntries.push({ button, build });
   }
 
   /** Open a named menu-bar menu (used by a command / keyboard shortcut). */
@@ -560,13 +568,24 @@ export class LayoutManager {
   }
 
   private openMenuBar(button: HTMLElement, build: () => MenuEntry[]): void {
-    if (this.menuEl) {
+    if (this.menuEl && this.activeMenuButton === button) {
       this.closeMenu();
       return;
     }
+    if (this.menuEl) this.closeMenu(false);
     const rect = button.getBoundingClientRect();
-    button.setAttribute('aria-expanded', 'true');
     this.openMenu(rect.left, rect.bottom + 2, build);
+    this.activeMenuButton = button;
+    this.menuReturnFocus = button;
+    button.setAttribute('aria-expanded', 'true');
+  }
+
+  private switchMenuBarItem(delta: -1 | 1): void {
+    if (!this.activeMenuButton || this.menuBarEntries.length === 0) return;
+    const index = this.menuBarEntries.findIndex((entry) => entry.button === this.activeMenuButton);
+    if (index < 0) return;
+    const next = this.menuBarEntries[(index + delta + this.menuBarEntries.length) % this.menuBarEntries.length];
+    this.openMenuBar(next.button, next.build);
   }
 
   /**
@@ -775,18 +794,19 @@ export class LayoutManager {
 
   private menuReturnFocus: HTMLElement | null = null;
 
-  private closeMenu(): void {
+  private closeMenu(restoreFocus = true): void {
     if (!this.menuEl) return;
     this.closeSubMenus();
     this.menuEl.remove();
     this.menuEl = null;
     for (const button of this.menuButtons.values()) button.setAttribute('aria-expanded', 'false');
+    this.activeMenuButton = null;
     document.removeEventListener('click', this.onDocumentClick, true);
     document.removeEventListener('keydown', this.onMenuKey, true);
     // Return focus to whatever opened the menu (the menu bar / activity button / focused element).
     const restore = this.menuReturnFocus;
     this.menuReturnFocus = null;
-    restore?.focus?.();
+    if (restoreFocus) restore?.focus?.();
   }
 
   /** The list currently taking keyboard focus: the innermost open submenu, else the root menu. */
@@ -804,7 +824,10 @@ export class LayoutManager {
   private readonly onDocumentClick = (event: MouseEvent): void => {
     if (!this.menuEl) return;
     const target = event.target as Node;
-    const inside = this.menuEl.contains(target) || this.subMenus.some((s) => s.menu.contains(target));
+    const inside =
+      this.menuEl.contains(target) ||
+      this.subMenus.some((s) => s.menu.contains(target)) ||
+      Boolean(this.activeMenuButton?.contains(target));
     if (!inside) this.closeMenu();
   };
 
@@ -834,6 +857,9 @@ export class LayoutManager {
           event.preventDefault();
           active.click(); // open its submenu
           this.menuItems()[0]?.focus();
+        } else if (this.subMenus.length === 0 && this.activeMenuButton) {
+          event.preventDefault();
+          this.switchMenuBarItem(1);
         }
         break;
       }
@@ -841,6 +867,9 @@ export class LayoutManager {
         if (this.subMenus.length > 0) {
           event.preventDefault();
           this.popSubMenu()?.focus();
+        } else if (this.activeMenuButton) {
+          event.preventDefault();
+          this.switchMenuBarItem(-1);
         }
         break;
       }

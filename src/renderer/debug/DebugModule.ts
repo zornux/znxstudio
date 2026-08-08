@@ -165,6 +165,9 @@ export class DebugModule implements IModule, DebuggerService {
       () => context.layout.showPanelView('debug'),
       'Debug: Show Panel',
     );
+    context.subscriptions.push(
+      context.commands.addEnablementRule((id) => this.debugCommandEnabled(id)),
+    );
 
     this.registerKeybindings();
 
@@ -231,6 +234,22 @@ export class DebugModule implements IModule, DebuggerService {
   /* ----- session control ----- */
   private busy(): boolean {
     return this.currentState === 'running' || this.currentState === 'starting' || this.currentState === 'stopped';
+  }
+
+  private debugCommandEnabled(id: string): boolean | undefined {
+    const inactive = this.currentState === 'idle' || this.currentState === 'terminated' || this.currentState === 'error';
+    if (id === CommandIds.DebugStart || id === CommandIds.DebugAttach) return inactive;
+    if (id === CommandIds.DebugStop) return this.currentState === 'starting' || this.currentState === 'running' || this.currentState === 'stopped';
+    if (id === CommandIds.DebugPause) return this.currentState === 'running';
+    if (
+      id === CommandIds.DebugContinue ||
+      id === CommandIds.DebugStepOver ||
+      id === CommandIds.DebugStepIn ||
+      id === CommandIds.DebugStepOut
+    ) {
+      return this.currentState === 'stopped';
+    }
+    return undefined;
   }
 
   private async start(): Promise<void> {
@@ -658,6 +677,7 @@ export class DebugModule implements IModule, DebuggerService {
   private setState(state: DebugState): void {
     this.currentState = state;
     this.stateEmitter.fire(state);
+    this.context.commands.notifyEnablementChanged();
     this.render();
     this.updateStatus();
   }
@@ -944,6 +964,7 @@ export class DebugModule implements IModule, DebuggerService {
       const btn = this.button(label, () => void this.context.commands.execute(command));
       btn.title = title;
       btn.setAttribute('aria-label', title);
+      btn.toggleAttribute('disabled', !this.context.commands.isEnabled(command));
       header.appendChild(btn);
     };
     switch (this.currentState) {
