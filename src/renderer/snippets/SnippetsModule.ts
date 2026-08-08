@@ -51,9 +51,9 @@ export class SnippetsModule implements IModule {
     this.settings = context.services.tryGet<SettingsService>(ServiceKeys.Settings);
 
     this.userSnippets = parseUserSnippets(this.settings?.get<unknown[]>(USER_KEY, []) ?? []);
-    this.settings?.onDidChange((event) => {
+    if (this.settings) context.subscriptions.push(this.settings.onDidChange((event) => {
       if (event.key === USER_KEY) this.userSnippets = parseUserSnippets(event.value as unknown[]);
-    });
+    }));
 
     const snippetService: SnippetService = { addExternal: (snippets) => this.addExternal(snippets) };
     context.services.register<SnippetService>(ServiceKeys.Snippets, snippetService);

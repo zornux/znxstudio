@@ -94,6 +94,7 @@ export class LanguagePlatformModule implements IModule {
     this.engine = new DiagnosticsEngine();
     this.bridge = new MonacoLanguageBridge(this.registry, this.documents, this.engine);
     this.bridge.registerLanguages();
+    context.subscriptions.push(this.bridge);
 
     this.compiler = new CompilerClient();
     this.toolchain = new ToolchainClient();
@@ -119,16 +120,16 @@ export class LanguagePlatformModule implements IModule {
     //   - front-end (fast, provisional) runs on open / debounced on change,
     //   - compiler (authoritative) runs on open / save and debounced on change,
     //     superseding the front-end squiggles once it returns.
-    this.documents.onDidOpen((doc) => {
+    context.subscriptions.push(this.documents.onDidOpen((doc) => {
       void this.ensureActivatedForDocument(doc);
       this.scheduleDiagnostics(doc, 0);
       this.scheduleCompilerCheck(doc, 250, false);
-    });
-    this.documents.onDidChange((doc) => {
+    }));
+    context.subscriptions.push(this.documents.onDidChange((doc) => {
       this.scheduleDiagnostics(doc, 300);
       this.scheduleCompilerCheck(doc, 600, true);
-    });
-    this.documents.onDidSave((doc) => this.scheduleCompilerCheck(doc, 0, false));
+    }));
+    context.subscriptions.push(this.documents.onDidSave((doc) => this.scheduleCompilerCheck(doc, 0, false)));
 
     this.wireAutosave(context);
     this.wireCompilerSettings(context);
@@ -289,7 +290,7 @@ export class LanguagePlatformModule implements IModule {
 
   private wireCompilerSettings(context: ModuleContext): void {
     const settings = context.services.tryGet<SettingsService>(ServiceKeys.Settings);
-    settings?.onDidChange((event) => {
+    if (settings) context.subscriptions.push(settings.onDidChange((event) => {
       if (!event.key.startsWith('zornux.compiler.')) return;
       // Re-probe (path/enablement changed) and re-check every open Zornux doc.
       void this.compiler.info(true).then((info) => {
@@ -299,7 +300,7 @@ export class LanguagePlatformModule implements IModule {
           this.scheduleCompilerCheck(managed, 0, true);
         }
       });
-    });
+    }));
   }
 
   private openZornuxDocuments(): ManagedDocument[] {
@@ -314,9 +315,9 @@ export class LanguagePlatformModule implements IModule {
     const settings = context.services.tryGet<SettingsService>(ServiceKeys.Settings);
     const apply = () => void this.compiler.cacheConfig(Boolean(settings?.get('zornux.compiler.cache.enabled', true)));
     apply();
-    settings?.onDidChange((event) => {
+    if (settings) context.subscriptions.push(settings.onDidChange((event) => {
       if (event.key.startsWith('zornux.compiler.cache.')) apply();
-    });
+    }));
 
     context.commands.register(
       CommandIds.CacheClear,
@@ -371,9 +372,9 @@ export class LanguagePlatformModule implements IModule {
         Number(settings?.get('files.autosaveDelay', 1000)),
       );
     apply();
-    settings?.onDidChange((event) => {
+    if (settings) context.subscriptions.push(settings.onDidChange((event) => {
       if (event.key.startsWith('files.')) apply();
-    });
+    }));
   }
 
   /* ----- workspace-driven activation ----- */
@@ -382,7 +383,7 @@ export class LanguagePlatformModule implements IModule {
     if (!workspace) return;
     const current = workspace.currentWorkspace();
     if (current) void this.activateWorkspace(current);
-    workspace.onDidChangeWorkspace((info) => void this.activateWorkspace(info));
+    context.subscriptions.push(workspace.onDidChangeWorkspace((info) => void this.activateWorkspace(info)));
   }
 
   private async activateWorkspace(info: WorkspaceInfo | null): Promise<void> {
@@ -410,7 +411,7 @@ export class LanguagePlatformModule implements IModule {
     const status = this.context.services.tryGet<StatusService>(ServiceKeys.Status);
     const active = this.registry.activeIds();
     status?.setItem('languages', {
-      text: `🧠 ${active.length} lang`,
+      text: `${active.length} lang`,
       tooltip: `Active language services: ${active.join(', ') || 'none'}`,
       side: 'right',
       priority: 18,

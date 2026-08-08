@@ -122,7 +122,7 @@ export class DebugAssistModule implements IModule {
     toolbar.className = 'znxstudio-debugai-toolbar';
     const run = document.createElement('button');
     run.className = 'znxstudio-btn-small';
-    run.textContent = this.running ? 'Explaining…' : '🩺 Explain Error';
+    run.textContent = this.running ? 'Explaining…' : 'Explain Error';
     run.disabled = this.running;
     run.addEventListener('click', () => void this.explain());
     toolbar.appendChild(run);

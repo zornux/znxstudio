@@ -40,10 +40,10 @@ export class MetricsModule implements IModule {
 
     context.commands.register(CommandIds.MetricsShow, () => this.context.layout.showPanelView('metrics'), 'View: Code Metrics');
 
-    this.editor.onDidChangeActiveFile(() => this.scheduleRefresh(0));
-    this.documents.onDidChange((doc) => {
+    context.subscriptions.push(this.editor.onDidChangeActiveFile(() => this.scheduleRefresh(0)));
+    context.subscriptions.push(this.documents.onDidChange((doc) => {
       if (doc.uri === this.documents.getActive()?.uri) this.scheduleRefresh(400);
-    });
+    }));
 
     this.renderEmpty('Open a file to see its metrics.');
     void selfTestCoordinator.run('metrics', () => this.maybeSelfTest());
@@ -71,7 +71,7 @@ export class MetricsModule implements IModule {
     const symbols = this.symbolCounts(active, text);
     this.renderMetrics(metrics, symbols);
     this.status?.setItem('editor.metrics', {
-      text: `📊 CC ${metrics.cyclomatic} · ${metrics.rating}`,
+      text: `CC ${metrics.cyclomatic} · ${metrics.rating}`,
       tooltip: 'Code metrics — click for details',
       command: CommandIds.MetricsShow,
       side: 'right',

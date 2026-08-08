@@ -18,10 +18,10 @@ interface DiscoveredConnection extends DatabaseSchema {
 }
 
 const PROVIDER_ICON: Record<string, string> = {
-  sqlite: '🗃',
+  sqlite: 'SQ',
   memory: '⚡',
-  postgres: '🐘',
-  mysql: '🐬',
+  postgres: 'PG',
+  mysql: 'MY',
 };
 
 /**
@@ -75,7 +75,7 @@ export class DatabaseModule implements IModule, DatabaseService {
     context.layout.addActivityItem({
       id: 'database',
       label: 'Database',
-      icon: '🗄',
+      icon: 'DB',
       onSelect: () => this.reveal(),
     });
 
@@ -144,7 +144,7 @@ export class DatabaseModule implements IModule, DatabaseService {
       return;
     }
     this.status.setItem('database.count', {
-      text: `🗄 ${this.discovered.length}`,
+      text: `DB ${this.discovered.length}`,
       tooltip: 'Database connections — click to view',
       command: CommandIds.DatabaseShow,
       side: 'right',
@@ -178,7 +178,7 @@ export class DatabaseModule implements IModule, DatabaseService {
 
     const icon = document.createElement('span');
     icon.className = 'znxstudio-database-icon';
-    icon.textContent = PROVIDER_ICON[connection.provider.toLowerCase()] ?? '🗄';
+    icon.textContent = PROVIDER_ICON[connection.provider.toLowerCase()] ?? 'DB';
     const name = document.createElement('span');
     name.className = 'znxstudio-database-name';
     name.textContent = connection.name;

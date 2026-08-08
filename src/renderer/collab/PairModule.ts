@@ -55,12 +55,14 @@ export class PairModule implements IModule {
       return undefined;
     });
 
-    this.collab?.onDidReceiveFrame(({ frame }) => this.receive(frame));
-    this.collab?.onDidChange(() => {
-      if (this.collab?.state() === 'idle') this.reset();
-      this.updateStatusBar();
-      this.moduleContext.commands.notifyEnablementChanged();
-    });
+    if (this.collab) {
+      context.subscriptions.push(this.collab.onDidReceiveFrame(({ frame }) => this.receive(frame)));
+      context.subscriptions.push(this.collab.onDidChange(() => {
+        if (this.collab?.state() === 'idle') this.reset();
+        this.updateStatusBar();
+        this.moduleContext.commands.notifyEnablementChanged();
+      }));
+    }
 
     // Broadcast our own caret, and surrender a follow the moment we type.
     const selectionSubscription = this.editor?.onDidChangeSelections(() => {
@@ -225,7 +227,7 @@ export class PairModule implements IModule {
       ? session?.participants.find((p) => p.id === this.followState.following)?.name
       : null;
     this.statusBar.setItem('editor.pair', {
-      text: followed ? `👁 following ${followed}` : `👁 ${this.tracker.all().length} cursor(s)`,
+      text: followed ? `Following ${followed}` : `Pair ${this.tracker.all().length} cursor(s)`,
       tooltip: followed ? 'Type to take back control.' : 'Remote cursors, carried through every edit.',
       command: followed ? CommandIds.CollabUnfollow : CommandIds.CollabFollow,
       side: 'right',

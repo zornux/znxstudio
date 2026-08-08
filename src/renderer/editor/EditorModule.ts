@@ -20,6 +20,7 @@ import type { DocumentManager, ManagedDocument } from '../language/DocumentManag
 import { selfTestCoordinator } from '../core/SelfTestCoordinator';
 import { showModal } from '../ui/modal';
 import { DEFAULT_FONT_SIZE } from '../settings/SettingsSchema';
+import { diskConflictPreview, resolveSaveAsTarget } from './conflictRecovery';
 import {
   parseSession,
   resolveAutosaveMode,
@@ -194,7 +195,7 @@ export class EditorModule implements IModule, EditorService {
   private buildEditorToolbar(host: HTMLElement, context: ModuleContext): void {
     const actions: { icon: string; label: string; command: string }[] = [
       { icon: '▶', label: t('action.run'), command: CommandIds.RunStart },
-      { icon: '🐞', label: t('action.debug'), command: CommandIds.DebugStart },
+      { icon: '○', label: t('action.debug'), command: CommandIds.DebugStart },
     ];
     const gated: { button: HTMLButtonElement; command: string }[] = [];
     for (const action of actions) {
@@ -353,10 +354,14 @@ export class EditorModule implements IModule, EditorService {
         })
         .map((tab) => tab.uri),
     );
+    await Promise.all([...affected].map((uri) => this.documents.prepareForClose(uri)));
     const dirty = this.tabsState.tabs
       .filter((tab) => affected.has(tab.uri) && tab.dirty)
       .map((tab) => ({ uri: tab.uri, name: tab.name }));
-    if (dirty.length > 0 && !(await this.promptSaveBeforeClose(dirty))) return null;
+    if (dirty.length > 0 && !(await this.promptSaveBeforeClose(dirty))) {
+      for (const uri of affected) this.documents.cancelClosePreparation(uri);
+      return null;
+    }
 
     this.pathMutationActive = true;
     const activeAffected = Boolean(this.tabsState.activeUri && affected.has(this.tabsState.activeUri));
@@ -368,6 +373,7 @@ export class EditorModule implements IModule, EditorService {
       settled = true;
       this.pathMutationActive = false;
       if (activeAffected) this.editor.updateOptions({ readOnly: previousReadOnly });
+      for (const uri of affected) this.documents.cancelClosePreparation(uri);
     };
     return {
       cancel: release,
@@ -656,6 +662,11 @@ export class EditorModule implements IModule, EditorService {
 
   async openFile(path: string, options?: { preview?: boolean }): Promise<void> {
     const managed = await this.documents.open(path);
+    this.openManaged(managed, options);
+  }
+
+  private openManaged(managed: ManagedDocument, options?: { preview?: boolean }): void {
+    const path = managed.path;
     const name = path.split(/[\\/]/).pop() ?? 'Untitled';
     this.tabsState = openTab(
       this.tabsState,
@@ -683,7 +694,7 @@ export class EditorModule implements IModule, EditorService {
     this.activeFileEmitter.fire(managed.path);
     this.notifyCommandEnablement();
     this.status?.setItem('editor.activeFile', {
-      text: `📄 ${this.activeName}`,
+      text: this.activeName,
       tooltip: managed.path,
       side: 'left',
       priority: 40,
@@ -727,8 +738,12 @@ export class EditorModule implements IModule, EditorService {
    * close can never silently discard work.
    */
   private async confirmAndClose(uri: string, restoreTabFocus = false): Promise<void> {
+    await this.documents.prepareForClose(uri);
     const tab = this.tabsState.tabs.find((t) => t.uri === uri);
-    if (tab?.dirty && !(await this.promptSaveBeforeClose([{ uri, name: tab.name }]))) return;
+    if (tab?.dirty && !(await this.promptSaveBeforeClose([{ uri, name: tab.name }]))) {
+      this.documents.cancelClosePreparation(uri);
+      return;
+    }
     this.closeTabByUri(uri);
     if (restoreTabFocus) this.focusActiveTabOrEditor();
   }
@@ -739,9 +754,15 @@ export class EditorModule implements IModule, EditorService {
    */
   private async confirmCloseSet(next: TabsState, restoreTabFocus = false): Promise<boolean> {
     const keep = new Set(next.tabs.map((t) => t.uri));
-    const closing = this.tabsState.tabs.filter((t) => !keep.has(t.uri));
+    let closing = this.tabsState.tabs.filter((t) => !keep.has(t.uri));
+    await Promise.all(closing.map((tab) => this.documents.prepareForClose(tab.uri)));
+    // Autosaves may have cleaned tabs while the close action was waiting.
+    closing = this.tabsState.tabs.filter((t) => !keep.has(t.uri));
     const dirty = closing.filter((t) => t.dirty).map((t) => ({ uri: t.uri, name: t.name }));
-    if (dirty.length > 0 && !(await this.promptSaveBeforeClose(dirty))) return false;
+    if (dirty.length > 0 && !(await this.promptSaveBeforeClose(dirty))) {
+      for (const tab of closing) this.documents.cancelClosePreparation(tab.uri);
+      return false;
+    }
     this.applyTabs(next);
     for (const t of closing) this.documents.close(t.uri); // dispose the closed models
     if (restoreTabFocus) this.focusActiveTabOrEditor();
@@ -835,20 +856,20 @@ export class EditorModule implements IModule, EditorService {
       this.renderTabs();
       this.notifyCommandEnablement();
     };
-    this.documents.onDidChange((doc) => refresh(doc.uri, doc.dirty));
-    this.documents.onDidSave((doc) => refresh(doc.uri, doc.dirty));
-    this.documents.onDidSaveError(({ document: doc, error }) => {
+    context.subscriptions.push(this.documents.onDidChange((doc) => refresh(doc.uri, doc.dirty)));
+    context.subscriptions.push(this.documents.onDidSave((doc) => refresh(doc.uri, doc.dirty)));
+    context.subscriptions.push(this.documents.onDidSaveError(({ document: doc, error }) => {
       refresh(doc.uri, true);
       const detail = error instanceof Error ? error.message : String(error);
       this.context.layout.showToast(`Could not save ${doc.path}: ${detail}`, 'error');
-    });
+    }));
 
     // A document closed elsewhere (crash recovery, external) drops its tab too.
-    this.documents.onDidClose((doc) => {
+    context.subscriptions.push(this.documents.onDidClose((doc) => {
       if (this.tabsState.tabs.some((tab) => tab.uri === doc.uri)) {
         this.applyTabs(closeTab(this.tabsState, doc.uri));
       }
-    });
+    }));
 
     // Autosave triggers driven by focus (Phase 20J WI2): editor blur = focus
     // change; window blur = window change. The delay mode is timer-driven inside
@@ -900,20 +921,62 @@ export class EditorModule implements IModule, EditorService {
       await this.documents.save(uri);
       return true;
     } catch (error) {
-      const document = this.documents.getManaged(uri);
-      if (!document?.externalConflict) throw error;
-      const name = this.tabsState.tabs.find((tab) => tab.uri === uri)?.name ?? document.path;
+      const managedDoc = this.documents.getManaged(uri);
+      if (!managedDoc?.externalConflict) throw error;
+      const name = this.tabsState.tabs.find((tab) => tab.uri === uri)?.name ?? managedDoc.path;
+      let diskContent: string | null = null;
+      try {
+        diskContent = await window.znxstudio.fs.readFile(managedDoc.path);
+      } catch {
+        /* missing file is represented by the explanatory placeholder */
+      }
+      const comparison = document.createElement('div');
+      comparison.className = 'znxstudio-conflict-compare';
+      const description = document.createElement('p');
+      description.textContent = 'Compare both versions, save your editor content under another name, reload from disk, or overwrite the original file.';
+      const versions = document.createElement('div');
+      versions.className = 'znxstudio-conflict-versions';
+      const versionPane = (label: string, content: string): HTMLElement => {
+        const pane = document.createElement('section');
+        const heading = document.createElement('h3');
+        heading.textContent = label;
+        const preview = document.createElement('pre');
+        preview.textContent = content;
+        pane.append(heading, preview);
+        return pane;
+      };
+      versions.append(
+        versionPane('Your editor', managedDoc.model.getValue()),
+        versionPane('On disk', diskConflictPreview(diskContent)),
+      );
+      comparison.append(description, versions);
       const choice = await showModal({
         title: `${name} changed outside ZnxStudio`,
-        body: 'Your editor content is preserved. Reload the version on disk, or overwrite the file with your current editor content.',
+        body: comparison,
         buttons: [
           { label: 'Overwrite', value: 'overwrite', primary: true },
+          { label: 'Save As…', value: 'saveAs' },
           { label: 'Reload from Disk', value: 'reload' },
           { label: 'Cancel', value: 'cancel' },
         ],
         dismissValue: 'cancel',
       });
       if (choice === 'cancel') return false;
+      if (choice === 'saveAs') {
+        const content = managedDoc.model.getValue();
+        const savedPath = await window.znxstudio.dialog.saveFile(managedDoc.path, content);
+        const target = resolveSaveAsTarget(managedDoc.path, savedPath);
+        if (target.kind === 'cancel') return false;
+        if (target.kind === 'overwrite') {
+          await this.documents.save(uri, { overwriteExternal: true });
+          return true;
+        }
+        const saved = this.documents.openFromContent(target.path, content);
+        this.openManaged(saved, { preview: false });
+        this.closeTabByUri(uri);
+        this.context.layout.showToast(`Saved as ${target.path}.`, 'info');
+        return true;
+      }
       if (choice === 'reload') {
         try {
           await this.documents.revert(uri);
@@ -953,8 +1016,11 @@ export class EditorModule implements IModule, EditorService {
 
   /** Respond to the main process's pre-close query: prompt for unsaved work, then allow/cancel. */
   private async handleWindowClose(): Promise<void> {
+    const open = [...this.tabsState.tabs];
+    await Promise.all(open.map((tab) => this.documents.prepareForClose(tab.uri)));
     const dirty = this.tabsState.tabs.filter((tab) => tab.dirty).map((tab) => ({ uri: tab.uri, name: tab.name }));
     if (dirty.length > 0 && !(await this.promptSaveBeforeClose(dirty))) {
+      for (const tab of open) this.documents.cancelClosePreparation(tab.uri);
       window.znxstudio.window.cancelClose(); // user cancelled — keep the window open, work intact
       return;
     }
@@ -1048,7 +1114,7 @@ export class EditorModule implements IModule, EditorService {
     if (tab.pinned) {
       const pin = document.createElement('span');
       pin.className = 'znxstudio-editor-tab-pin';
-      pin.textContent = '📌';
+      pin.textContent = '●';
       pin.setAttribute('aria-hidden', 'true');
       target.appendChild(pin);
     }
@@ -1177,9 +1243,9 @@ export class EditorModule implements IModule, EditorService {
     if (!this.settings) return;
 
     this.applySettings();
-    this.settings.onDidChange((event) => {
+    context.subscriptions.push(this.settings.onDidChange((event) => {
       if (event.key.startsWith('editor.') || event.key.startsWith('files.')) this.applySettings();
-    });
+    }));
   }
 
   private applySettings(): void {

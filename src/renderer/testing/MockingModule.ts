@@ -6,7 +6,7 @@ import { LanguageServiceKeys } from '../language/api';
 import type { DocumentManager } from '../language/DocumentManager';
 import { dependents, generateMock, parseComponents, type Component } from './mocking';
 
-const KIND_ICON: Record<string, string> = { repository: '🗃', service: '🌐', application: '🧩' };
+const KIND_ICON: Record<string, string> = { repository: 'R', service: 'S', application: 'A' };
 
 /**
  * Mocking (Phase 9F). Surfaces the active file's DI components (repository /

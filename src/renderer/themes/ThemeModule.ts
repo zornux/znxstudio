@@ -51,12 +51,12 @@ export class ThemeModule implements IModule, ThemeService {
     this.defineThemes();
 
     // Re-color keywords live when the user changes editor.keywordColor.
-    settings?.onDidChange((event) => {
+    if (settings) context.subscriptions.push(settings.onDidChange((event) => {
       if (event.key !== 'editor.keywordColor') return;
       this.keywordColor = sanitizeColor(settings.get('editor.keywordColor', DEFAULT_KEYWORD_COLOR));
       this.defineThemes();
       monaco.editor.setTheme(this.theme); // re-apply so the new rule takes effect
-    });
+    }));
 
     context.services.register(ServiceKeys.Theme, this);
     context.commands.register(CommandIds.ThemeToggle, () => this.toggle(), 'Preferences: Toggle Color Theme');
@@ -232,7 +232,7 @@ export class ThemeModule implements IModule, ThemeService {
   private setStatus(name: string): void {
     const label = THEME_LABELS[name] ?? this.external.get(name)?.label ?? name;
     this.services?.tryGet<StatusService>(ServiceKeys.Status)?.setItem('theme', {
-      text: `🎨 ${label}`,
+      text: `Theme ${label}`,
       tooltip: 'Toggle color theme',
       command: CommandIds.ThemeToggle,
       side: 'right',

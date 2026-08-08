@@ -122,7 +122,7 @@ export class ArchitectureModule implements IModule {
     toolbar.className = 'znxstudio-arch-toolbar';
     const run = document.createElement('button');
     run.className = 'znxstudio-btn-small';
-    run.textContent = this.running ? 'Analyzing…' : '🏛 Analyze Architecture';
+    run.textContent = this.running ? 'Analyzing…' : 'Analyze Architecture';
     run.disabled = this.running;
     run.addEventListener('click', () => void this.analyze());
     toolbar.appendChild(run);

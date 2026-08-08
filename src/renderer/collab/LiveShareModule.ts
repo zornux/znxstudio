@@ -38,11 +38,13 @@ export class LiveShareModule implements IModule {
     this.editor = context.services.tryGet<EditorService>(ServiceKeys.Editor);
     this.statusBar = context.services.tryGet<StatusService>(ServiceKeys.Status);
 
-    this.collab?.onDidReceiveFrame(({ peerId, frame }) => this.receive(peerId, frame));
-    this.collab?.onDidChange(() => {
-      if (this.collab?.state() === 'idle') this.reset();
-      this.updateStatusBar();
-    });
+    if (this.collab) {
+      context.subscriptions.push(this.collab.onDidReceiveFrame(({ peerId, frame }) => this.receive(peerId, frame)));
+      context.subscriptions.push(this.collab.onDidChange(() => {
+        if (this.collab?.state() === 'idle') this.reset();
+        this.updateStatusBar();
+      }));
+    }
 
     void selfTestCoordinator.run('collab-liveshare', () => this.maybeSelfTest());
   }

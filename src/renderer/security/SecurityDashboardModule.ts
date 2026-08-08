@@ -47,7 +47,7 @@ export class SecurityDashboardModule implements IModule {
     context.commands.register(CommandIds.SecurityDashboardShow, () => this.reveal(), 'Security: Show Dashboard');
     context.commands.register(CommandIds.SecurityExportReport, () => this.exportReport(), 'Security: Export Report');
 
-    this.security?.onDidChange(() => void this.refresh());
+    if (this.security) context.subscriptions.push(this.security.onDidChange(() => void this.refresh()));
     this.render();
     void selfTestCoordinator.run('security-dashboard', () => this.maybeSelfTest());
   }
@@ -181,7 +181,7 @@ export class SecurityDashboardModule implements IModule {
 
     const exportButton = document.createElement('button');
     exportButton.className = 'znxstudio-btn-small';
-    exportButton.textContent = `📄 Export ${REPORT_FILE}`;
+    exportButton.textContent = `Export ${REPORT_FILE}`;
     exportButton.addEventListener('click', () => void this.exportReport());
     this.panel.appendChild(exportButton);
   }

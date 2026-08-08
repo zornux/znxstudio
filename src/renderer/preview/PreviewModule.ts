@@ -58,7 +58,7 @@ export class PreviewModule implements IModule {
     this.url = result.url;
     this.renderRunning();
     this.status()?.setItem('preview.status', {
-      text: '🌐 Preview',
+      text: 'Preview',
       tooltip: `Serving ${result.root} at ${result.url}`,
       command: CommandIds.PreviewStart,
       side: 'right',

@@ -64,7 +64,7 @@ export class PerformanceModule implements IModule, ProfilerService {
 
     this.view = document.createElement('div');
     this.view.className = 'znxstudio-perf';
-    context.layout.addActivityItem({ id: 'performance', label: 'Performance', icon: '📈', onSelect: () => this.reveal() });
+    context.layout.addActivityItem({ id: 'performance', label: 'Performance', icon: '▲', onSelect: () => this.reveal() });
     context.commands.register(CommandIds.PerfShow, () => this.reveal(), 'Performance: Show');
     context.commands.register(CommandIds.PerfProfileCpu, () => this.profile(this.runState.engine === 'vm' ? 'vm-run' : 'run'), 'Performance: Profile CPU');
     context.commands.register(CommandIds.PerfProfileAllocations, () => this.profile('allocations'), 'Performance: Profile Allocations');
@@ -162,7 +162,7 @@ export class PerformanceModule implements IModule, ProfilerService {
       return;
     }
     this.statusBar.setItem('editor.perf', {
-      text: `📈 profiling… (${this.runState.engine})`,
+      text: `Profiling… (${this.runState.engine})`,
       tooltip: 'Performance profile in progress',
       command: CommandIds.PerfShow,
       side: 'right',
@@ -176,7 +176,7 @@ export class PerformanceModule implements IModule, ProfilerService {
 
     const header = document.createElement('div');
     header.className = 'znxstudio-perf-header';
-    header.textContent = '📈 Profiler';
+    header.textContent = 'Profiler';
     this.view.appendChild(header);
 
     const engineRow = document.createElement('div');
@@ -201,8 +201,8 @@ export class PerformanceModule implements IModule, ProfilerService {
 
     const modes: { label: string; mode: ProfileMode }[] = [
       { label: '⚡ Profile CPU', mode: this.runState.engine === 'vm' ? 'vm-run' : 'run' },
-      { label: '🧮 Profile Allocations', mode: 'allocations' },
-      { label: '🧠 Profile Heap', mode: 'heap' },
+      { label: 'Profile Allocations', mode: 'allocations' },
+      { label: 'Profile Heap', mode: 'heap' },
       { label: '⏱ Profile Timeline', mode: 'timeline' },
     ];
     for (const { label: text, mode } of modes) {

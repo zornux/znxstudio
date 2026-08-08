@@ -74,7 +74,7 @@ export class CollabModule implements IModule, CollabService {
 
     this.view = document.createElement('div');
     this.view.className = 'znxstudio-collab';
-    context.layout.addActivityItem({ id: 'collab', label: 'Collaboration', icon: '👥', onSelect: () => this.reveal() });
+    context.layout.addActivityItem({ id: 'collab', label: 'Collaboration', icon: '◉', onSelect: () => this.reveal() });
     context.commands.register(CommandIds.CollabHost, () => this.hostSession(), 'Collaboration: Host Session');
     context.commands.register(CommandIds.CollabJoin, () => this.joinSession(), 'Collaboration: Join Session');
     context.commands.register(CommandIds.CollabLeave, () => this.leave(), 'Collaboration: Leave Session');
@@ -354,7 +354,7 @@ export class CollabModule implements IModule, CollabService {
       return;
     }
     this.statusBar.setItem('editor.collab', {
-      text: `👥 ${this.collabSession.participants.length}`,
+      text: `Collab ${this.collabSession.participants.length}`,
       tooltip: exposureSummary(this.collabSession),
       command: CommandIds.CollabShow,
       side: 'right',
@@ -368,7 +368,7 @@ export class CollabModule implements IModule, CollabService {
 
     const header = document.createElement('div');
     header.className = 'znxstudio-collab-header';
-    header.textContent = '👥 Collaboration';
+    header.textContent = 'Collaboration';
     this.view.appendChild(header);
 
     if (!this.collabSession) {
@@ -378,8 +378,8 @@ export class CollabModule implements IModule, CollabService {
           'znxstudio-collab-note',
         ),
       );
-      const host = button(this.transitioning ? 'Working…' : '🟢 Host session', () => void this.hostSession());
-      const join = button(this.transitioning ? 'Working…' : '🔗 Join session', () => void this.joinSession());
+      const host = button(this.transitioning ? 'Working…' : 'Host session', () => void this.hostSession());
+      const join = button(this.transitioning ? 'Working…' : 'Join session', () => void this.joinSession());
       host.disabled = this.transitioning || !this.workspace?.currentFolder();
       join.disabled = this.transitioning;
       host.title = this.workspace?.currentFolder() ? 'Host a collaboration session' : 'Open a folder before hosting a session';
@@ -400,7 +400,7 @@ export class CollabModule implements IModule, CollabService {
       link.addEventListener('focus', () => link.select());
       this.view.appendChild(link);
       this.view.appendChild(
-        button('📋 Copy invite', () => {
+        button('Copy invite', () => {
           void navigator.clipboard.writeText(invite).then(
             () => this.moduleContext.layout.showToast('Invite copied. It grants write access.', 'info'),
             (error) => {

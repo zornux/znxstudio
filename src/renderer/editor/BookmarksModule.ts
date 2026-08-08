@@ -148,7 +148,7 @@ export class BookmarksModule implements IModule {
       return;
     }
     this.status?.setItem('editor.bookmarks', {
-      text: `🔖 ${this.model.count()}`,
+      text: `Bookmarks ${this.model.count()}`,
       tooltip: 'Bookmarks — click to view',
       command: CommandIds.BookmarksShow,
       side: 'right',
@@ -205,7 +205,7 @@ export class BookmarksModule implements IModule {
       const icon = document.createElement('span');
       icon.className = 'znxstudio-icon';
       icon.setAttribute('aria-hidden', 'true');
-      icon.textContent = '🔖';
+      icon.textContent = '◆';
       row.appendChild(icon);
       row.appendChild(document.createTextNode(`Line ${bookmark.line + 1}`));
       row.tabIndex = 0;

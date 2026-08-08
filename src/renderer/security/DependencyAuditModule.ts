@@ -67,7 +67,7 @@ export class DependencyAuditModule implements IModule {
 
     this.workspace?.onDidChangeWorkspace(() => void this.reload());
     // Findings arrive with every scan, so the panel follows the scanner.
-    this.security?.onDidChange(() => void this.reload());
+    if (this.security) context.subscriptions.push(this.security.onDidChange(() => void this.reload()));
 
     this.render();
     void this.reload();

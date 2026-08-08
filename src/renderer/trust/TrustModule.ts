@@ -171,7 +171,7 @@ export class TrustModule implements IModule, TrustService {
       banner.className = 'znxstudio-trust-banner';
       banner.setAttribute('role', 'status');
       const text = document.createElement('span');
-      text.textContent = '🔒 Restricted Mode — code execution is disabled because this workspace is not trusted.';
+      text.textContent = 'Restricted Mode — code execution is disabled because this workspace is not trusted.';
       const manage = document.createElement('button');
       manage.className = 'znxstudio-trust-banner-btn';
       manage.textContent = 'Manage Trust';

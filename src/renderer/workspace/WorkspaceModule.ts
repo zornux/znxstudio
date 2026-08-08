@@ -261,7 +261,7 @@ export class WorkspaceModule implements IModule, WorkspaceService {
     const name = primary.project?.name ?? baseName(primary.root);
     const extra = folders.length > 1 ? ` +${folders.length - 1}` : '';
     status.setItem('workspace.project', {
-      text: `📦 ${name}${extra}`,
+      text: `${name}${extra}`,
       tooltip:
         folders.length > 1
           ? `${folders.length} folders:\n${folders.map((folder) => folder.root).join('\n')}`

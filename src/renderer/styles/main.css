@@ -7872,6 +7872,11 @@ button.znxstudio-solution-action:focus-visible {
   line-height: 1.5;
 }
 .znxstudio-modal-body p { margin: 0 0 10px; }
+.znxstudio-conflict-versions { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 10px; }
+.znxstudio-conflict-versions section { min-width: 0; }
+.znxstudio-conflict-versions h3 { margin: 0 0 5px; color: var(--z-fg-muted); font-size: 11px; font-weight: 600; text-transform: uppercase; }
+.znxstudio-conflict-versions pre { box-sizing: border-box; max-height: 240px; margin: 0; padding: 8px; overflow: auto; border: 1px solid var(--z-border); background: var(--z-bg); color: var(--z-fg); font: 12px/1.45 var(--z-font-mono); white-space: pre; }
+@media (max-width: 700px) { .znxstudio-conflict-versions { grid-template-columns: 1fr; } }
 .znxstudio-modal-muted { color: var(--z-fg-muted); white-space: pre-wrap; font-size: 12px; }
 .znxstudio-modal-footer {
   display: flex;

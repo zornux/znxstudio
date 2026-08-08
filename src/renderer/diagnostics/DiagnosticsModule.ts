@@ -11,7 +11,7 @@ import { LanguageServiceKeys, type Diagnostic, type DiagnosticsReader } from '..
 import type { ProjectDiagnostic, WorkspaceInfo } from '../../shared/types';
 import { formatProvenance, isZornuxCode } from '../language/diagnosticCatalog';
 
-const SEVERITY_ICON: Record<string, string> = { error: '⛔', warning: '⚠️', info: 'ℹ️', hint: '💡' };
+const SEVERITY_ICON: Record<string, string> = { error: '×', warning: '⚠', info: 'i', hint: '◇' };
 const SEVERITY_RANK: Record<string, number> = { error: 0, warning: 1, info: 2, hint: 3 };
 
 type FilterBucket = 'error' | 'warning' | 'info';
@@ -62,7 +62,7 @@ export class DiagnosticsModule implements IModule {
     });
 
     this.engine = context.services.tryGet<DiagnosticsReader>(LanguageServiceKeys.Diagnostics);
-    this.engine?.onDidChange(() => this.render(false));
+    if (this.engine) context.subscriptions.push(this.engine.onDidChange(() => this.render(false)));
 
     this.render(false);
   }

@@ -37,7 +37,7 @@ export class CpuProfilerModule implements IModule {
     context.commands.register(CommandIds.PerfCpuShow, () => context.layout.showPanelView('cpu-profiler'), 'Performance: Show CPU Profiler');
     context.commands.register(CommandIds.PerfExport, () => this.exportProfile(), 'Performance: Export Profile');
 
-    this.profiler.onDidChange(() => this.render());
+    context.subscriptions.push(this.profiler.onDidChange(() => this.render()));
     this.render();
     void selfTestCoordinator.run('perf-cpu', () => this.maybeSelfTest());
   }

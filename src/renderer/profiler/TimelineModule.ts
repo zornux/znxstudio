@@ -27,7 +27,7 @@ export class TimelineModule implements IModule {
     context.layout.addPanelView({ id: 'perf-timeline', title: 'Timeline', element: this.panel });
     context.commands.register(CommandIds.PerfTimelineShow, () => context.layout.showPanelView('perf-timeline'), 'Performance: Show Timeline');
 
-    this.profiler.onDidChange(() => this.render());
+    context.subscriptions.push(this.profiler.onDidChange(() => this.render()));
     this.render();
     void selfTestCoordinator.run('perf-timeline', () => this.maybeSelfTest());
   }

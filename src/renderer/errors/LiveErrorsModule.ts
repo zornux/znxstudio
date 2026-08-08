@@ -50,15 +50,15 @@ export class LiveErrorsModule implements IModule {
     );
 
     // Repaint when diagnostics for the active file change, or the active file changes.
-    this.engine?.onDidChange(({ uri }) => {
+    if (this.engine) context.subscriptions.push(this.engine.onDidChange(({ uri }) => {
       if (uri === this.editor?.currentUri()) this.refresh();
-    });
-    this.editor?.onDidChangeActiveFile(() => this.refresh());
+    }));
+    if (this.editor) context.subscriptions.push(this.editor.onDidChangeActiveFile(() => this.refresh()));
 
     const settings = context.services.tryGet<SettingsService>(ServiceKeys.Settings);
-    settings?.onDidChange((event) => {
+    if (settings) context.subscriptions.push(settings.onDidChange((event) => {
       if (event.key.startsWith('zornux.errorLens.')) this.refresh();
-    });
+    }));
 
     // F8 / Shift+F8 navigation (capture phase, so Monaco doesn't swallow it).
     this.keyListener = (event: KeyboardEvent) => {

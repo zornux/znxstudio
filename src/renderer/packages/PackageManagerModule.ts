@@ -48,7 +48,7 @@ export class PackageManagerModule implements IModule {
     context.layout.addActivityItem({
       id: 'packages',
       label: 'Packages',
-      icon: '📦',
+      icon: 'P',
       onSelect: () => {
         context.layout.setSideBar('Packages', this.shell());
         context.layout.focusSideBar();

@@ -24,10 +24,10 @@ import {
 } from '../../shared/environmentProfiles';
 
 const PROFILE_ICON: Record<EnvironmentProfile, string> = {
-  development: '🌱',
-  testing: '🧪',
-  staging: '🚦',
-  production: '🚀',
+  development: 'D',
+  testing: 'T',
+  staging: 'S',
+  production: 'P',
 };
 
 const SETTINGS_KEY = 'zornux.profiles.byRoot';
@@ -77,7 +77,7 @@ export class ProfilesModule implements IModule, ProfileService {
     context.layout.addActivityItem({
       id: 'profiles',
       label: 'Profiles',
-      icon: '🌱',
+      icon: '◉',
       onSelect: () => this.openView(),
     });
 

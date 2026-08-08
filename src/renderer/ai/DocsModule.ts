@@ -142,7 +142,7 @@ export class DocsModule implements IModule {
     toolbar.className = 'znxstudio-docs-toolbar';
     const gen = document.createElement('button');
     gen.className = 'znxstudio-btn-small';
-    gen.textContent = this.running ? 'Generating…' : '📄 Document File';
+    gen.textContent = this.running ? 'Generating…' : 'Document File';
     gen.disabled = this.running;
     gen.addEventListener('click', () => void this.documentFile());
     toolbar.appendChild(gen);

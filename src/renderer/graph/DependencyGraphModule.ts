@@ -71,9 +71,9 @@ export class DependencyGraphModule implements IModule, DependencyGraphService {
 
     // Rebuild the graph + re-check the project when a Zornux file is saved.
     const documents = context.services.tryGet<DocumentManager>(LanguageServiceKeys.Documents);
-    documents?.onDidSave((doc) => {
+    if (documents) context.subscriptions.push(documents.onDidSave((doc) => {
       if (doc.path.toLowerCase().endsWith('.zx')) this.schedule(false, 800);
-    });
+    }));
 
     this.renderEmpty('No workspace open.');
     if (workspace?.currentWorkspace()) this.schedule(true, 0);
@@ -205,7 +205,7 @@ export class DependencyGraphModule implements IModule, DependencyGraphService {
 
     for (const file of snapshot.files) {
       const label = file.module ?? fileName(file.path);
-      const row = this.node('znxstudio-deps-file', `📦 ${label}`, () => void this.open(file.path));
+      const row = this.node('znxstudio-deps-file', `□ ${label}`, () => void this.open(file.path));
       container.appendChild(row);
 
       for (const imp of file.imports) {
@@ -293,7 +293,7 @@ export class DependencyGraphModule implements IModule, DependencyGraphService {
     }
     const cycles = snapshot.cycles.length;
     status.setItem('dependencies', {
-      text: cycles ? `🕸 modules ⚠️${cycles}` : '🕸 modules',
+      text: cycles ? `Modules ⚠${cycles}` : 'Modules',
       tooltip: 'Project dependency graph — click to view',
       command: CommandIds.ViewDependencies,
       side: 'right',

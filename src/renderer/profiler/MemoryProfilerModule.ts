@@ -65,7 +65,7 @@ export class MemoryProfilerModule implements IModule {
     toolbar.className = 'znxstudio-mem-toolbar';
     const capture = document.createElement('button');
     capture.className = 'znxstudio-btn-small';
-    capture.textContent = this.capturing ? 'Capturing…' : '📸 Capture Heap Snapshot';
+    capture.textContent = this.capturing ? 'Capturing…' : 'Capture Heap Snapshot';
     capture.disabled = this.capturing;
     capture.addEventListener('click', () => void this.capture());
     toolbar.appendChild(capture);

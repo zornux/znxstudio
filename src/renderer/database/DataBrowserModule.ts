@@ -40,7 +40,7 @@ export class DataBrowserModule implements IModule {
     context.layout.addPanelView({ id: 'data', title: 'Data', element: this.panel });
     context.commands.register(CommandIds.DataBrowserShow, () => this.context.layout.showPanelView('data'), 'Database: Show Data Browser');
 
-    this.database?.onDidChange(() => this.refreshDatabases());
+    if (this.database) context.subscriptions.push(this.database.onDidChange(() => this.refreshDatabases()));
     this.refreshDatabases();
 
     void selfTestCoordinator.run('databrowser', () => this.maybeSelfTest());

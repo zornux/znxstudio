@@ -136,7 +136,7 @@ export class TestGenModule implements IModule {
     toolbar.className = 'znxstudio-testgen-toolbar';
     const gen = document.createElement('button');
     gen.className = 'znxstudio-btn-small';
-    gen.textContent = this.phase === 'generating' ? 'Generating…' : '🧪 Generate';
+    gen.textContent = this.phase === 'generating' ? 'Generating…' : 'Generate';
     gen.disabled = this.phase !== 'idle';
     gen.addEventListener('click', () => void this.generate());
     toolbar.appendChild(gen);

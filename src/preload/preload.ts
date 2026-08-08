@@ -46,6 +46,7 @@ const api: ZnxStudioApi = {
   dialog: {
     openFolder: () => ipcRenderer.invoke(IpcChannels.DialogOpenFolder),
     openFile: () => ipcRenderer.invoke(IpcChannels.DialogOpenFile),
+    saveFile: (defaultPath, content) => ipcRenderer.invoke(IpcChannels.DialogSaveFile, defaultPath, content),
   },
   fs: {
     readDirectory: (path) => ipcRenderer.invoke(IpcChannels.FsReadDirectory, path),

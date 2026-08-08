@@ -58,6 +58,17 @@ export function registerCoreIpc(): void {
 
   ipcMain.handle(IpcChannels.DialogOpenFolder, () => pick(['openDirectory']));
   ipcMain.handle(IpcChannels.DialogOpenFile, () => pick(['openFile']));
+  ipcMain.handle(IpcChannels.DialogSaveFile, async (_event, defaultPath: string, content: string) => {
+    if (typeof defaultPath !== 'string' || typeof content !== 'string') throw new Error('Invalid save request.');
+    const window = BrowserWindow.getFocusedWindow();
+    const options: Electron.SaveDialogOptions = { defaultPath };
+    const result = window
+      ? await dialog.showSaveDialog(window, options)
+      : await dialog.showSaveDialog(options);
+    if (result.canceled || !result.filePath) return null;
+    await files.writeFile(result.filePath, content);
+    return result.filePath;
+  });
 
   // New Window / Exit for the File menu. New Window opens a second main window;
   // Close routes through the same guarded close as the window's X (unsaved prompt).

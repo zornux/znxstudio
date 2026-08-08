@@ -116,17 +116,17 @@ export class LspModule implements IModule {
     this.client.onClosed(() => this.publishStatus());
 
     // A running server should never keep publishing findings the user turned off.
-    this.settings?.onDidChange((change) => {
+    if (this.settings) context.subscriptions.push(this.settings.onDidChange((change) => {
       if (change.key !== SECURITY_SETTING) return;
       const next = change.value === true;
       if (next !== this.securityEnabled) void this.setSecurityEnabled(next);
-    });
+    }));
 
     // Mirror document lifecycle to the server (Zornux docs only).
     if (this.documents) {
-      this.documents.onDidOpen((doc) => this.syncOpen(doc));
-      this.documents.onDidChange((doc) => this.syncChange(doc));
-      this.documents.onDidClose((doc) => this.client.didClose(doc.uri));
+      context.subscriptions.push(this.documents.onDidOpen((doc) => this.syncOpen(doc)));
+      context.subscriptions.push(this.documents.onDidChange((doc) => this.syncChange(doc)));
+      context.subscriptions.push(this.documents.onDidClose((doc) => this.client.didClose(doc.uri)));
     }
 
     // Restart against a new root when the workspace changes (enables project-aware

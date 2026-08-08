@@ -282,7 +282,7 @@ export class SamplesModule implements IModule {
     run.addEventListener('click', () => void this.run());
     const open = document.createElement('button');
     open.className = 'znxstudio-btn-small';
-    open.textContent = '📄 Open a copy';
+    open.textContent = 'Open a copy';
     open.title = 'The examples folder is read-only; this opens an editable copy in a scratch folder.';
     open.addEventListener('click', () => void this.openCopy());
     actions.append(run, open);

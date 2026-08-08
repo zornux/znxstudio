@@ -19,7 +19,7 @@ import {
 
 const GROUP_ICON: Record<TaskGroup, string> = {
   build: '⚙',
-  test: '🧪',
+  test: 'T',
   run: '▶',
   other: '•',
 };

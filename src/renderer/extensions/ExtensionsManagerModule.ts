@@ -62,8 +62,8 @@ export class ExtensionsManagerModule implements IModule {
     context.layout.addActivityItem({ id: 'extensions', label: 'Extensions', icon: '▦', onSelect: () => this.reveal() });
     context.commands.register(CommandIds.ExtensionsShow, () => this.reveal(), 'Extensions: Show Manager');
 
-    this.extensions.onDidChange(() => this.render());
-    this.marketplace.onDidChange(() => this.render());
+    context.subscriptions.push(this.extensions.onDidChange(() => this.render()));
+    context.subscriptions.push(this.marketplace.onDidChange(() => this.render()));
 
     this.render();
     void selfTestCoordinator.run('extensions-manager', () => this.maybeSelfTest());

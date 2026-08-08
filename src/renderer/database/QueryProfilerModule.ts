@@ -52,7 +52,7 @@ export class QueryProfilerModule implements IModule {
     context.layout.addPanelView({ id: 'profiler', title: 'Query Profiler', element: this.panel });
     context.commands.register(CommandIds.QueryProfilerShow, () => this.context.layout.showPanelView('profiler'), 'Database: Show Query Profiler');
 
-    this.database?.onDidChange(() => this.refreshDatabases());
+    if (this.database) context.subscriptions.push(this.database.onDidChange(() => this.refreshDatabases()));
     this.refreshDatabases();
 
     void selfTestCoordinator.run('queryprofiler', () => this.maybeSelfTest());

@@ -17,7 +17,7 @@ import {
 } from './review';
 
 const DECORATION_OWNER = 'ai.review';
-const SEVERITY_ICON: Record<ReviewSeverity, string> = { error: '⛔', warning: '⚠', info: 'ℹ', suggestion: '💡' };
+const SEVERITY_ICON: Record<ReviewSeverity, string> = { error: '×', warning: '⚠', info: 'i', suggestion: '◇' };
 
 /**
  * AI Review (Phase 10D). Reviews the selection (or the whole active file) through
@@ -124,7 +124,7 @@ export class ReviewModule implements IModule {
     }
     const counts = countBySeverity(this.findings);
     this.status.setItem('editor.aiReview', {
-      text: `🔎 ${counts.error}⛔ ${counts.warning}⚠ ${counts.info + counts.suggestion}💡`,
+      text: `Review ${counts.error}× ${counts.warning}⚠ ${counts.info + counts.suggestion}i`,
       tooltip: 'AI review findings — click to open the panel',
       command: CommandIds.AiReview,
       side: 'right',
@@ -139,7 +139,7 @@ export class ReviewModule implements IModule {
     toolbar.className = 'znxstudio-review-toolbar';
     const run = document.createElement('button');
     run.className = 'znxstudio-btn-small';
-    run.textContent = this.running ? 'Reviewing…' : '🔎 Review';
+    run.textContent = this.running ? 'Reviewing…' : 'Review';
     run.disabled = this.running;
     run.addEventListener('click', () => void this.review());
     const clear = document.createElement('button');

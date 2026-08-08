@@ -445,7 +445,7 @@ export class ProjectExplorerModule implements IModule, ExplorerService {
     twisty.textContent = '▾';
     const icon = document.createElement('span');
     icon.className = 'znxstudio-icon';
-    icon.textContent = '📦';
+    icon.textContent = 'P';
     const name = document.createElement('span');
     name.className = 'znxstudio-explorer-root-name';
     name.textContent = info.project?.name ?? baseName(info.root);

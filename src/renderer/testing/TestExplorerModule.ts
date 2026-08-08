@@ -390,7 +390,7 @@ export class TestExplorerModule implements IModule {
       return;
     }
     this.status.setItem('editor.tests', {
-      text: `🧪 ${passed}✓${failed ? ` ${failed}✗` : ''}`,
+      text: `Tests ${passed}✓${failed ? ` ${failed}✗` : ''}`,
       tooltip: 'Tests — click for the Test Explorer',
       command: CommandIds.TestExplorerShow,
       side: 'right',

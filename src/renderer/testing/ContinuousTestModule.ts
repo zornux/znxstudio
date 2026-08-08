@@ -183,7 +183,7 @@ export class ContinuousTestModule implements IModule {
   private updateStatus(): void {
     if (!this.status) return;
     const latest = this.history.latest();
-    const state = this.watching ? (this.running ? '👁 running…' : '👁 watching') : '👁 off';
+    const state = this.watching ? (this.running ? 'Continuous tests running…' : 'Continuous tests watching') : 'Continuous tests off';
     const result = latest ? ` · ${latest.ok ? '✓' : `✗${latest.failed}`}` : '';
     this.status.setItem('editor.continuous', {
       text: `${state}${result}`,
@@ -219,7 +219,7 @@ export class ContinuousTestModule implements IModule {
     if (this.watching && streak > 1) {
       const streakEl = document.createElement('span');
       streakEl.className = 'znxstudio-continuous-streak';
-      streakEl.textContent = `🔥 ${streak} green`;
+      streakEl.textContent = `${streak} green`;
       toolbar.append(toggle, state, streakEl);
     } else {
       toolbar.append(toggle, state);

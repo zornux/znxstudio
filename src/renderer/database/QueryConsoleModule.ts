@@ -39,7 +39,7 @@ export class QueryConsoleModule implements IModule {
     context.layout.addPanelView({ id: 'query', title: 'Query Console', element: this.panel });
     context.commands.register(CommandIds.QueryConsoleShow, () => this.context.layout.showPanelView('query'), 'Database: Show Query Console');
 
-    this.database?.onDidChange(() => this.refreshDatabases());
+    if (this.database) context.subscriptions.push(this.database.onDidChange(() => this.refreshDatabases()));
     this.refreshDatabases();
 
     void selfTestCoordinator.run('queryconsole', () => this.maybeSelfTest());

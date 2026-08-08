@@ -69,7 +69,7 @@ export class HealthDashboardModule implements IModule {
 
     const copy = document.createElement('button');
     copy.className = 'znxstudio-btn-small';
-    copy.textContent = '📋 Copy report';
+    copy.textContent = 'Copy report';
     copy.title = 'Copy a Markdown diagnostics report. Home paths and secrets are redacted.';
     copy.addEventListener('click', () => this.moduleContext.commands.executeFromUi(CommandIds.HealthCopyReport));
     toolbar.appendChild(copy);

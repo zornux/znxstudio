@@ -30,4 +30,18 @@ describe('serial task queue', () => {
     expect(events.includes('recovered')).toBe(true);
     expect(events.includes('parallel')).toBe(true);
   });
+
+  test('whenIdle waits for an in-flight save before close continues', async () => {
+    const queue = new SerialTaskQueue();
+    let release!: () => void;
+    let idle = false;
+    const gate = new Promise<void>((resolve) => { release = resolve; });
+    const save = queue.enqueue('file', () => gate);
+    const waiting = queue.whenIdle('file').then(() => { idle = true; });
+    await Promise.resolve();
+    expect(idle).toBe(false);
+    release();
+    await Promise.all([save, waiting]);
+    expect(idle).toBe(true);
+  });
 });

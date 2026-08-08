@@ -60,7 +60,7 @@ export class MigrationsModule implements IModule {
       ? !this.creatingMigration && Boolean(context.services.tryGet<EditorService>(ServiceKeys.Editor)?.currentFile()?.toLowerCase().endsWith('.zx'))
       : undefined);
 
-    this.database?.onDidChange(() => void this.discover());
+    if (this.database) context.subscriptions.push(this.database.onDidChange(() => void this.discover()));
     this.renderMessage('Open a folder with `migration … end` blocks.');
     void this.discover();
     void selfTestCoordinator.run('migrations', () => this.maybeSelfTest());

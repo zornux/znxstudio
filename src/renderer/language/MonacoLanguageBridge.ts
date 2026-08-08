@@ -1,4 +1,5 @@
 import * as monaco from 'monaco-editor';
+import type { Disposable } from '../core/Module';
 import type { DiagnosticsEngine } from './DiagnosticsEngine';
 import type { DocumentManager } from './DocumentManager';
 import type { LanguageRegistry } from './LanguageRegistry';
@@ -59,6 +60,7 @@ const COMPLETION_KIND: Record<string, monaco.languages.CompletionItemKind> = {
  * logic never lives here — Monaco simply consumes the platform.
  */
 export class MonacoLanguageBridge {
+  private diagnosticsSubscription: Disposable | undefined;
   constructor(
     private readonly registry: LanguageRegistry,
     private readonly documents: DocumentManager,
@@ -67,7 +69,13 @@ export class MonacoLanguageBridge {
 
   registerLanguages(): void {
     for (const service of this.registry.all()) this.registerLanguage(service.metadata.id);
-    this.diagnostics.onDidChange(({ uri }) => this.applyMarkers(uri));
+    this.diagnosticsSubscription?.dispose();
+    this.diagnosticsSubscription = this.diagnostics.onDidChange(({ uri }) => this.applyMarkers(uri));
+  }
+
+  dispose(): void {
+    this.diagnosticsSubscription?.dispose();
+    this.diagnosticsSubscription = undefined;
   }
 
   private registerLanguage(id: string): void {

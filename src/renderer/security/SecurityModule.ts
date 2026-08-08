@@ -67,7 +67,7 @@ export class SecurityModule implements IModule, SecurityService {
 
     this.view = document.createElement('div');
     this.view.className = 'znxstudio-security';
-    context.layout.addActivityItem({ id: 'security', label: 'Security', icon: '🛡', onSelect: () => this.reveal() });
+    context.layout.addActivityItem({ id: 'security', label: 'Security', icon: '◈', onSelect: () => this.reveal() });
     context.commands.register(CommandIds.SecurityShow, () => this.reveal(), 'Security: Show');
     context.commands.register(CommandIds.SecurityScanFile, () => this.scanActiveFile(), 'Security: Scan File');
     context.commands.register(CommandIds.SecurityScanWorkspace, () => this.scanWorkspace(), 'Security: Scan Workspace');
@@ -212,7 +212,7 @@ export class SecurityModule implements IModule, SecurityService {
     }
     const scope = this.scanState.scope === 'workspace' ? 'workspace' : 'file';
     this.statusBar.setItem('editor.security', {
-      text: `🛡 scanning ${scope}… (${this.scanState.scanned})`,
+      text: `Security scan · ${scope} (${this.scanState.scanned})`,
       tooltip: 'Security scan in progress',
       command: CommandIds.SecurityShow,
       side: 'right',
@@ -226,12 +226,12 @@ export class SecurityModule implements IModule, SecurityService {
 
     const header = document.createElement('div');
     header.className = 'znxstudio-security-header';
-    header.textContent = '🛡 Security';
+    header.textContent = 'Security';
     this.view.appendChild(header);
 
     for (const { label, run } of [
-      { label: '🔍 Scan File', run: () => void this.scanActiveFile() },
-      { label: '📂 Scan Workspace', run: () => void this.scanWorkspace() },
+      { label: 'Scan File', run: () => void this.scanActiveFile() },
+      { label: 'Scan Workspace', run: () => void this.scanWorkspace() },
     ]) {
       const button = document.createElement('button');
       button.className = 'znxstudio-btn-small znxstudio-security-action';

@@ -102,12 +102,12 @@ const STATE_LABEL: Record<DebugState, string> = {
 };
 
 const STATE_ICON: Record<DebugState, string> = {
-  idle: '🐞',
-  starting: '⏳',
+  idle: '○',
+  starting: '◌',
   running: '▶',
   stopped: '⏸',
   terminated: '⏹',
-  error: '⚠️',
+  error: '⚠',
 };
 
 /**

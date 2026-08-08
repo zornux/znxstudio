@@ -40,6 +40,7 @@ import {
   type PanelPreferences,
 } from './panels';
 import { formatRecentWorkspaces, pruneRecentWorkspaces } from '../editor/unsavedGuard';
+import { setUiErrorReporter } from '../core/uiErrors';
 
 const LAYOUT_SETTING = 'znxstudio.layout';
 const PANELS_SETTING = 'znxstudio.layout.panels';
@@ -67,6 +68,7 @@ export class LayoutModule implements IModule, LayoutService {
 
   activate(context: ModuleContext): void {
     this.context = context;
+    context.subscriptions.push(setUiErrorReporter((message) => context.layout.showToast(message, 'error')));
     this.settings = context.services.tryGet<SettingsService>(ServiceKeys.Settings);
     context.services.register<LayoutService>(ServiceKeys.Layout, this);
 

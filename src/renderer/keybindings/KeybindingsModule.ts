@@ -97,11 +97,11 @@ export class KeybindingsModule implements IModule, KeybindingService {
     this.listener = (event) => this.onKeyDown(event);
     document.addEventListener('keydown', this.listener, true);
 
-    this.settings?.onDidChange((change) => {
+    if (this.settings) context.subscriptions.push(this.settings.onDidChange((change) => {
       if (change.key !== USER_SETTING) return;
       this.user = parseUserKeybindings(change.value);
       this.changeEmitter.fire();
-    });
+    }));
 
     void selfTestCoordinator.run('keybindings', () => this.maybeSelfTest());
   }

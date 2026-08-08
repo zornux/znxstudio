@@ -81,7 +81,7 @@ export class RemoteEnvModule implements IModule {
     toolbar.className = 'znxstudio-remote-toolbar';
     const gen = document.createElement('button');
     gen.className = 'znxstudio-btn-small';
-    gen.textContent = '📦 Generate Dev Container';
+    gen.textContent = 'Generate Dev Container';
     this.generateButton = gen;
     gen.addEventListener('click', () => {
       if (this.context.commands.isEnabled(CommandIds.DevContainerGen)) {

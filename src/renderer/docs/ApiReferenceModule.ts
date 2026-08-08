@@ -215,7 +215,7 @@ export class ApiReferenceModule implements IModule, ApiReferenceService {
 
     const generate = document.createElement('button');
     generate.className = 'znxstudio-btn-small';
-    generate.textContent = this.running ? 'Generating…' : '📚 Generate';
+    generate.textContent = this.running ? 'Generating…' : 'Generate';
     generate.disabled = this.running;
     generate.addEventListener('click', () => void this.generate());
     toolbar.appendChild(generate);
@@ -258,7 +258,7 @@ export class ApiReferenceModule implements IModule, ApiReferenceService {
 
     const save = document.createElement('button');
     save.className = 'znxstudio-btn-small';
-    save.textContent = '💾 Save to project';
+    save.textContent = 'Save to project';
     save.title = 'Write the reference into docs/api inside the workspace.';
     save.disabled = this.running;
     save.addEventListener('click', () => void this.saveToProject());
@@ -308,7 +308,7 @@ export class ApiReferenceModule implements IModule, ApiReferenceService {
     if (summary.format === 'markdown' && summary.written) {
       const index = document.createElement('button');
       index.className = 'znxstudio-btn-small';
-      index.textContent = '📖 Open index';
+      index.textContent = 'Open index';
       index.addEventListener('click', () => void this.openIndex());
       this.view.appendChild(index);
     }

@@ -33,10 +33,10 @@ export class OrmExplorerModule implements IModule {
     context.commands.register(CommandIds.OrmExplorerShow, () => this.context.layout.showPanelView('orm'), 'Database: Show ORM Explorer');
 
     const editor = context.services.tryGet<EditorService>(ServiceKeys.Editor);
-    editor?.onDidChangeActiveFile(() => this.scheduleRefresh(0));
-    this.documents.onDidChange((doc) => {
+    if (editor) context.subscriptions.push(editor.onDidChangeActiveFile(() => this.scheduleRefresh(0)));
+    context.subscriptions.push(this.documents.onDidChange((doc) => {
       if (doc.uri === this.documents.getActive()?.uri) this.scheduleRefresh(400);
-    });
+    }));
 
     this.renderMessage('Open a .zx file with ORM operations.');
     void selfTestCoordinator.run('orm', () => this.maybeSelfTest());
@@ -62,7 +62,7 @@ export class OrmExplorerModule implements IModule {
       this.status?.removeItem('editor.orm');
     } else {
       this.status?.setItem('editor.orm', {
-        text: `🗄 ORM ${analysis.operations.length}${errors ? ` ✗${errors}` : ''}`,
+        text: `ORM ${analysis.operations.length}${errors ? ` ✗${errors}` : ''}`,
         tooltip: 'ORM operations — click for details',
         command: CommandIds.OrmExplorerShow,
         side: 'right',

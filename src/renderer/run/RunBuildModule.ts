@@ -103,7 +103,9 @@ export class RunBuildModule implements IModule {
     // When a file flagged by the last build is opened, the live compiler layer
     // takes over — drop the build's diagnostics for it to avoid duplicates.
     const documents = context.services.tryGet<DocumentManager>(LanguageServiceKeys.Documents);
-    documents?.onDidOpen((doc) => this.engine()?.clear(doc.uri, DiagnosticSources.ZornuxBuild));
+    if (documents) context.subscriptions.push(
+      documents.onDidOpen((doc) => this.engine()?.clear(doc.uri, DiagnosticSources.ZornuxBuild)),
+    );
   }
 
   /** Build and reveal the Run & Debug sidebar of action buttons. */
@@ -115,7 +117,7 @@ export class RunBuildModule implements IModule {
     const actions: { label: string; command: string }[] = [
       { label: '▶  Run Project', command: CommandIds.RunStart },
       { label: '⚙  Build Project', command: CommandIds.BuildStart },
-      { label: '🐞  Start Debugging', command: CommandIds.DebugStart },
+      { label: '○  Start Debugging', command: CommandIds.DebugStart },
       { label: '⏭  Step Over', command: CommandIds.DebugStepOver },
       { label: '▶▶  Continue', command: CommandIds.DebugContinue },
       { label: '⏸  Pause', command: CommandIds.DebugPause },

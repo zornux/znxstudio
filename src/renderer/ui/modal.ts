@@ -18,6 +18,7 @@ export interface ModalButton {
   onClick?: () => void;
 }
 import { claimOverlay } from './overlayCoordinator';
+import { runUiCallback } from '../core/uiErrors';
 
 export interface ModalOptions {
   title: string;
@@ -91,7 +92,7 @@ export function showModal(options: ModalOptions): Promise<string> {
       btn.textContent = spec.label;
       btn.addEventListener('click', () => {
         if (spec.onClick) {
-          spec.onClick();
+          runUiCallback(`Could not run “${spec.label}”`, spec.onClick);
           return; // non-closing action
         }
         close(spec.value);

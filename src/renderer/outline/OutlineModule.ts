@@ -50,10 +50,10 @@ export class OutlineModule implements IModule {
     }
 
     const editor = context.services.tryGet<EditorService>(ServiceKeys.Editor);
-    editor?.onDidChangeActiveFile(() => this.scheduleRefresh(0));
-    this.documents.onDidChange((doc) => {
+    if (editor) context.subscriptions.push(editor.onDidChangeActiveFile(() => this.scheduleRefresh(0)));
+    context.subscriptions.push(this.documents.onDidChange((doc) => {
       if (doc.uri === this.documents.getActive()?.uri) this.scheduleRefresh(250);
-    });
+    }));
     context.subscriptions.push({
       dispose: () => {
         if (this.refreshTimer) clearTimeout(this.refreshTimer);

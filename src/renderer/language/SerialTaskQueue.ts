@@ -15,4 +15,9 @@ export class SerialTaskQueue {
   forget(key: string): void {
     this.tails.delete(key);
   }
+
+  /** Resolves once every task currently queued for `key` has settled. */
+  async whenIdle(key: string): Promise<void> {
+    await this.tails.get(key)?.catch(() => undefined);
+  }
 }

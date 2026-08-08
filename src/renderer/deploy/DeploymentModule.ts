@@ -58,19 +58,19 @@ export class DeploymentModule implements IModule, DeploymentService {
 
     this.view = document.createElement('div');
     this.view.className = 'znxstudio-deploy';
-    context.layout.addActivityItem({ id: 'deploy', label: 'Deployment', icon: '🚀', onSelect: () => this.reveal() });
+    context.layout.addActivityItem({ id: 'deploy', label: 'Deployment', icon: '↑', onSelect: () => this.reveal() });
     context.commands.register(CommandIds.DeployShow, () => this.reveal(), 'Deployment: Show');
     context.commands.register(CommandIds.DeployNewProfile, () => this.newProfilePrompt(), 'Deployment: New Profile');
     context.commands.addEnablementRule((id) => id === CommandIds.DeployNewProfile ? !this.creatingProfile : undefined);
 
-    this.settings.onDidChange((event) => {
+    context.subscriptions.push(this.settings.onDidChange((event) => {
       if (event.key === PROFILES_KEY || event.key === ACTIVE_KEY) {
         this.load();
         this.render();
         this.changeEmitter.fire();
       }
-    });
-    this.workspace.onDidChangeWorkspace(() => this.render());
+    }));
+    context.subscriptions.push(this.workspace.onDidChangeWorkspace(() => this.render()));
 
     this.render();
     void selfTestCoordinator.run('deployment', () => this.maybeSelfTest());
@@ -219,7 +219,7 @@ export class DeploymentModule implements IModule, DeploymentService {
     const context = this.context();
     const header = document.createElement('div');
     header.className = 'znxstudio-deploy-header';
-    header.textContent = `🚀 ${context.projectName}`;
+    header.textContent = `Deployment · ${context.projectName}`;
     this.view.appendChild(header);
 
     // Active profile selector.

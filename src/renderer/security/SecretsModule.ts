@@ -38,7 +38,7 @@ export class SecretsModule implements IModule {
     context.commands.register(CommandIds.SecuritySecretsShow, () => this.reveal(), 'Security: Show Secrets');
     context.commands.register(CommandIds.SecuritySuppress, () => this.suppressAtCursor(), 'Security: Suppress Finding at Cursor');
 
-    this.security?.onDidChange(() => this.render());
+    if (this.security) context.subscriptions.push(this.security.onDidChange(() => this.render()));
     this.render();
     void selfTestCoordinator.run('security-secrets', () => this.maybeSelfTest());
   }

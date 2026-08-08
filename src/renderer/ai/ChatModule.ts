@@ -51,7 +51,7 @@ export class ChatModule implements IModule {
     context.commands.register(CommandIds.AiChatShow, () => this.reveal(), 'AI: Chat');
     context.commands.register(CommandIds.AiChatClear, () => this.clearAndReveal(), 'AI: New Chat');
 
-    this.ai.onDidChangeConfig(() => this.render());
+    context.subscriptions.push(this.ai.onDidChangeConfig(() => this.render()));
     this.render();
     void selfTestCoordinator.run('ai-chat', () => this.maybeSelfTest());
   }
@@ -80,7 +80,7 @@ export class ChatModule implements IModule {
     header.className = 'znxstudio-chat-header';
     const who = document.createElement('span');
     who.className = 'znxstudio-chat-provider';
-    who.textContent = this.ai.isEnabled() ? `🤖 ${this.ai.providerLabel()}` : '🤖 AI off';
+    who.textContent = this.ai.isEnabled() ? `AI · ${this.ai.providerLabel()}` : 'AI off';
     const spacer = document.createElement('span');
     spacer.style.flex = '1';
     const configure = document.createElement('button');

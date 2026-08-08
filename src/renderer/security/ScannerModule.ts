@@ -36,10 +36,10 @@ export class ScannerModule implements IModule {
 
     context.commands.register(CommandIds.SecurityScannerShow, () => this.reveal(), 'Security: Show Scan Results');
 
-    this.security?.onDidChange(() => {
+    if (this.security) context.subscriptions.push(this.security.onDidChange(() => {
       this.render();
       this.decorateActiveFile();
-    });
+    }));
     this.editor?.onDidChangeActiveFile(() => this.decorateActiveFile());
 
     this.render();

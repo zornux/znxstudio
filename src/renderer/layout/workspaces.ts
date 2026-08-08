@@ -62,28 +62,28 @@ export const WORKSPACES: WorkspaceDef[] = [
   {
     id: 'security', label: 'Security', activity: 'security', panels: ['security-dashboard', 'security-scan', 'security-secrets', 'security-dependencies', 'security-rules'], focus: 'security-dashboard',
     toolbar: [
-      { icon: '🛡', label: 'Scan', command: CommandIds.SecurityScanWorkspace },
+      { icon: '◈', label: 'Scan', command: CommandIds.SecurityScanWorkspace },
       { icon: '⚖', label: 'Audit', command: CommandIds.SecurityDependencyAudit },
-      { icon: '🔑', label: 'Secrets', command: CommandIds.SecuritySecretsShow },
-      { icon: '📄', label: 'Report', command: CommandIds.SecurityExportReport },
+      { icon: '◆', label: 'Secrets', command: CommandIds.SecuritySecretsShow },
+      { icon: '□', label: 'Report', command: CommandIds.SecurityExportReport },
     ],
   },
   {
     id: 'performance', label: 'Performance', activity: 'performance', panels: ['cpu-profiler', 'memory-profiler', 'perf-timeline', 'perf-hotspots', 'perf-allocations'], focus: 'cpu-profiler',
     toolbar: [
-      { icon: '🖥', label: 'CPU', command: CommandIds.PerfCpuShow },
-      { icon: '🧠', label: 'Memory', command: CommandIds.PerfMemoryShow },
+      { icon: 'C', label: 'CPU', command: CommandIds.PerfCpuShow },
+      { icon: 'M', label: 'Memory', command: CommandIds.PerfMemoryShow },
       { icon: '⏱', label: 'Timeline', command: CommandIds.PerfTimelineShow },
-      { icon: '🔥', label: 'Hotspots', command: CommandIds.PerfHotspotsShow },
+      { icon: '▲', label: 'Hotspots', command: CommandIds.PerfHotspotsShow },
     ],
   },
   {
     id: 'ai', label: 'AI', activity: 'ai-chat', panels: ['ai-review', 'ai-testgen', 'ai-docs', 'ai-architecture', 'ai-debug'], focus: 'ai-review',
     toolbar: [
-      { icon: '💬', label: 'Chat', command: CommandIds.AiChatShow },
+      { icon: '◇', label: 'Chat', command: CommandIds.AiChatShow },
       { icon: '❓', label: 'Explain', command: CommandIds.AiExplainError },
-      { icon: '🔍', label: 'Review', command: CommandIds.AiReview },
-      { icon: '🧪', label: 'Generate Tests', command: CommandIds.AiTestGen },
+      { icon: '⌕', label: 'Review', command: CommandIds.AiReview },
+      { icon: 'T', label: 'Generate Tests', command: CommandIds.AiTestGen },
       { icon: '✎', label: 'Refactor', command: CommandIds.AiRefactor },
     ],
   },
@@ -91,9 +91,9 @@ export const WORKSPACES: WorkspaceDef[] = [
   {
     id: 'documentation', label: 'Documentation', activity: 'learning', panels: ['apidocs', 'samples', 'tutorial', 'exercises'], focus: 'apidocs',
     toolbar: [
-      { icon: '📘', label: 'Generate API', command: CommandIds.DocsGenerateApi },
-      { icon: '📚', label: 'Samples', command: CommandIds.DocsSamplesShow },
-      { icon: '🎓', label: 'Tutorials', command: CommandIds.TutorialOpen },
+      { icon: 'A', label: 'Generate API', command: CommandIds.DocsGenerateApi },
+      { icon: 'S', label: 'Samples', command: CommandIds.DocsSamplesShow },
+      { icon: 'L', label: 'Tutorials', command: CommandIds.TutorialOpen },
     ],
   },
   { id: 'architecture', label: 'Architecture', panels: ['dependencies', 'ai-architecture'], focus: 'dependencies' },

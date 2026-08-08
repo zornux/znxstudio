@@ -40,7 +40,7 @@ export class AllocationsModule implements IModule {
     context.layout.addPanelView({ id: 'perf-allocations', title: 'Allocations', element: this.panel });
     context.commands.register(CommandIds.PerfAllocationsShow, () => context.layout.showPanelView('perf-allocations'), 'Performance: Show Allocations');
 
-    this.profiler.onDidChange(() => this.render());
+    context.subscriptions.push(this.profiler.onDidChange(() => this.render()));
     this.render();
     void selfTestCoordinator.run('perf-allocations', () => this.maybeSelfTest());
   }

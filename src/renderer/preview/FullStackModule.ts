@@ -118,7 +118,7 @@ export class FullStackModule implements IModule {
       return;
     }
     this.status()?.setItem('fullstack.status', {
-      text: '🧩 Full-Stack',
+      text: 'Full-Stack',
       tooltip: `Backend ${this.backendUrl ?? '(run)'} · Frontend ${result.url}`,
       command: CommandIds.FullStackStart,
       side: 'right',
@@ -172,7 +172,7 @@ export class FullStackModule implements IModule {
     const label = document.createElement('span');
     label.className = 'znxstudio-fullstack-label';
     const backend = this.backendUrl ? `backend ${this.backendUrl}` : backendStatus ?? 'backend (run)';
-    label.textContent = `🧩 ${backend}${this.routes.length ? ` · ${this.routes.length} route(s)` : ''}`;
+    label.textContent = `${backend}${this.routes.length ? ` · ${this.routes.length} route(s)` : ''}`;
     const reload = this.iconButton('⟳', 'Reload frontend', () => {
       if (this.frame && frontendUrl) this.frame.src = `${frontendUrl}?_=${Date.now()}`;
     });

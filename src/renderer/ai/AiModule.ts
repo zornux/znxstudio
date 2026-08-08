@@ -76,13 +76,13 @@ export class AiModule implements IModule, AiService {
     if (workspaceSubscription) context.subscriptions.push(workspaceSubscription);
 
     // React to provider/model/key edits made anywhere (JSON editor or picker).
-    this.settings.onDidChange((event) => {
+    context.subscriptions.push(this.settings.onDidChange((event) => {
       if (event.key.startsWith('ai.')) {
         this.updateStatus();
         this.changeEmitter.fire(this.config());
         context.commands.notifyEnablementChanged();
       }
-    });
+    }));
 
     this.updateStatus();
     void selfTestCoordinator.run('ai', () => this.maybeSelfTest());
@@ -226,7 +226,7 @@ export class AiModule implements IModule, AiService {
     if (!this.status) return;
     const enabled = this.isEnabled();
     const label = this.providerLabel();
-    const text = enabled ? `🤖 ${label}` : '🤖 AI off';
+    const text = enabled ? `AI ${label}` : 'AI off';
     const ready = this.readiness();
     const tooltip = enabled
       ? ready

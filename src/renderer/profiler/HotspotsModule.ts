@@ -37,7 +37,7 @@ export class HotspotsModule implements IModule {
     context.layout.addPanelView({ id: 'perf-hotspots', title: 'Hotspots', element: this.panel });
     context.commands.register(CommandIds.PerfHotspotsShow, () => context.layout.showPanelView('perf-hotspots'), 'Performance: Show Hotspots');
 
-    this.profiler.onDidChange(() => this.render());
+    context.subscriptions.push(this.profiler.onDidChange(() => this.render()));
     this.render();
     void selfTestCoordinator.run('perf-hotspots', () => this.maybeSelfTest());
   }

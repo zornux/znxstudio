@@ -14,10 +14,10 @@ const TYPE_LABEL: Record<WorkspaceType, string> = {
 };
 
 const TYPE_ICON: Record<WorkspaceType, string> = {
-  'zornux-api': '🛠',
-  'zoijs-frontend': '🎨',
-  'zornux-zoijs-fullstack': '🧩',
-  generic: '📁',
+  'zornux-api': 'Z',
+  'zoijs-frontend': 'UI',
+  'zornux-zoijs-fullstack': '◇',
+  generic: '▧',
 };
 
 /**
@@ -51,7 +51,7 @@ export class SolutionExplorerModule implements IModule {
     context.layout.addActivityItem({
       id: 'solution',
       label: 'Solution',
-      icon: '🧩',
+      icon: '◇',
       onSelect: () => {
         context.layout.setSideBar('Solution', this.shell());
         context.layout.focusSideBar();

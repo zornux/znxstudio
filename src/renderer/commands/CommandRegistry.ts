@@ -1,5 +1,6 @@
 import type { Disposable } from '../core/Module';
 import { EXTENSION_CONTRIBUTABLE_COMMANDS } from '../../shared/extensions/registry';
+import { reportUiError } from '../core/uiErrors';
 
 export type CommandHandler = (...args: any[]) => unknown;
 
@@ -64,7 +65,7 @@ export class CommandRegistry {
   executeFromUi(id: string, onError?: (error: unknown) => void, ...args: unknown[]): void {
     void this.execute(id, ...args).catch((error) => {
       if (onError) onError(error);
-      else console.error(`Command failed: ${id}`, error);
+      else reportUiError(`Command failed (${id})`, error);
     });
   }
 

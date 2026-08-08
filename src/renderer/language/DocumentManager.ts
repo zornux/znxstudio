@@ -51,6 +51,7 @@ export class DocumentManager implements DocumentStore {
   private autosaveMode: AutosaveMode = 'off';
   private autosaveDelay = 1000;
   private readonly autosaveTimers = new Map<string, ReturnType<typeof setTimeout>>();
+  private readonly closePreparations = new Set<string>();
   /** Per-document tails keep filesystem writes in edit order. */
   private readonly saveQueue = new SerialTaskQueue();
 
@@ -78,6 +79,15 @@ export class DocumentManager implements DocumentStore {
     if (existing) return existing;
 
     const content = await window.znxstudio.fs.readFile(path);
+    return this.openFromContent(path, content);
+  }
+
+  /** Open content already obtained through an explicit trusted user action (Save As). */
+  openFromContent(path: string, content: string): ManagedDocument {
+    const uri = monaco.Uri.file(path);
+    const key = uri.toString();
+    const existing = this.docs.get(key);
+    if (existing) return existing;
     const languageId = this.resolveLanguageId(path);
     const model =
       monaco.editor.getModel(uri) ?? monaco.editor.createModel(content, languageId, uri);
@@ -173,6 +183,27 @@ export class DocumentManager implements DocumentStore {
     if (this.active) await this.save(this.active);
   }
 
+  /** Let close/discard flows observe the final state of an in-flight autosave. */
+  async waitForPendingSave(uri: string): Promise<void> {
+    await this.saveQueue.whenIdle(uri);
+  }
+
+  /** Pause timer-driven autosave for the full duration of a close confirmation. */
+  async prepareForClose(uri: string): Promise<void> {
+    this.closePreparations.add(uri);
+    const timer = this.autosaveTimers.get(uri);
+    if (timer) clearTimeout(timer);
+    this.autosaveTimers.delete(uri);
+    await this.waitForPendingSave(uri);
+  }
+
+  /** Resume normal autosave when a prepared close is cancelled. */
+  cancelClosePreparation(uri: string): void {
+    this.closePreparations.delete(uri);
+    const managed = this.docs.get(uri);
+    if (managed?.dirty) this.scheduleAutosave(managed);
+  }
+
   /** Replace an open model with the current file contents from disk. */
   async revert(uri: string): Promise<void> {
     const managed = this.docs.get(uri);
@@ -235,7 +266,7 @@ export class DocumentManager implements DocumentStore {
   private scheduleAutosave(managed: ManagedDocument): void {
     // Only the delay mode saves on a timer; focus/window-change modes are driven
     // by the editor's blur events via saveAllDirty().
-    if (this.autosaveMode !== 'afterDelay') return;
+    if (this.autosaveMode !== 'afterDelay' || this.closePreparations.has(managed.uri)) return;
     const previous = this.autosaveTimers.get(managed.uri);
     if (previous) clearTimeout(previous);
     this.autosaveTimers.set(
@@ -256,6 +287,7 @@ export class DocumentManager implements DocumentStore {
     const timer = this.autosaveTimers.get(uri);
     if (timer) clearTimeout(timer);
     this.autosaveTimers.delete(uri);
+    this.closePreparations.delete(uri);
     this.saveQueue.forget(uri);
     managed.model.dispose();
     this.docs.delete(uri);

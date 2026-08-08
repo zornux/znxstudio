@@ -688,6 +688,8 @@ export interface ZnxStudioApi {
     openFolder(): Promise<string | null>;
     /** Pick a single file to open; null if cancelled. */
     openFile(): Promise<string | null>;
+    /** Pick a destination and write explicit user-provided content there. */
+    saveFile(defaultPath: string, content: string): Promise<string | null>;
   };
   fs: {
     readDirectory(path: string): Promise<FileNode[]>;

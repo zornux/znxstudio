@@ -168,8 +168,8 @@ export class CrashRecoveryModule implements IModule {
       if (this.timer) clearTimeout(this.timer);
       this.timer = setTimeout(() => void this.saveSnapshot(), SNAPSHOT_DEBOUNCE_MS);
     };
-    this.documents.onDidChange(schedule);
-    this.documents.onDidSave(schedule);
+    context.subscriptions.push(this.documents.onDidChange(schedule));
+    context.subscriptions.push(this.documents.onDidSave(schedule));
     context.subscriptions.push({
       dispose: () => {
         if (this.timer) clearTimeout(this.timer);

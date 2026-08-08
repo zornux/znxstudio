@@ -47,8 +47,10 @@ export class ProfilerModule implements IModule {
 
     // A compile likely ran shortly after a save — refresh once it settles.
     const documents = context.services.tryGet<DocumentManager>(LanguageServiceKeys.Documents);
-    documents?.onDidSave(() => this.schedule(1500));
-    documents?.onDidChange(() => this.schedule(1500));
+    if (documents) {
+      context.subscriptions.push(documents.onDidSave(() => this.schedule(1500)));
+      context.subscriptions.push(documents.onDidChange(() => this.schedule(1500)));
+    }
 
     void this.refresh();
   }

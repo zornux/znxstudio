@@ -9,6 +9,7 @@ export const IpcChannels = {
   ShellShowItemInFolder: 'shell:showItemInFolder',
   DialogOpenFolder: 'dialog:openFolder',
   DialogOpenFile: 'dialog:openFile',
+  DialogSaveFile: 'dialog:saveFile',
   AppNewWindow: 'app:new-window',
   FsDirectoryExists: 'fs:directoryExists',
   FsPathExists: 'fs:pathExists',

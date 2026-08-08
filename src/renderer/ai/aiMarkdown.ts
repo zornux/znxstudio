@@ -8,6 +8,7 @@
  * markup), and adds a Copy button — plus an optional Insert — to each code block.
  */
 import { parseMarkdown, renderMarkdown } from '../docs/markdown';
+import { reportUiError } from '../core/uiErrors';
 
 export interface AiMarkdownOptions {
   /** When set, each code block gets an "Insert" button (e.g. paste into the editor). */
@@ -15,7 +16,7 @@ export interface AiMarkdownOptions {
 }
 
 function openExternal(href: string): void {
-  void window.znxstudio.shell?.openExternal?.(href);
+  void window.znxstudio.shell?.openExternal?.(href).catch((error) => reportUiError('Could not open link', error));
 }
 
 function toolbarButton(label: string, title: string, onClick: () => void): HTMLButtonElement {
@@ -45,7 +46,9 @@ export function renderAiMarkdown(host: HTMLElement, text: string, options: AiMar
     const source = code?.textContent ?? '';
     const bar = document.createElement('div');
     bar.className = 'znxstudio-ai-md-codebar';
-    bar.appendChild(toolbarButton('Copy', 'Copy code', () => void navigator.clipboard?.writeText(source)));
+    bar.appendChild(toolbarButton('Copy', 'Copy code', () => {
+      void navigator.clipboard?.writeText(source).catch((error) => reportUiError('Could not copy code', error));
+    }));
     if (options.onInsertCode) {
       bar.appendChild(
         toolbarButton('Insert', 'Insert into editor', () => options.onInsertCode!(source, code?.dataset.language ?? '')),

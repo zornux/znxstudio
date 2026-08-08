@@ -128,7 +128,7 @@ export class CoverageModule implements IModule {
       return;
     }
     this.status.setItem('editor.coverage', {
-      text: `🧭 ${this.report.percent}%`,
+      text: `Coverage ${this.report.percent}%`,
       tooltip: `Test coverage: ${this.report.covered}/${this.report.total} functions`,
       command: CommandIds.CoverageShow,
       side: 'right',

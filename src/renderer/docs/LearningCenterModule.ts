@@ -85,7 +85,7 @@ export class LearningCenterModule implements IModule, LearningService {
     this.view.className = 'znxstudio-learning';
     this.exercisesView = document.createElement('div');
     this.exercisesView.className = 'znxstudio-exercises';
-    context.layout.addActivityItem({ id: 'learning', label: 'Learn', icon: '🎓', onSelect: () => this.reveal() });
+    context.layout.addActivityItem({ id: 'learning', label: 'Learn', icon: 'L', onSelect: () => this.reveal() });
     context.layout.addPanelView({ id: 'exercises', title: 'Exercises', element: this.exercisesView });
     context.commands.register(CommandIds.LearningShow, () => this.reveal(), 'Learn: Show Learning Center');
     context.commands.register(CommandIds.LearningReload, () => this.reload(), 'Learn: Reload Curriculum');
@@ -294,7 +294,7 @@ export class LearningCenterModule implements IModule, LearningService {
     if (exercise.hint) {
       const hint = document.createElement('button');
       hint.className = 'znxstudio-btn-small';
-      hint.textContent = '💡 Hint';
+      hint.textContent = 'Hint';
       hint.addEventListener('click', () => this.moduleContext.layout.showToast(exercise.hint!, 'info'));
       actions.appendChild(hint);
     }
@@ -302,7 +302,7 @@ export class LearningCenterModule implements IModule, LearningService {
     if (exercise.solution) {
       const solution = document.createElement('button');
       solution.className = 'znxstudio-btn-small';
-      solution.textContent = '🔑 Show solution';
+      solution.textContent = 'Show solution';
       solution.addEventListener('click', () => {
         this.drafts.set(exercise.id, exercise.solution!);
         this.renderExercises();
@@ -339,7 +339,7 @@ export class LearningCenterModule implements IModule, LearningService {
 
     const header = document.createElement('div');
     header.className = 'znxstudio-learning-header';
-    header.textContent = '🎓 Learn';
+    header.textContent = 'Learn';
     this.view.appendChild(header);
 
     if (!this.packRoot || !this.loaded.tracks.length) {
@@ -400,7 +400,7 @@ export class LearningCenterModule implements IModule, LearningService {
       const row = document.createElement('li');
       const button = document.createElement('button');
       button.className = `znxstudio-learning-item${done ? ' is-done' : ''}${upNext?.id === item.id ? ' is-next' : ''}`;
-      const icon = done ? '✓' : item.kind === 'tutorial' ? '▶' : '📖';
+      const icon = done ? '✓' : item.kind === 'tutorial' ? '▶' : '□';
       button.textContent = `${icon} ${entry.title} · ${entry.minutes} min`;
       button.disabled = !unlocked;
       if (!unlocked) button.title = 'Finish the item before this one first.';

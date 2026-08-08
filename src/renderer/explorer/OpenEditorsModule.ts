@@ -44,7 +44,7 @@ export class OpenEditorsModule implements IModule {
       }],
     });
 
-    this.editor.onDidChangeEditors(() => this.render());
+    context.subscriptions.push(this.editor.onDidChangeEditors(() => this.render()));
     this.render();
   }
 
@@ -81,7 +81,7 @@ export class OpenEditorsModule implements IModule {
 
     const icon = document.createElement('span');
     icon.className = 'znxstudio-icon';
-    icon.textContent = open.pinned ? '📌' : '📄';
+    icon.textContent = open.pinned ? '●' : '□';
     target.appendChild(icon);
 
     const label = document.createElement('span');

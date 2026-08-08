@@ -90,14 +90,16 @@ export class ZoijsModule implements IModule {
     this.renderDevtools();
 
     // Diagnostics pipeline over JS/TS documents (Zoijs files only).
-    this.documents?.onDidOpen((doc) => this.refresh(doc, 0));
-    this.documents?.onDidChange((doc) => this.refresh(doc, DEBOUNCE_MS));
-    this.documents?.onDidChangeActive((doc) => {
-      this.updateStatus(doc);
-      this.renderComponents(doc);
-      this.renderReactivity(doc);
-      this.renderRoutes(doc);
-    });
+    if (this.documents) {
+      context.subscriptions.push(this.documents.onDidOpen((doc) => this.refresh(doc, 0)));
+      context.subscriptions.push(this.documents.onDidChange((doc) => this.refresh(doc, DEBOUNCE_MS)));
+      context.subscriptions.push(this.documents.onDidChangeActive((doc) => {
+        this.updateStatus(doc);
+        this.renderComponents(doc);
+        this.renderReactivity(doc);
+        this.renderRoutes(doc);
+      }));
+    }
 
     void selfTestCoordinator.run('zoijs', () => this.maybeSelfTest());
   }
@@ -324,7 +326,7 @@ export class ZoijsModule implements IModule {
     if (!status) return;
     const active = doc && JS_LANGUAGES.includes(doc.languageId) && isZoijsSource(doc.document.getText());
     if (active) {
-      status.setItem('zoijs.active', { text: '🟪 Zoijs', tooltip: 'Zoijs framework intelligence active', side: 'right', priority: 34 });
+      status.setItem('zoijs.active', { text: 'Zoijs', tooltip: 'Zoijs framework intelligence active', side: 'right', priority: 34 });
     } else {
       status.removeItem('zoijs.active');
     }
@@ -368,7 +370,7 @@ export class ZoijsModule implements IModule {
     row.className = 'znxstudio-tree-row';
     const icon = document.createElement('span');
     icon.className = 'znxstudio-icon';
-    icon.textContent = '🧩';
+    icon.textContent = '◇';
     const name = document.createElement('span');
     name.className = 'znxstudio-zoijs-comp-name';
     name.textContent = component.params.length ? `${component.name}(${component.params.join(', ')})` : component.name;
@@ -422,7 +424,7 @@ export class ZoijsModule implements IModule {
 
     if (states.length) {
       fragment.appendChild(this.sectionHeader('State'));
-      for (const state of states) fragment.appendChild(this.reactiveValueRow(state, graph, '📥'));
+      for (const state of states) fragment.appendChild(this.reactiveValueRow(state, graph, '↓'));
     }
     if (computeds.length) {
       fragment.appendChild(this.sectionHeader('Computed'));
@@ -531,7 +533,7 @@ export class ZoijsModule implements IModule {
     row.className = 'znxstudio-tree-row';
     const ic = document.createElement('span');
     ic.className = 'znxstudio-icon';
-    ic.textContent = route.notFound ? '🚧' : '🧭';
+    ic.textContent = route.notFound ? '⚠' : '→';
     const name = document.createElement('span');
     name.className = 'znxstudio-zoijs-comp-name';
     name.textContent = `${route.pattern} → ${route.component}`;
