@@ -7,6 +7,7 @@ import {
   type ExpectedIdentity,
 } from '../src/shared/extensions/registry';
 import { assertSafeMarketplaceUrl, resolveBaseUrl, DEFAULT_MARKETPLACE_BASE_URL } from '../src/main/services/marketplaceUrlPolicy';
+import { normalizeMarketplaceSearchParams } from '../src/main/services/MarketplaceRegistryService';
 import { CommandIds } from '../src/renderer/commands/CommandIds';
 import { readFileSync } from 'node:fs';
 
@@ -49,6 +50,23 @@ describe('assetCardToEntry', () => {
   });
   test('returns null without publisher/slug', () => {
     expect(assetCardToEntry({ name: 'x' })).toBeNull();
+  });
+  test('rejects non-extension, malformed-version, and unsafe identity cards', () => {
+    const base = { publisher: { handle: 'zornux' }, slug: 'tool', latestVersion: '1.0.0' };
+    expect(assetCardToEntry({ ...base, type: 'container-image' })).toBeNull();
+    expect(assetCardToEntry({ ...base, latestVersion: 'latest' })).toBeNull();
+    expect(assetCardToEntry({ ...base, slug: '../tool' })).toBeNull();
+  });
+});
+
+describe('marketplace search request normalization', () => {
+  test('trims and bounds renderer-provided values', () => {
+    expect(normalizeMarketplaceSearchParams({ query: `  ${'x'.repeat(250)}  ` })).toEqual({
+      query: 'x'.repeat(200), page: 1, perPage: 30, sort: '',
+    });
+    expect(normalizeMarketplaceSearchParams({ page: -4, perPage: 50_000, sort: 'downloads_desc' })).toEqual({
+      query: '', page: 1, perPage: 100, sort: 'downloads_desc',
+    });
   });
 });
 

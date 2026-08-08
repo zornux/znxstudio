@@ -22,10 +22,16 @@
   --z-fg: #d7d9de;
   --z-fg-muted: #8b8f98;
   /* Darkened from #4c8dff so white-on-accent meets WCAG AA (≈4.6:1). */
-  --z-accent: #2f6fe0;
+  --z-accent: #7657e8;
+  --z-accent-secondary: #29bfd2;
+  --z-accent-soft: color-mix(in srgb, var(--z-accent) 18%, transparent);
+  --z-surface-glow: rgba(118, 87, 232, 0.16);
+  --z-radius-sm: 6px;
+  --z-radius-md: 10px;
+  --z-radius-lg: 14px;
   --z-accent-fg: #ffffff;
   --z-activity-bg: #161719;
-  --z-status-bg: #14357a;
+  --z-status-bg: #33286f;
   --z-status-fg: #eaf0ff;
   --z-hover: #2a2c31;
 }
@@ -37,12 +43,62 @@
   --z-border: #e0e2e6;
   --z-fg: #1f2328;
   --z-fg-muted: #6b7280;
-  --z-accent: #2563eb;
+  --z-accent: #6547d5;
+  --z-accent-secondary: #078da5;
+  --z-accent-soft: color-mix(in srgb, var(--z-accent) 12%, transparent);
+  --z-surface-glow: rgba(101, 71, 213, 0.1);
+  --z-radius-sm: 6px;
+  --z-radius-md: 10px;
+  --z-radius-lg: 14px;
   --z-accent-fg: #ffffff;
   --z-activity-bg: #f0f1f4;
-  --z-status-bg: #2563eb;
+  --z-status-bg: #5b3fc4;
   --z-status-fg: #ffffff;
   --z-hover: #e8eaef;
+}
+
+/* Tide: deep marine surfaces with teal signals and a restrained coral accent. */
+:root[data-theme='znxstudio-tide'] {
+  --z-bg: #101b22;
+  --z-bg-elevated: #17262e;
+  --z-bg-panel: #132129;
+  --z-border: #29404a;
+  --z-fg: #d7e4e5;
+  --z-fg-muted: #89a2a8;
+  --z-accent: #b95742;
+  --z-accent-secondary: #31b8a7;
+  --z-accent-soft: color-mix(in srgb, var(--z-accent) 19%, transparent);
+  --z-surface-glow: rgba(49, 184, 167, 0.14);
+  --z-radius-sm: 6px;
+  --z-radius-md: 10px;
+  --z-radius-lg: 14px;
+  --z-accent-fg: #ffffff;
+  --z-activity-bg: #0c171d;
+  --z-status-bg: #164f59;
+  --z-status-fg: #f0ffff;
+  --z-hover: #20343d;
+}
+
+/* Dune: a low-glare warm canvas with plum and teal studio signals. */
+:root[data-theme='znxstudio-dune'] {
+  --z-bg: #f7f1e6;
+  --z-bg-elevated: #fffaf1;
+  --z-bg-panel: #eee5d7;
+  --z-border: #d8cbb9;
+  --z-fg: #2f2a24;
+  --z-fg-muted: #74695d;
+  --z-accent: #7d438f;
+  --z-accent-secondary: #16777b;
+  --z-accent-soft: color-mix(in srgb, var(--z-accent) 12%, transparent);
+  --z-surface-glow: rgba(125, 67, 143, 0.1);
+  --z-radius-sm: 6px;
+  --z-radius-md: 10px;
+  --z-radius-lg: 14px;
+  --z-accent-fg: #ffffff;
+  --z-activity-bg: #e9dece;
+  --z-status-bg: #633572;
+  --z-status-fg: #fffaff;
+  --z-hover: #e8ddcf;
 }
 
 /* High-contrast themes (Phase 20J WI4): maximal fg/bg separation, bright
@@ -2581,6 +2637,48 @@ button.znxstudio-solution-action:focus-visible {
   width: 1.35em;
   text-align: center;
   margin-right: 2px;
+}
+
+/* Explorer folders: compact, recognizable artwork instead of a text glyph. */
+.znxstudio-folder-icon {
+  position: relative;
+  display: inline-block;
+  flex: 0 0 17px;
+  width: 17px;
+  height: 13px;
+  margin: 0 4px 0 1px;
+  filter: drop-shadow(0 1px 1px rgba(0, 0, 0, 0.28));
+}
+.znxstudio-folder-icon::before {
+  content: '';
+  position: absolute;
+  inset: 0 0 2px;
+  border-radius: 2px 2px 2px 2px;
+  background: var(--z-accent, #3b8eea);
+  clip-path: polygon(0 18%, 34% 18%, 43% 0, 73% 0, 82% 18%, 100% 18%, 100% 100%, 0 100%);
+}
+.znxstudio-folder-icon::after {
+  content: '';
+  position: absolute;
+  left: 1px;
+  right: 1px;
+  top: 4px;
+  bottom: 1px;
+  border: 1px solid color-mix(in srgb, var(--z-fg-muted) 62%, transparent);
+  border-radius: 2px;
+  background: color-mix(in srgb, var(--z-fg-muted) 72%, var(--z-bg-panel));
+  box-shadow: inset 0 1px rgba(255, 255, 255, 0.16);
+}
+.znxstudio-folder-icon.is-open::after {
+  top: 5px;
+  left: 0;
+  right: 0;
+  transform: skewX(-7deg);
+  background: color-mix(in srgb, var(--z-fg-muted) 58%, var(--z-bg-panel));
+}
+.znxstudio-tree-row:hover .znxstudio-folder-icon::before,
+.znxstudio-explorer-root-header:hover .znxstudio-folder-icon::before {
+  filter: brightness(1.12);
 }
 
 .znxstudio-tree-row.is-active {
@@ -5280,6 +5378,12 @@ button.znxstudio-solution-action:focus-visible {
   font-size: 11px;
   color: var(--z-danger, #e5534b);
 }
+.znxstudio-extmgr-error:has(> .znxstudio-btn-small) {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
 .znxstudio-extmgr-actions {
   display: flex;
   gap: 6px;
@@ -7657,6 +7761,276 @@ button.znxstudio-solution-action:focus-visible {
   padding: 12px 16px;
   border-bottom: 1px solid var(--z-border);
 }
+
+/* ========================================================================== */
+/* ZnxStudio identity layer — "technical studio", familiar without imitation. */
+/* ========================================================================== */
+
+.znxstudio-titlebar {
+  position: relative;
+  background:
+    linear-gradient(90deg, var(--z-accent-soft), transparent 28%),
+    var(--z-bg-elevated);
+}
+.znxstudio-titlebar::after {
+  content: '';
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: -1px;
+  height: 1px;
+  background: linear-gradient(90deg, var(--z-accent), var(--z-accent-secondary) 34%, transparent 72%);
+  opacity: 0.62;
+}
+.znxstudio-wordmark {
+  letter-spacing: -0.045em;
+  text-shadow: 0 0 18px var(--z-surface-glow);
+}
+.znxstudio-wordmark-core { font-weight: 780; }
+.znxstudio-wordmark-studio { margin-left: 2px; font-weight: 460; letter-spacing: 0.01em; }
+.znxstudio-wordmark-accent {
+  width: 5px;
+  height: 5px;
+  border-radius: 1px 4px 4px 4px;
+  background: linear-gradient(135deg, var(--z-accent), var(--z-accent-secondary));
+  box-shadow: 0 0 10px var(--z-accent-secondary);
+  transform: rotate(18deg);
+}
+
+/* Floating tool dock: compact tiles and a two-tone signal instead of a rail. */
+.znxstudio-activitybar {
+  width: 58px;
+  margin: 6px 0 6px 6px;
+  padding: 7px 6px;
+  gap: 6px;
+  border: 1px solid var(--z-border);
+  border-radius: var(--z-radius-lg);
+  background:
+    radial-gradient(circle at 50% 0, var(--z-accent-soft), transparent 42%),
+    color-mix(in srgb, var(--z-activity-bg) 94%, var(--z-accent));
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.18);
+}
+.znxstudio-activity-item {
+  position: relative;
+  width: 44px;
+  height: 40px;
+  border: 1px solid transparent;
+  border-radius: var(--z-radius-md);
+  font-size: 18px;
+  transition: transform 140ms ease, color 140ms ease, background 140ms ease, border-color 140ms ease;
+}
+.znxstudio-activity-item > span {
+  display: grid;
+  place-items: center;
+  min-width: 20px;
+  min-height: 20px;
+  font-family: var(--z-font-icons);
+  font-size: 0.88em;
+  font-weight: 650;
+}
+.znxstudio-activity-item:hover {
+  transform: translateY(-1px);
+  border-color: color-mix(in srgb, var(--z-accent-secondary) 28%, var(--z-border));
+  background: color-mix(in srgb, var(--z-hover) 82%, var(--z-accent));
+}
+.znxstudio-activity-item.is-active {
+  color: var(--z-fg);
+  border-color: color-mix(in srgb, var(--z-accent) 58%, var(--z-border));
+  background: linear-gradient(135deg, var(--z-accent-soft), color-mix(in srgb, var(--z-accent-secondary) 9%, transparent));
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--z-accent) 20%, transparent), 0 4px 14px var(--z-surface-glow);
+}
+.znxstudio-activity-item.is-active::before {
+  left: -5px;
+  top: 14px;
+  bottom: auto;
+  width: 5px;
+  height: 12px;
+  border-radius: 1px 5px 5px 1px;
+  background: linear-gradient(var(--z-accent), var(--z-accent-secondary));
+}
+
+/* Inset studio surfaces create hierarchy around the intentionally dense editor. */
+.znxstudio-sidebar {
+  margin: 6px 0 6px 6px;
+  border: 1px solid var(--z-border);
+  border-radius: var(--z-radius-lg);
+  overflow: hidden;
+  background:
+    linear-gradient(180deg, color-mix(in srgb, var(--z-bg-panel) 96%, var(--z-accent)) 0, var(--z-bg-panel) 120px);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.12);
+}
+.znxstudio-sidebar-header {
+  min-height: 42px;
+  padding: 8px 9px 7px 14px;
+  text-transform: none;
+  letter-spacing: 0.02em;
+  border-bottom: 1px solid color-mix(in srgb, var(--z-border) 76%, transparent);
+}
+.znxstudio-sidebar-title {
+  color: var(--z-fg);
+  font-size: 12px;
+  font-weight: 680;
+}
+.znxstudio-sidebar-title::before {
+  content: '';
+  display: inline-block;
+  width: 7px;
+  height: 7px;
+  margin-right: 8px;
+  border: 1px solid var(--z-accent-secondary);
+  border-radius: 2px 5px 2px 5px;
+  background: var(--z-accent-soft);
+  transform: rotate(18deg);
+}
+.znxstudio-sidebar-tool {
+  border: 1px solid transparent;
+  border-radius: var(--z-radius-sm);
+}
+.znxstudio-sidebar-tool:hover {
+  border-color: var(--z-border);
+  background: var(--z-accent-soft);
+}
+
+/* Tabs become quiet workspace chips; active state uses the Znx signal corner. */
+.znxstudio-editor-tabs { gap: 3px; padding: 3px 5px 0; }
+.znxstudio-editor-tab {
+  position: relative;
+  min-height: 30px;
+  border: 1px solid transparent;
+  border-radius: 8px 8px 2px 2px;
+  background: transparent;
+  transition: background 120ms ease, border-color 120ms ease;
+}
+.znxstudio-editor-tab.is-active {
+  border-color: color-mix(in srgb, var(--z-border) 82%, var(--z-accent));
+  border-bottom-color: var(--z-bg);
+  background: var(--z-bg);
+  box-shadow: none;
+}
+.znxstudio-editor-tab.is-active::before {
+  content: '';
+  position: absolute;
+  left: 9px;
+  top: -1px;
+  width: 22px;
+  height: 2px;
+  border-radius: 0 0 3px 3px;
+  background: linear-gradient(90deg, var(--z-accent), var(--z-accent-secondary));
+}
+
+.znxstudio-panel {
+  margin: 0 6px 6px;
+  border: 1px solid var(--z-border);
+  border-radius: var(--z-radius-lg);
+  overflow: hidden;
+  box-shadow: 0 8px 26px rgba(0, 0, 0, 0.14);
+}
+.znxstudio-panel-header { min-height: 36px; background: color-mix(in srgb, var(--z-bg-elevated) 96%, var(--z-accent)); }
+.znxstudio-panel-tabs { height: 35px; gap: 4px; padding: 4px 5px; }
+.znxstudio-panel-tab {
+  padding: 0 10px;
+  border: 1px solid transparent;
+  border-radius: 7px;
+  text-transform: none;
+  letter-spacing: 0.01em;
+  font-weight: 560;
+}
+.znxstudio-panel-tab.is-active {
+  border-color: color-mix(in srgb, var(--z-accent) 34%, var(--z-border));
+  border-bottom-color: color-mix(in srgb, var(--z-accent) 34%, var(--z-border));
+  background: var(--z-accent-soft);
+  box-shadow: inset 2px 0 var(--z-accent-secondary);
+}
+
+/* Inputs and overlays carry the same studio geometry and focused signal. */
+.znxstudio-input,
+.znxstudio-search-input,
+.znxstudio-palette-input,
+.znxstudio-everywhere-input,
+.znxstudio-quickopen-input {
+  border-radius: var(--z-radius-sm);
+  transition: border-color 120ms ease, box-shadow 120ms ease;
+}
+.znxstudio-input:focus,
+.znxstudio-search-input:focus,
+.znxstudio-palette-input:focus,
+.znxstudio-everywhere-input:focus,
+.znxstudio-quickopen-input:focus {
+  border-color: var(--z-accent-secondary);
+  box-shadow: 0 0 0 2px color-mix(in srgb, var(--z-accent-secondary) 16%, transparent);
+  outline: none;
+}
+.znxstudio-modal,
+.znxstudio-palette-box,
+.znxstudio-everywhere-box,
+.znxstudio-quickopen-box,
+.znxstudio-inputbox-panel {
+  border-radius: var(--z-radius-lg);
+  border-color: color-mix(in srgb, var(--z-border) 74%, var(--z-accent));
+  box-shadow: 0 18px 60px rgba(0, 0, 0, 0.4), 0 0 0 1px var(--z-accent-soft);
+}
+
+/* Branded guidance surfaces and cards, shared by feature panels. */
+.znxstudio-explorer-empty,
+.znxstudio-rundebug-empty,
+.znxstudio-test-empty,
+.znxstudio-extensions-empty,
+.znxstudio-chat-empty {
+  border-radius: var(--z-radius-md);
+  border-style: solid;
+  background: linear-gradient(145deg, var(--z-accent-soft), transparent 58%);
+}
+
+/* Logs are an IDE-owned read-only stream, visibly distinct from the Terminal. */
+.znxstudio-output { display: flex; flex-direction: column; height: 100%; overflow: hidden; }
+.znxstudio-log-channelbar {
+  display: flex;
+  align-items: center;
+  min-height: 30px;
+  padding: 4px 10px;
+  border-bottom: 1px solid var(--z-border);
+  background: color-mix(in srgb, var(--z-bg-panel) 95%, var(--z-accent-secondary));
+}
+.znxstudio-log-channel {
+  flex: 1;
+  color: var(--z-fg-muted);
+  font-size: 11px;
+  font-weight: 650;
+  letter-spacing: 0.04em;
+}
+.znxstudio-log-channel::before {
+  content: '';
+  display: inline-block;
+  width: 6px;
+  height: 6px;
+  margin-right: 7px;
+  border-radius: 50%;
+  background: var(--z-accent-secondary);
+  box-shadow: 0 0 8px color-mix(in srgb, var(--z-accent-secondary) 62%, transparent);
+}
+.znxstudio-log-clear {
+  border: 1px solid var(--z-border);
+  border-radius: var(--z-radius-sm);
+  padding: 2px 8px;
+  background: transparent;
+  color: var(--z-fg-muted);
+  font-size: 11px;
+}
+.znxstudio-log-clear:hover { color: var(--z-fg); background: var(--z-hover); }
+.znxstudio-output-log { flex: 1; min-height: 0; overflow: auto; }
+
+@media (prefers-reduced-motion: reduce) {
+  .znxstudio-activity-item,
+  .znxstudio-editor-tab,
+  .znxstudio-input,
+  .znxstudio-search-input,
+  .znxstudio-palette-input,
+  .znxstudio-everywhere-input,
+  .znxstudio-quickopen-input {
+    transition: none !important;
+  }
+  .znxstudio-activity-item:hover { transform: none; }
+}
 .znxstudio-settings-ui-search {
   flex: 1;
   padding: 8px 12px;
@@ -7924,3 +8298,568 @@ button.znxstudio-solution-action:focus-visible {
   cursor: pointer;
 }
 .znxstudio-trust-banner-btn:hover { background: rgba(255, 255, 255, 0.12); }
+
+/* Keep identity geometry authoritative over primitives declared later. */
+.znxstudio-modal,
+.znxstudio-inputbox-panel {
+  border-radius: var(--z-radius-lg);
+  border-color: color-mix(in srgb, var(--z-border) 74%, var(--z-accent));
+  box-shadow: 0 18px 60px rgba(0, 0, 0, 0.4), 0 0 0 1px var(--z-accent-soft);
+}
+
+/* Identity pass II: workspace controls share the studio signal language. */
+.znxstudio-tree-row {
+  position: relative;
+  height: 27px;
+  margin: 1px 5px 1px 0;
+  padding-inline: 8px 12px;
+  border: 1px solid transparent;
+  border-radius: 7px;
+}
+.znxstudio-tree-row::after {
+  content: '';
+  position: absolute;
+  right: 5px;
+  width: 3px;
+  height: 3px;
+  border-radius: 50%;
+  background: transparent;
+}
+.znxstudio-tree-row:hover {
+  border-color: color-mix(in srgb, var(--z-border) 72%, transparent);
+  background: color-mix(in srgb, var(--z-hover) 88%, var(--z-accent));
+}
+.znxstudio-tree-row.is-active {
+  border-color: color-mix(in srgb, var(--z-accent) 34%, var(--z-border));
+  background: linear-gradient(90deg, var(--z-accent-soft), color-mix(in srgb, var(--z-accent-secondary) 7%, transparent));
+  box-shadow: inset 2px 0 var(--z-accent);
+}
+.znxstudio-tree-row.is-active::after {
+  background: var(--z-accent-secondary);
+  box-shadow: 0 0 7px var(--z-accent-secondary);
+}
+
+.znxstudio-menu {
+  padding: 6px;
+  border-color: color-mix(in srgb, var(--z-border) 76%, var(--z-accent));
+  border-radius: var(--z-radius-lg);
+  background:
+    linear-gradient(145deg, var(--z-accent-soft), transparent 44%),
+    var(--z-bg-elevated);
+  box-shadow: 0 18px 54px rgba(0, 0, 0, 0.42), 0 0 0 1px color-mix(in srgb, var(--z-accent-secondary) 8%, transparent);
+}
+.znxstudio-menu-header {
+  padding: 7px 9px 5px;
+  letter-spacing: 0.08em;
+}
+.znxstudio-menu-item {
+  min-height: 29px;
+  border-radius: 7px;
+}
+.znxstudio-menu-item:hover,
+.znxstudio-menu-item:focus-visible {
+  background: linear-gradient(90deg, var(--z-accent-soft), color-mix(in srgb, var(--z-accent-secondary) 7%, transparent));
+}
+
+.znxstudio-btn,
+.znxstudio-btn-small,
+.znxstudio-welcome-btn,
+.znxstudio-modal-btn {
+  border-radius: var(--z-radius-sm);
+  transition: border-color 140ms ease, background 140ms ease, transform 140ms ease;
+}
+.znxstudio-btn:not(:disabled):active,
+.znxstudio-btn-small:not(:disabled):active,
+.znxstudio-welcome-btn:not(:disabled):active {
+  transform: translateY(1px);
+}
+.znxstudio-btn.primary,
+.znxstudio-welcome-btn.primary,
+.znxstudio-modal-btn.is-primary {
+  border-color: color-mix(in srgb, var(--z-accent) 76%, var(--z-accent-secondary));
+  background: linear-gradient(115deg, var(--z-accent), color-mix(in srgb, var(--z-accent) 78%, var(--z-accent-secondary)));
+  box-shadow: 0 4px 14px var(--z-surface-glow);
+}
+
+/* The console reads as a focused instrument, not another flat editor pane. */
+.znxstudio-term-tabs {
+  align-items: center;
+  min-height: 34px;
+  padding: 4px 7px;
+  background:
+    linear-gradient(90deg, color-mix(in srgb, var(--z-accent-secondary) 6%, transparent), transparent 35%),
+    var(--z-bg-elevated);
+}
+.znxstudio-term-tab {
+  position: relative;
+  min-height: 25px;
+  padding: 3px 8px 3px 19px;
+  border: 1px solid transparent;
+  border-radius: 8px;
+}
+.znxstudio-term-tab::before {
+  content: '';
+  position: absolute;
+  left: 8px;
+  width: 5px;
+  height: 5px;
+  border-radius: 2px;
+  background: var(--z-fg-muted);
+  opacity: 0.45;
+}
+.znxstudio-term-tab.is-active {
+  border-color: color-mix(in srgb, var(--z-accent-secondary) 34%, var(--z-border));
+  background: linear-gradient(105deg, color-mix(in srgb, var(--z-accent-secondary) 10%, var(--z-bg)), var(--z-bg));
+  box-shadow: 0 2px 9px rgba(0, 0, 0, 0.15);
+}
+.znxstudio-term-tab.is-active::before {
+  background: var(--z-accent-secondary);
+  opacity: 1;
+  box-shadow: 0 0 7px var(--z-accent-secondary);
+}
+.znxstudio-term-pane {
+  background:
+    radial-gradient(circle at 100% 0, color-mix(in srgb, var(--z-accent-secondary) 5%, transparent), transparent 34%),
+    var(--z-bg-panel);
+}
+
+/* A segmented studio status ribbon replaces the familiar flat IDE strip. */
+.znxstudio-statusbar {
+  position: relative;
+  min-height: 27px;
+  padding: 2px 6px;
+  background:
+    linear-gradient(90deg, color-mix(in srgb, var(--z-status-bg) 82%, #241a4f), color-mix(in srgb, var(--z-status-bg) 88%, #083c49));
+}
+.znxstudio-statusbar::before {
+  content: '';
+  position: absolute;
+  inset: 0 0 auto;
+  height: 1px;
+  background: linear-gradient(90deg, var(--z-accent), var(--z-accent-secondary), transparent 78%);
+  opacity: 0.75;
+}
+.znxstudio-status-item,
+.znxstudio-status-btn,
+.znxstudio-status-text {
+  height: 21px;
+  padding-inline: 7px;
+  border-radius: 6px;
+}
+.znxstudio-status-item.is-action:hover,
+.znxstudio-status-btn:hover {
+  background: rgba(255, 255, 255, 0.13);
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.09);
+}
+
+.znxstudio-breadcrumbs {
+  padding-inline: 9px;
+  background: linear-gradient(90deg, color-mix(in srgb, var(--z-accent) 4%, var(--z-bg)), var(--z-bg));
+}
+.znxstudio-breadcrumbs-trail > * {
+  border-radius: 5px;
+}
+
+.znxstudio-template-card,
+.znxstudio-pm-card,
+.znxstudio-remote-section,
+.znxstudio-ai-detail,
+.znxstudio-extmgr-section {
+  border-radius: var(--z-radius-md);
+  border-color: color-mix(in srgb, var(--z-border) 86%, var(--z-accent));
+  background:
+    linear-gradient(145deg, color-mix(in srgb, var(--z-accent) 3%, transparent), transparent 42%),
+    var(--z-bg-elevated);
+}
+.znxstudio-template-card:hover,
+.znxstudio-pm-card:hover {
+  border-color: color-mix(in srgb, var(--z-accent-secondary) 38%, var(--z-border));
+  box-shadow: 0 8px 22px rgba(0, 0, 0, 0.16), 0 0 18px var(--z-surface-glow);
+}
+
+.znxstudio-toast {
+  border-radius: var(--z-radius-lg);
+  border-left: 3px solid var(--z-accent-secondary);
+  background:
+    linear-gradient(100deg, color-mix(in srgb, var(--z-accent-secondary) 7%, transparent), transparent 42%),
+    var(--z-bg-elevated);
+  box-shadow: 0 16px 46px rgba(0, 0, 0, 0.36);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .znxstudio-btn,
+  .znxstudio-btn-small,
+  .znxstudio-welcome-btn { transition: none; }
+}
+
+/* Identity pass III: frame the creative canvas without crowding the code. */
+.znxstudio-editor-region {
+  min-width: 0;
+  padding: 6px 6px 6px 0;
+  background:
+    radial-gradient(circle at 100% 0, color-mix(in srgb, var(--z-accent-secondary) 4%, transparent), transparent 32%),
+    var(--z-bg);
+}
+.znxstudio-editor-area {
+  overflow: hidden;
+  border: 1px solid var(--z-border);
+  border-radius: var(--z-radius-lg);
+  background: var(--z-bg);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.11);
+}
+.znxstudio-editor-topbar {
+  min-height: 38px;
+  background:
+    linear-gradient(90deg, color-mix(in srgb, var(--z-accent) 5%, transparent), transparent 30%),
+    var(--z-bg-elevated);
+}
+.znxstudio-editor-actions {
+  margin: 4px 5px 4px 2px;
+  padding: 0 3px;
+  border: 1px solid color-mix(in srgb, var(--z-border) 80%, transparent);
+  border-radius: 8px;
+  background: color-mix(in srgb, var(--z-bg) 76%, transparent);
+}
+.znxstudio-editor-actions::before { display: none; }
+.znxstudio-editor-action {
+  width: 27px;
+  height: 27px;
+  border-radius: 7px;
+}
+.znxstudio-editor-action:hover:not(:disabled) {
+  background: linear-gradient(135deg, var(--z-accent-soft), color-mix(in srgb, var(--z-accent-secondary) 8%, transparent));
+}
+
+/* A deliberately asymmetric launch card gives ZnxStudio its own first-run face. */
+.znxstudio-welcome {
+  position: relative;
+  overflow: hidden;
+  background:
+    radial-gradient(circle at 24% 30%, var(--z-accent-soft), transparent 30%),
+    radial-gradient(circle at 76% 68%, color-mix(in srgb, var(--z-accent-secondary) 8%, transparent), transparent 28%),
+    var(--z-bg);
+}
+.znxstudio-welcome::before,
+.znxstudio-welcome::after {
+  content: '';
+  position: absolute;
+  pointer-events: none;
+}
+.znxstudio-welcome::before {
+  width: 300px;
+  height: 300px;
+  right: 7%;
+  top: 13%;
+  border: 1px solid color-mix(in srgb, var(--z-accent-secondary) 19%, transparent);
+  border-radius: 38% 62% 55% 45%;
+  transform: rotate(17deg);
+}
+.znxstudio-welcome::after {
+  width: 9px;
+  height: 9px;
+  right: calc(7% + 232px);
+  top: calc(13% + 47px);
+  border-radius: 2px 7px 7px 7px;
+  background: linear-gradient(135deg, var(--z-accent), var(--z-accent-secondary));
+  box-shadow: 0 0 24px var(--z-accent-secondary);
+  transform: rotate(22deg);
+}
+.znxstudio-welcome-inner {
+  position: relative;
+  z-index: 1;
+  width: min(520px, 100%);
+  max-width: 520px;
+  margin-right: min(22vw, 260px);
+  padding: 32px;
+  text-align: left;
+  border: 1px solid color-mix(in srgb, var(--z-border) 78%, var(--z-accent));
+  border-radius: 22px 22px 22px 7px;
+  background: color-mix(in srgb, var(--z-bg-elevated) 90%, transparent);
+  box-shadow: 0 24px 72px rgba(0, 0, 0, 0.18), 0 0 36px var(--z-surface-glow);
+}
+.znxstudio-welcome-title { justify-content: flex-start; }
+.znxstudio-welcome-subtitle {
+  max-width: 330px;
+  margin-bottom: 30px;
+  font-size: 14px;
+}
+.znxstudio-welcome-actions {
+  max-width: none;
+  margin: 0;
+}
+.znxstudio-welcome-btn {
+  min-height: 42px;
+  border-color: color-mix(in srgb, var(--z-border) 82%, var(--z-accent));
+}
+.znxstudio-welcome-btn:not(.primary):hover {
+  border-color: color-mix(in srgb, var(--z-accent-secondary) 38%, var(--z-border));
+  background: linear-gradient(90deg, var(--z-accent-soft), color-mix(in srgb, var(--z-accent-secondary) 5%, var(--z-bg-elevated)));
+}
+.znxstudio-welcome-btn kbd {
+  padding: 2px 6px;
+  border: 1px solid var(--z-border);
+  border-radius: 5px;
+  background: var(--z-bg);
+}
+
+/* Settings are presented as a catalog with a compact navigation capsule. */
+.znxstudio-settings-ui-header {
+  min-height: 52px;
+  padding: 8px 14px;
+  background: linear-gradient(90deg, var(--z-accent-soft), transparent 34%);
+}
+.znxstudio-settings-ui-search {
+  min-height: 34px;
+  border-radius: 9px;
+}
+.znxstudio-settings-ui-nav {
+  flex-basis: 194px;
+  margin: 8px 0 8px 8px;
+  padding: 7px;
+  border: 1px solid var(--z-border);
+  border-radius: var(--z-radius-md);
+  background: color-mix(in srgb, var(--z-bg-elevated) 88%, transparent);
+}
+.znxstudio-settings-ui-navitem {
+  min-height: 30px;
+  padding: 6px 10px;
+  border-radius: 7px;
+}
+.znxstudio-settings-ui-navitem:hover,
+.znxstudio-settings-ui-navitem:focus-visible {
+  color: var(--z-fg);
+  background: linear-gradient(90deg, var(--z-accent-soft), color-mix(in srgb, var(--z-accent-secondary) 6%, transparent));
+}
+.znxstudio-settings-ui-list { padding-top: 12px; }
+.znxstudio-settings-ui-group h2 {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  border-bottom-color: color-mix(in srgb, var(--z-border) 80%, transparent);
+}
+.znxstudio-settings-ui-group h2::before {
+  content: '';
+  width: 12px;
+  height: 4px;
+  border-radius: 2px;
+  background: linear-gradient(90deg, var(--z-accent), var(--z-accent-secondary));
+}
+.znxstudio-settings-ui-row {
+  margin: 2px 0;
+  padding: 11px 10px;
+  border: 1px solid transparent;
+  border-radius: 9px;
+}
+.znxstudio-settings-ui-row:hover {
+  border-color: color-mix(in srgb, var(--z-border) 78%, transparent);
+  background: color-mix(in srgb, var(--z-hover) 55%, transparent);
+}
+
+@media (max-width: 900px) {
+  .znxstudio-welcome-inner { margin-right: 0; }
+  .znxstudio-welcome::before,
+  .znxstudio-welcome::after { opacity: 0.4; }
+}
+@media (max-width: 640px) {
+  .znxstudio-editor-region { padding-right: 3px; }
+  .znxstudio-welcome { padding: 16px; }
+  .znxstudio-welcome-inner { padding: 24px 20px; border-radius: 18px 18px 18px 6px; }
+  .znxstudio-welcome-title { font-size: 32px; }
+  .znxstudio-settings-ui-body { flex-direction: column; }
+  .znxstudio-settings-ui-nav {
+    flex: 0 0 auto;
+    display: flex;
+    gap: 3px;
+    margin: 6px;
+    overflow-x: auto;
+  }
+  .znxstudio-settings-ui-navitem { width: auto; white-space: nowrap; }
+  .znxstudio-settings-ui-list { padding: 4px 12px 28px; }
+  .znxstudio-settings-ui-row { flex-direction: column; gap: 8px; }
+  .znxstudio-settings-ui-control { width: 100%; flex-basis: auto; justify-content: flex-start; }
+}
+
+/* Preserve explicit, unambiguous edges in both high-contrast themes. */
+:root[data-theme='znxstudio-hc-dark'] .znxstudio-welcome-inner,
+:root[data-theme='znxstudio-hc-light'] .znxstudio-welcome-inner,
+:root[data-theme='znxstudio-hc-dark'] .znxstudio-editor-area,
+:root[data-theme='znxstudio-hc-light'] .znxstudio-editor-area {
+  border-width: 2px;
+  box-shadow: none;
+}
+
+/* Identity pass IV: typography, feedback, and dense utility surfaces. */
+::selection {
+  color: var(--z-fg);
+  background: color-mix(in srgb, var(--z-accent) 38%, transparent);
+}
+* {
+  scrollbar-width: thin;
+  scrollbar-color: color-mix(in srgb, var(--z-fg-muted) 48%, transparent) transparent;
+}
+*::-webkit-scrollbar { width: 9px; height: 9px; }
+*::-webkit-scrollbar-track { background: transparent; }
+*::-webkit-scrollbar-thumb {
+  border: 2px solid transparent;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--z-fg-muted) 46%, transparent);
+  background-clip: padding-box;
+}
+*::-webkit-scrollbar-thumb:hover {
+  background: color-mix(in srgb, var(--z-accent-secondary) 46%, var(--z-fg-muted));
+  background-clip: padding-box;
+}
+button,
+input,
+textarea,
+select { font: inherit; }
+button:focus-visible,
+[role='button']:focus-visible,
+[role='option']:focus-visible,
+[role='tab']:focus-visible,
+a:focus-visible {
+  outline: 2px solid var(--z-focus, var(--z-accent-secondary));
+  outline-offset: 2px;
+}
+
+/* Search surfaces use a light signal wash, keeping result text readable. */
+.znxstudio-palette-item,
+.znxstudio-everywhere-item,
+.znxstudio-quickopen-item {
+  position: relative;
+  min-height: 34px;
+  border: 1px solid transparent;
+  border-radius: 8px;
+}
+.znxstudio-palette-item.is-selected,
+.znxstudio-palette-item:hover,
+.znxstudio-everywhere-item.is-selected,
+.znxstudio-everywhere-item:hover,
+.znxstudio-quickopen-item.is-selected,
+.znxstudio-quickopen-item:hover {
+  color: var(--z-fg);
+  border-color: color-mix(in srgb, var(--z-accent) 30%, var(--z-border));
+  background: linear-gradient(90deg, var(--z-accent-soft), color-mix(in srgb, var(--z-accent-secondary) 8%, transparent));
+  box-shadow: inset 2px 0 var(--z-accent-secondary);
+}
+.znxstudio-palette-item.is-selected .znxstudio-palette-id,
+.znxstudio-palette-item:hover .znxstudio-palette-id,
+.znxstudio-everywhere-item.is-selected .znxstudio-everywhere-detail,
+.znxstudio-everywhere-item:hover .znxstudio-everywhere-detail,
+.znxstudio-quickopen-item.is-selected .znxstudio-quickopen-dir,
+.znxstudio-quickopen-item:hover .znxstudio-quickopen-dir {
+  color: var(--z-fg-muted);
+  opacity: 1;
+}
+.znxstudio-everywhere-tab {
+  margin-bottom: 4px;
+  border: 1px solid transparent;
+  border-radius: 7px;
+}
+.znxstudio-everywhere-tab.is-active {
+  border-color: color-mix(in srgb, var(--z-accent) 32%, var(--z-border));
+  background: var(--z-accent-soft);
+  box-shadow: inset 2px 0 var(--z-accent-secondary);
+}
+.znxstudio-palette-box,
+.znxstudio-everywhere-box,
+.znxstudio-quickopen-box {
+  background:
+    linear-gradient(145deg, var(--z-accent-soft), transparent 36%),
+    var(--z-bg-elevated);
+}
+
+/* Reusable panel grammar for tools that contain filters, results, and guidance. */
+.znxstudio-panel-view [class$='-toolbar'],
+.znxstudio-sidebar-content [class$='-toolbar'] {
+  min-height: 36px;
+  padding: 6px 9px;
+  gap: 6px;
+  border-bottom-color: color-mix(in srgb, var(--z-border) 82%, transparent);
+  background: color-mix(in srgb, var(--z-bg-elevated) 94%, var(--z-accent));
+}
+.znxstudio-panel-view [class$='-empty'],
+.znxstudio-sidebar-content [class$='-empty'] {
+  margin: 10px;
+  padding: 22px 16px;
+  border: 1px dashed color-mix(in srgb, var(--z-border) 72%, var(--z-accent));
+  border-radius: var(--z-radius-md);
+  background: linear-gradient(145deg, var(--z-accent-soft), transparent 62%);
+  color: var(--z-fg-muted);
+  text-align: center;
+}
+.znxstudio-panel-view [class$='-summary'],
+.znxstudio-sidebar-content [class$='-summary'] {
+  font-variant-numeric: tabular-nums;
+}
+
+/* Diagnostics and graph rows were functional but visually under-specified. */
+.znxstudio-diagnostics-list,
+.znxstudio-deps-list,
+.znxstudio-profiler-body,
+.znxstudio-packages-info-body {
+  min-height: 0;
+  overflow: auto;
+}
+.znxstudio-diagnostic {
+  display: grid;
+  grid-template-columns: 18px minmax(0, 1fr);
+  gap: 7px;
+  margin: 2px 6px;
+  padding: 7px 9px;
+  border: 1px solid transparent;
+  border-radius: 8px;
+}
+.znxstudio-diagnostic:hover {
+  border-color: color-mix(in srgb, var(--z-border) 78%, transparent);
+  background: color-mix(in srgb, var(--z-hover) 70%, transparent);
+}
+.znxstudio-diagnostic-icon {
+  text-align: center;
+  line-height: 1.45;
+}
+.znxstudio-diagnostic-body { min-width: 0; }
+.znxstudio-diagnostic-loc,
+.znxstudio-history-path {
+  overflow: hidden;
+  color: var(--z-fg-muted);
+  font-family: var(--z-font-mono);
+  font-size: 11px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.znxstudio-deps-group,
+.znxstudio-profiler-group,
+.znxstudio-history-detail,
+.znxstudio-profiles-picker,
+.znxstudio-solution-project {
+  margin: 6px;
+  border: 1px solid color-mix(in srgb, var(--z-border) 88%, var(--z-accent));
+  border-radius: var(--z-radius-md);
+  overflow: hidden;
+  background: color-mix(in srgb, var(--z-bg-elevated) 94%, transparent);
+}
+
+/* Bars communicate magnitude with the two-tone Znx signal. */
+.znxstudio-coverage-fill,
+.znxstudio-cpu-bar > *,
+.znxstudio-alloc-bar > * {
+  background: linear-gradient(90deg, var(--z-accent), var(--z-accent-secondary));
+}
+
+@media (max-width: 640px) {
+  .znxstudio-palette-item,
+  .znxstudio-everywhere-item,
+  .znxstudio-quickopen-item { min-height: 38px; }
+  .znxstudio-diagnostic { grid-template-columns: 16px minmax(0, 1fr); margin-inline: 3px; }
+}
+
+:root[data-theme='znxstudio-hc-dark'] .znxstudio-palette-item.is-selected,
+:root[data-theme='znxstudio-hc-light'] .znxstudio-palette-item.is-selected,
+:root[data-theme='znxstudio-hc-dark'] .znxstudio-everywhere-item.is-selected,
+:root[data-theme='znxstudio-hc-light'] .znxstudio-everywhere-item.is-selected,
+:root[data-theme='znxstudio-hc-dark'] .znxstudio-quickopen-item.is-selected,
+:root[data-theme='znxstudio-hc-light'] .znxstudio-quickopen-item.is-selected {
+  border-width: 2px;
+  box-shadow: none;
+}

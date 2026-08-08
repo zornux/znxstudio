@@ -15,10 +15,19 @@ import type { ServiceRegistry } from '../core/ServiceRegistry';
 import { DEFAULT_KEYWORD_COLOR } from '../settings/SettingsSchema';
 import { ZORNUX_MONARCH } from '../language/languages/zornux/grammar';
 
-const THEMES = ['znxstudio-dark', 'znxstudio-light', 'znxstudio-hc-dark', 'znxstudio-hc-light'] as const;
+const THEMES = [
+  'znxstudio-dark',
+  'znxstudio-light',
+  'znxstudio-tide',
+  'znxstudio-dune',
+  'znxstudio-hc-dark',
+  'znxstudio-hc-light',
+] as const;
 const THEME_LABELS: Record<string, string> = {
   'znxstudio-dark': 'Dark',
   'znxstudio-light': 'Light',
+  'znxstudio-tide': 'Tide',
+  'znxstudio-dune': 'Dune',
   'znxstudio-hc-dark': 'High Contrast Dark',
   'znxstudio-hc-light': 'High Contrast Light',
 };
@@ -112,7 +121,7 @@ export class ThemeModule implements IModule, ThemeService {
   }
 
   /**
-   * (Re)register the four Monaco themes. Keyword coloring is driven by the
+   * (Re)register the built-in Monaco themes. Keyword coloring is driven by the
    * user's `editor.keywordColor` setting (default a vivid pink), applied as a
    * token rule on top of each base theme so it survives a theme switch.
    */
@@ -137,6 +146,44 @@ export class ThemeModule implements IModule, ThemeService {
       rules: [keywordRule, lightComment],
       colors: { 'editor.background': '#ffffff' },
     });
+    monaco.editor.defineTheme('znxstudio-tide', {
+      base: 'vs-dark',
+      inherit: true,
+      rules: [
+        keywordRule,
+        { token: 'comment', foreground: '709A82' },
+        { token: 'string', foreground: 'A7CF8D' },
+        { token: 'number', foreground: 'E0A76C' },
+        { token: 'type', foreground: '72C3D4' },
+      ],
+      colors: {
+        'editor.background': '#101b22',
+        'editor.foreground': '#d7e4e5',
+        'editorLineNumber.foreground': '#58717a',
+        'editorLineNumber.activeForeground': '#b7cbcf',
+        'editor.selectionBackground': '#255b6670',
+        'editorCursor.foreground': '#49c5b6',
+      },
+    });
+    monaco.editor.defineTheme('znxstudio-dune', {
+      base: 'vs',
+      inherit: true,
+      rules: [
+        keywordRule,
+        { token: 'comment', foreground: '687A56' },
+        { token: 'string', foreground: '7A5B2E' },
+        { token: 'number', foreground: 'A24F35' },
+        { token: 'type', foreground: '176F73' },
+      ],
+      colors: {
+        'editor.background': '#f7f1e6',
+        'editor.foreground': '#2f2a24',
+        'editorLineNumber.foreground': '#9a8e7f',
+        'editorLineNumber.activeForeground': '#51483e',
+        'editor.selectionBackground': '#9d70ac38',
+        'editorCursor.foreground': '#7d438f',
+      },
+    });
     monaco.editor.defineTheme('znxstudio-hc-dark', {
       base: 'hc-black',
       inherit: true,
@@ -151,7 +198,7 @@ export class ThemeModule implements IModule, ThemeService {
     });
   }
 
-  /** Show a theme picker listing every theme, including the high-contrast ones. */
+  /** Show a theme picker listing every built-in and contributed theme. */
   private async pickTheme(): Promise<void> {
     const buttons = THEMES.map((name) => ({
       label: THEME_LABELS[name] ?? name,

@@ -1,16 +1,3 @@
-# Release packaging — builds the signed Windows + Linux artifacts from a version
-# tag and publishes them as a GitHub Release. (macOS is deferred: it needs an
-# Apple Developer ID cert + notarization on a macOS runner.)
-#
-# Windows: Azure Trusted Signing via Microsoft's `sign` .NET tool (build/win-sign.js).
-# Linux: no purchased cert is required — a free GPG key signs the release. We build
-#   AppImage/deb/rpm, then GPG-sign the SHA256SUMS manifest and ship the public key,
-#   so every Linux artifact's integrity + authorship is verifiable:
-#     gpg --verify SHA256SUMS.txt.asc SHA256SUMS.txt  &&  sha256sum -c SHA256SUMS.txt
-# Both are CONDITIONAL: absent the signing secrets the build still succeeds but the
-# artifacts are UNSIGNED (forks / dry-runs). Linux secrets: GPG_PRIVATE_KEY (base64
-# of the armored private key), GPG_PASSPHRASE, and optionally GPG_KEY_ID
-# (defaults to release@znxstudio.dev).
 name: Release
 
 on:
@@ -19,178 +6,186 @@ on:
   workflow_dispatch:
 
 permissions:
-  contents: write # required to create the GitHub Release and upload assets
+  contents: write
+
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
 
 jobs:
-  package:
-    name: package (windows)
-    runs-on: windows-latest
+  validate:
+    name: validate release
+    runs-on: ubuntu-latest
+    outputs:
+      publish: ${{ steps.policy.outputs.publish }}
+      release_type: ${{ steps.policy.outputs.release_type }}
+      prerelease: ${{ steps.policy.outputs.prerelease }}
+      update_channel: ${{ steps.policy.outputs.update_channel }}
     steps:
       - uses: actions/checkout@v4
-
       - uses: actions/setup-node@v4
         with:
           node-version: 20
           cache: npm
-
-      # .NET + Microsoft's `sign` CLI power the Trusted Signing hook.
-      - uses: actions/setup-dotnet@v4
-        with:
-          dotnet-version: '8.0.x'
-      - name: Install Trusted Signing tool
-        # `sign` (github.com/dotnet/sign) publishes as prerelease on NuGet.
-        # Pinned to the version verified to sign successfully (2026-08-07) so the
-        # release toolchain is reproducible and immune to a future build removing
-        # the (now-obsolete) `trusted-signing` command. Bump deliberately.
-        run: dotnet tool install --global sign --version 0.9.1-beta.26371.2
-
       - run: npm ci
+      - name: Verify updater is a packaged runtime dependency
+        run: npm ls electron-updater --omit=dev
+      - name: Validate tag and derive release policy
+        id: policy
+        shell: bash
+        run: node build/release-policy.mjs "$GITHUB_REF_TYPE" "$GITHUB_REF_NAME" >> "$GITHUB_OUTPUT"
+      - run: npm run typecheck
+      - run: npm test
       - run: npm run build
-      # electron-updater is loaded at runtime (optional require) but not bundled;
-      # install it so packaging metadata + auto-update wiring resolve.
-      - run: npm i -D electron-updater@^6
-
-      # Create the GitHub Release up front so EVERY uploader — electron-builder here,
-      # electron-builder in the Linux job, and the `gh release upload` steps — converges
-      # on this one release object. Without a pre-existing release, electron-builder and
-      # gh can each create/resolve a DIFFERENT release for the same tag, splitting the
-      # binaries and the checksums/signature across duplicate releases (which is exactly
-      # what happened on v1.0.0-rc.2). Idempotent: no-op if the release already exists.
-      - name: Ensure a single release exists for the tag
-        if: startsWith(github.ref, 'refs/tags/v')
+      - name: Full headless GA gate
+        run: xvfb-run -a npm run ga:check
+      - name: Require production signing credentials
+        if: steps.policy.outputs.publish == 'true'
         shell: bash
         env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: |
-          gh release view "$GITHUB_REF_NAME" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1 \
-            || gh release create "$GITHUB_REF_NAME" --repo "$GITHUB_REPOSITORY" \
-                 --prerelease --title "$GITHUB_REF_NAME" \
-                 --notes "Automated release for $GITHUB_REF_NAME."
-
-      # On a tag build, electron-builder publishes to the release created above
-      # (installers + blockmaps + latest.yml, the electron-updater feed).
-      # On a workflow_dispatch (no tag) it stays a dry-run: build + sign, publish
-      # nothing. latest.yml is only generated when publishing.
-      - name: Package (+ Trusted Signing, publish on tag)
-        run: npx electron-builder --win --publish ${{ startsWith(github.ref, 'refs/tags/v') && 'always' || 'never' }} --config electron-builder.yml
-        env:
-          # GitHub Releases publisher (electron-builder reads GH_TOKEN).
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          # Azure service principal — consumed by DefaultAzureCredential in `sign`.
           AZURE_TENANT_ID: ${{ secrets.AZURE_TENANT_ID }}
           AZURE_CLIENT_ID: ${{ secrets.AZURE_CLIENT_ID }}
           AZURE_CLIENT_SECRET: ${{ secrets.AZURE_CLIENT_SECRET }}
-          # Trusted Signing account/profile/endpoint.
           TRUSTED_SIGNING_ENDPOINT: ${{ secrets.TRUSTED_SIGNING_ENDPOINT }}
           TRUSTED_SIGNING_ACCOUNT: ${{ secrets.TRUSTED_SIGNING_ACCOUNT }}
           TRUSTED_SIGNING_PROFILE: ${{ secrets.TRUSTED_SIGNING_PROFILE }}
+          GPG_PRIVATE_KEY: ${{ secrets.GPG_PRIVATE_KEY }}
+          GPG_PASSPHRASE: ${{ secrets.GPG_PASSPHRASE }}
+          CSC_LINK: ${{ secrets.CSC_LINK }}
+          CSC_KEY_PASSWORD: ${{ secrets.CSC_KEY_PASSWORD }}
+          APPLE_ID: ${{ secrets.APPLE_ID }}
+          APPLE_APP_SPECIFIC_PASSWORD: ${{ secrets.APPLE_APP_SPECIFIC_PASSWORD }}
+          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+          ZORNUX_REF: ${{ vars.ZORNUX_REF }}
+        run: |
+          missing=()
+          for name in AZURE_TENANT_ID AZURE_CLIENT_ID AZURE_CLIENT_SECRET TRUSTED_SIGNING_ENDPOINT TRUSTED_SIGNING_ACCOUNT TRUSTED_SIGNING_PROFILE GPG_PRIVATE_KEY GPG_PASSPHRASE CSC_LINK CSC_KEY_PASSWORD APPLE_ID APPLE_APP_SPECIFIC_PASSWORD APPLE_TEAM_ID ZORNUX_REF; do
+            [ -n "${!name}" ] || missing+=("$name")
+          done
+          if [ ${#missing[@]} -ne 0 ]; then
+            echo "::error::Refusing to publish unsigned release; missing: ${missing[*]}"
+            exit 1
+          fi
+          if ! [[ "$ZORNUX_REF" =~ ^[0-9a-fA-F]{40}$ ]]; then
+            echo "::error::ZORNUX_REF must be an immutable 40-character commit SHA."
+            exit 1
+          fi
+      - name: Create a draft release for atomic publication
+        if: steps.policy.outputs.publish == 'true'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          args=(--repo "$GITHUB_REPOSITORY" --title "$GITHUB_REF_NAME" --generate-notes --draft)
+          if gh release view "$GITHUB_REF_NAME" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
+            draft="$(gh release view "$GITHUB_REF_NAME" --repo "$GITHUB_REPOSITORY" --json isDraft --jq .isDraft)"
+            if [ "$draft" != true ]; then
+              echo "::error::Release $GITHUB_REF_NAME is already published. Refusing a non-atomic overwrite."
+              exit 1
+            fi
+            gh release view "$GITHUB_REF_NAME" --repo "$GITHUB_REPOSITORY" --json assets --jq '.assets[].name' | while IFS= read -r asset; do
+              [ -z "$asset" ] || gh release delete-asset "$GITHUB_REF_NAME" "$asset" --yes --repo "$GITHUB_REPOSITORY"
+            done
+          else
+            gh release create "$GITHUB_REF_NAME" "${args[@]}"
+          fi
 
+  windows:
+    name: package (windows)
+    needs: validate
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: 20, cache: npm }
+      - uses: actions/setup-dotnet@v4
+        with: { dotnet-version: '8.0.x' }
+      - run: dotnet tool install --global sign --version 0.9.1-beta.26371.2
+      - run: npm ci
+      - name: Stage architecture-matched Zornux runtimes
+        shell: bash
+        env:
+          ZORNUX_REF: ${{ vars.ZORNUX_REF }}
+        run: |
+          git init ../zornux
+          git -C ../zornux remote add origin https://github.com/zornux/zornux.git
+          git -C ../zornux fetch --depth 1 origin "${ZORNUX_REF:-main}"
+          git -C ../zornux checkout --detach FETCH_HEAD
+          ZORNUX_REPO="$(cd ../zornux && pwd)" npm run stage:zornux -- win-x64 win-arm64
+      - run: npm run build
+      - name: Package and publish
+        shell: bash
+        run: npx electron-builder --win --publish "${{ needs.validate.outputs.publish == 'true' && 'always' || 'never' }}" --config electron-builder.yml -c.publish.releaseType=${{ needs.validate.outputs.release_type }} -c.publish.channel=${{ needs.validate.outputs.update_channel }}
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          AZURE_TENANT_ID: ${{ secrets.AZURE_TENANT_ID }}
+          AZURE_CLIENT_ID: ${{ secrets.AZURE_CLIENT_ID }}
+          AZURE_CLIENT_SECRET: ${{ secrets.AZURE_CLIENT_SECRET }}
+          TRUSTED_SIGNING_ENDPOINT: ${{ secrets.TRUSTED_SIGNING_ENDPOINT }}
+          TRUSTED_SIGNING_ACCOUNT: ${{ secrets.TRUSTED_SIGNING_ACCOUNT }}
+          TRUSTED_SIGNING_PROFILE: ${{ secrets.TRUSTED_SIGNING_PROFILE }}
       - name: Generate checksums
         shell: bash
-        run: |
-          cd release
-          find . -maxdepth 1 -type f -name '*.exe' -print0 \
-            | xargs -0 -I{} sh -c 'sha512sum "{}" >> SHA512SUMS.txt' || true
-          cat SHA512SUMS.txt || true
-
+        run: cd release && sha512sum *.exe > SHA512SUMS.txt
       - uses: actions/upload-artifact@v4
         with:
           name: znxstudio-windows
           path: |
             release/*.exe
             release/*.blockmap
+            release/*.yml
             release/SHA512SUMS.txt
-            release/latest*.yml
-          if-no-files-found: warn
+          if-no-files-found: error
 
-      # electron-builder attaches the installers/blockmaps/latest.yml itself;
-      # add the SHA512SUMS.txt manifest to the same Release (tag builds only).
-      - name: Attach checksums to release
-        if: startsWith(github.ref, 'refs/tags/v')
-        shell: bash
-        run: gh release upload "$GITHUB_REF_NAME" release/SHA512SUMS.txt --clobber --repo "$GITHUB_REPOSITORY"
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-
-  package-linux:
+  linux:
     name: package (linux)
+    needs: validate
     runs-on: ubuntu-latest
-    # The Windows job creates the GitHub Release for the tag; we add the Linux
-    # assets to that same release afterwards.
-    needs: package
-    env:
-      # Evaluated at job setup so we can gate signing steps without putting a
-      # secret in an `if:` (which is not reliably supported).
-      HAS_GPG: ${{ secrets.GPG_PRIVATE_KEY != '' && 'true' || 'false' }}
     steps:
       - uses: actions/checkout@v4
-
       - uses: actions/setup-node@v4
-        with:
-          node-version: 20
-          cache: npm
-
-      # electron-builder's rpm target needs system rpm tooling on Ubuntu.
-      - name: Install rpm tooling
-        run: sudo apt-get update && sudo apt-get install -y rpm
-
+        with: { node-version: 20, cache: npm }
+      - uses: actions/setup-dotnet@v4
+        with: { dotnet-version: '8.0.x' }
+      - run: sudo apt-get update && sudo apt-get install -y rpm
       - run: npm ci
+      - name: Stage architecture-matched Zornux runtimes
+        env:
+          ZORNUX_REF: ${{ vars.ZORNUX_REF }}
+        run: |
+          git init ../zornux
+          git -C ../zornux remote add origin https://github.com/zornux/zornux.git
+          git -C ../zornux fetch --depth 1 origin "${ZORNUX_REF:-main}"
+          git -C ../zornux checkout --detach FETCH_HEAD
+          ZORNUX_REPO="$(cd ../zornux && pwd)" npm run stage:zornux -- linux-x64 linux-arm64
       - run: npm run build
-      - run: npm i -D electron-updater@^6
-
-      - name: Import GPG signing key
-        if: env.HAS_GPG == 'true'
+      - name: Import GPG release key
+        if: needs.validate.outputs.publish == 'true'
         env:
           GPG_PRIVATE_KEY: ${{ secrets.GPG_PRIVATE_KEY }}
         run: |
-          # Use an isolated, throwaway keyring so nothing leaks into the runner's
-          # default GNUPGHOME; the path is exported so the signing step reuses it.
           GNUPGHOME="$(mktemp -d)"
           chmod 700 "$GNUPGHOME"
           echo "GNUPGHOME=$GNUPGHOME" >> "$GITHUB_ENV"
           export GNUPGHOME
-          # A CI runner has no TTY, so the passphrase must arrive over the loopback
-          # pinentry. The agent refuses that unless allow-loopback-pinentry is set —
-          # without it, `gpg --detach-sign` dies with "Too much data for IPC layer".
           printf 'allow-loopback-pinentry\n' > "$GNUPGHOME/gpg-agent.conf"
-          printf 'pinentry-mode loopback\n' > "$GNUPGHOME/gpg.conf"
-          gpgconf --kill gpg-agent || true
           echo "$GPG_PRIVATE_KEY" | base64 -d | gpg --batch --import
-          gpg --list-secret-keys --keyid-format long
-
-      # On a tag, electron-builder uploads AppImage/deb/rpm + latest-linux.yml
-      # (the electron-updater feed) to the release; the signing step below then
-      # adds a GPG-signed manifest over those exact bytes. workflow_dispatch stays
-      # a dry-run (build only).
-      - name: Package Linux artifacts (publish on tag)
-        run: npx electron-builder --linux --publish ${{ startsWith(github.ref, 'refs/tags/v') && 'always' || 'never' }} --config electron-builder.yml
+      - name: Package and publish
+        run: npx electron-builder --linux --publish "${{ needs.validate.outputs.publish == 'true' && 'always' || 'never' }}" --config electron-builder.yml -c.publish.releaseType=${{ needs.validate.outputs.release_type }} -c.publish.channel=${{ needs.validate.outputs.update_channel }}
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-
-      - name: Checksums + GPG signature
-        shell: bash
+      - name: Checksums and signature
         env:
           GPG_PASSPHRASE: ${{ secrets.GPG_PASSPHRASE }}
           GPG_KEY_ID: ${{ secrets.GPG_KEY_ID }}
         run: |
           cd release
-          # One manifest over every distributable artifact.
-          sha256sum *.AppImage *.deb *.rpm > SHA256SUMS.txt 2>/dev/null || true
-          cat SHA256SUMS.txt || true
-          if [ "$HAS_GPG" = "true" ]; then
+          sha256sum *.AppImage *.deb *.rpm > SHA256SUMS.txt
+          if [ "${{ needs.validate.outputs.publish }}" = true ]; then
             KEY="${GPG_KEY_ID:-release@znxstudio.dev}"
-            # Feed the passphrase on fd 0 (not a --passphrase arg) so it never lands
-            # in the process table; loopback pinentry was enabled at import time.
-            printf '%s' "$GPG_PASSPHRASE" | gpg --batch --yes --pinentry-mode loopback \
-              --passphrase-fd 0 --local-user "$KEY" --armor --detach-sign \
-              --output SHA256SUMS.txt.asc SHA256SUMS.txt
+            printf '%s' "$GPG_PASSPHRASE" | gpg --batch --yes --pinentry-mode loopback --passphrase-fd 0 --local-user "$KEY" --armor --detach-sign --output SHA256SUMS.txt.asc SHA256SUMS.txt
             gpg --armor --export "$KEY" > znxstudio-signing-public.asc
             gpg --verify SHA256SUMS.txt.asc SHA256SUMS.txt
-            echo "Signed the release manifest with $KEY."
-          else
-            echo "::warning::GPG_PRIVATE_KEY not set — Linux artifacts are UNSIGNED."
           fi
-
       - uses: actions/upload-artifact@v4
         with:
           name: znxstudio-linux
@@ -199,21 +194,62 @@ jobs:
             release/*.AppImage.blockmap
             release/*.deb
             release/*.rpm
-            release/latest-linux*.yml
+            release/*.yml
             release/SHA256SUMS.txt*
             release/znxstudio-signing-public.asc
-          if-no-files-found: warn
+          if-no-files-found: error
 
-      # electron-builder already uploaded the artifacts + latest-linux.yml; add the
-      # signed manifest + public key to the same release.
-      - name: Attach signed manifest + public key to the release
-        if: startsWith(github.ref, 'refs/tags/v')
-        shell: bash
+  macos:
+    name: package (macos)
+    needs: validate
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: 20, cache: npm }
+      - uses: actions/setup-dotnet@v4
+        with: { dotnet-version: '8.0.x' }
+      - run: npm ci
+      - name: Stage architecture-matched Zornux runtimes
+        env:
+          ZORNUX_REF: ${{ vars.ZORNUX_REF }}
+        run: |
+          git init ../zornux
+          git -C ../zornux remote add origin https://github.com/zornux/zornux.git
+          git -C ../zornux fetch --depth 1 origin "${ZORNUX_REF:-main}"
+          git -C ../zornux checkout --detach FETCH_HEAD
+          ZORNUX_REPO="$(cd ../zornux && pwd)" npm run stage:zornux -- osx-x64 osx-arm64
+      - run: npm run build
+      - name: Package, notarize, and publish
+        run: npx electron-builder --mac --publish "${{ needs.validate.outputs.publish == 'true' && 'always' || 'never' }}" --config electron-builder.yml -c.publish.releaseType=${{ needs.validate.outputs.release_type }} -c.publish.channel=${{ needs.validate.outputs.update_channel }} -c.mac.notarize=${{ needs.validate.outputs.publish }}
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          CSC_LINK: ${{ secrets.CSC_LINK }}
+          CSC_KEY_PASSWORD: ${{ secrets.CSC_KEY_PASSWORD }}
+          APPLE_ID: ${{ secrets.APPLE_ID }}
+          APPLE_APP_SPECIFIC_PASSWORD: ${{ secrets.APPLE_APP_SPECIFIC_PASSWORD }}
+          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+      - uses: actions/upload-artifact@v4
+        with:
+          name: znxstudio-macos
+          path: |
+            release/*.dmg
+            release/*.zip
+            release/*.blockmap
+            release/*.yml
+          if-no-files-found: error
+
+  finalize:
+    name: finalize release
+    if: needs.validate.outputs.publish == 'true'
+    needs: [validate, windows, linux, macos]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/download-artifact@v4
+        with: { path: artifacts }
+      - name: Attach signed manifests to the existing release
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          cd release
-          shopt -s nullglob
-          gh release upload "$GITHUB_REF_NAME" \
-            SHA256SUMS.txt SHA256SUMS.txt.asc znxstudio-signing-public.asc \
-            --clobber --repo "$GITHUB_REPOSITORY"
+          find artifacts -type f \( -name 'SHA*SUMS.txt*' -o -name 'znxstudio-signing-public.asc' \) -print0 | xargs -0 gh release upload "$GITHUB_REF_NAME" --clobber --repo "$GITHUB_REPOSITORY"
+          gh release edit "$GITHUB_REF_NAME" --repo "$GITHUB_REPOSITORY" --draft=false --prerelease=${{ needs.validate.outputs.prerelease }}

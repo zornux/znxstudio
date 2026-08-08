@@ -21,6 +21,6 @@ export function fileIcon(name: string): string {
   return ICON_BY_EXTENSION[extension] ?? '□';
 }
 
-export function folderIcon(): string {
-  return '▧';
+export function folderIconClass(expanded = false): string {
+  return `znxstudio-folder-icon${expanded ? ' is-open' : ''}`;
 }

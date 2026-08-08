@@ -28,8 +28,6 @@ export interface ZnxStudioSettings {
   /** Auto-update (Phase 20F). `mode` off = enterprise-managed / manual only. */
   'update.channel': string;
   'update.mode': string;
-  /** URL of the JSON update feed (Phase 20J WI3). */
-  'update.feedUrl': string;
   'files.autosave': boolean;
   'files.autosaveDelay': number;
   /**
@@ -85,7 +83,6 @@ export const SETTINGS_DEFAULTS: ZnxStudioSettings = {
   'workbench.zoomLevel': 0,
   'update.channel': 'stable',
   'update.mode': 'auto',
-  'update.feedUrl': 'https://updates.znxstudio.dev/feed.json',
   'files.autosave': false,
   'files.autosaveDelay': 1000,
   // 'files.autosaveMode' is intentionally omitted (optional) — see the interface.
@@ -152,7 +149,14 @@ export const SETTINGS_JSON_SCHEMA = {
     'workbench.theme': {
       type: 'string',
       description: 'Active color theme.',
-      enum: ['znxstudio-dark', 'znxstudio-light', 'znxstudio-hc-dark', 'znxstudio-hc-light'],
+      enum: [
+        'znxstudio-dark',
+        'znxstudio-light',
+        'znxstudio-tide',
+        'znxstudio-dune',
+        'znxstudio-hc-dark',
+        'znxstudio-hc-light',
+      ],
     },
     'workbench.locale': {
       type: 'string',
@@ -280,11 +284,6 @@ export const SETTINGS_JSON_SCHEMA = {
       minimum: -5,
       maximum: 8,
     },
-    'update.feedUrl': {
-      type: 'string',
-      description: 'Update feed URL (blank = default). Must be an http(s) URL.',
-      pattern: '^(https?://.+)?$',
-    },
     'deploy.activeProfile': {
       type: 'string',
       description: 'Name of the active deployment profile (blank = none).',
@@ -364,7 +363,7 @@ export const SETTINGS_DESCRIPTIONS: { key: keyof ZnxStudioSettings; description:
   { key: 'editor.tabSize', description: 'Spaces per tab.' },
   { key: 'editor.formatOnSave', description: 'Format the document on every explicit save.' },
   { key: 'editor.keywordColor', description: 'Keyword syntax color (hex, e.g. #ff5c9d).' },
-  { key: 'workbench.theme', description: 'Active color theme (dark / light / high-contrast dark / high-contrast light).' },
+  { key: 'workbench.theme', description: 'Active color theme (Dark, Light, Tide, Dune, or high contrast).' },
   { key: 'files.autosave', description: 'Auto-save changed documents.' },
   { key: 'files.autosaveMode', description: 'When to auto-save: off, afterDelay, onFocusChange, onWindowChange.' },
   { key: 'files.autosaveDelay', description: 'Autosave delay in milliseconds.' },

@@ -22,6 +22,8 @@ describe('settings validation — coerceSetting', () => {
 
   test('enforces an enum (theme / locale)', () => {
     expect(coerceSetting('workbench.theme', 'znxstudio-hc-dark')).toEqual({ ok: true, value: 'znxstudio-hc-dark' });
+    expect(coerceSetting('workbench.theme', 'znxstudio-tide')).toEqual({ ok: true, value: 'znxstudio-tide' });
+    expect(coerceSetting('workbench.theme', 'znxstudio-dune')).toEqual({ ok: true, value: 'znxstudio-dune' });
     expect(coerceSetting('workbench.theme', 'solarized')).toEqual({ ok: false });
     expect(coerceSetting('workbench.locale', 'pseudo')).toEqual({ ok: true, value: 'pseudo' });
     expect(coerceSetting('workbench.locale', 'fr')).toEqual({ ok: false });
@@ -50,9 +52,5 @@ describe('settings validation — coerceSetting', () => {
     // workbench.zoomLevel: -5..8
     expect(coerceSetting('workbench.zoomLevel', 20)).toEqual({ ok: true, value: 8 });
     expect(coerceSetting('workbench.zoomLevel', -20)).toEqual({ ok: true, value: -5 });
-    // update.feedUrl: blank or http(s)
-    expect(coerceSetting('update.feedUrl', 'https://x.dev/f.json')).toEqual({ ok: true, value: 'https://x.dev/f.json' });
-    expect(coerceSetting('update.feedUrl', '')).toEqual({ ok: true, value: '' });
-    expect(coerceSetting('update.feedUrl', 'ftp://x')).toEqual({ ok: false });
   });
 });

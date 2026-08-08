@@ -34,13 +34,13 @@ extraResources:
 # here, so electron-updater reads latest.yml straight from the public repo's
 # releases (no token needed once the repo is public). `--publish always` (tag
 # builds only) generates + uploads latest.yml + installers + blockmaps.
-# releaseType: prerelease keeps rc/beta builds off the "Latest release" slot;
-# switch to `release` when cutting a stable x.y.0.
+# CI derives releaseType from package.json: prerelease versions publish as
+# prereleases and final SemVer versions publish as stable releases. It also sets
+# an explicit latest/rc/nightly channel so feeds cannot cross-contaminate.
 publish:
   provider: github
   owner: zornux
   repo: znxstudio
-  releaseType: prerelease
 
 win:
   target:

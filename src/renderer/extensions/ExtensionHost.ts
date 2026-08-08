@@ -2,10 +2,9 @@ import type { IModule, ModuleContext } from '../core/Module';
 import type { ActivationRecord } from '../health/perf';
 
 /**
- * Hosts and activates modules. In Phase 1 the "extensions" are the built-in
- * core modules, registered in-process. The same host is the seam where:
- *   - Zornux & Zoijs land as first-class language/framework modules, and
- *   - third-party plugins are loaded dynamically (see `loadPlugin`, TODO).
+ * Hosts and activates trusted, bundled modules. Marketplace extensions use the
+ * separate declarative contribution pipeline: downloaded JavaScript is never
+ * executed in this privileged renderer.
  *
  * Activation is fault-isolated: one failing module never blocks the rest.
  */
@@ -67,12 +66,4 @@ export class ExtensionHost {
     return this.modules;
   }
 
-  /**
-   * Placeholder for dynamic plugin loading (Extension System phase). A real
-   * implementation will read a plugin manifest, sandbox it, and register the
-   * module it exports.
-   */
-  async loadPlugin(_manifestPath: string): Promise<void> {
-    throw new Error('Dynamic plugin loading is not implemented in Phase 1.');
-  }
 }

@@ -1,6 +1,7 @@
 # Bundled Zornux runtime
 
-`npm run stage:zornux [rid...]` publishes a self-contained `zornux` binary into
+`npm run stage:zornux [rid...]` publishes a self-contained `zornux` binary from
+the sibling `xojin` checkout (or `ZORNUX_REPO`) into
 `build/zornux/<rid>/` (e.g. `win-x64/zornux.exe`). electron-builder ships this
 tree to `<resources>/zornux/` so installing ZnxStudio installs the Zornux
 toolchain — offline and version-matched to the IDE.

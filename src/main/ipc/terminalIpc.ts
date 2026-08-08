@@ -31,15 +31,19 @@ export function registerTerminalIpc(): void {
     terminals.create(options, event.sender);
   });
 
-  ipcMain.on(IpcChannels.TerminalInput, (_event, { id, data }: InputPayload) =>
-    terminals.write(id, data),
-  );
-  ipcMain.on(IpcChannels.TerminalResize, (_event, { id, cols, rows }: ResizePayload) =>
-    terminals.resize(id, cols, rows),
-  );
-  ipcMain.on(IpcChannels.TerminalDispose, (_event, { id }: { id: string }) =>
-    terminals.dispose(id),
-  );
+  ipcMain.on(IpcChannels.TerminalInput, (event, payload: InputPayload) => {
+    if (typeof payload?.id === 'string' && typeof payload.data === 'string') {
+      terminals.write(event.sender, payload.id, payload.data);
+    }
+  });
+  ipcMain.on(IpcChannels.TerminalResize, (event, payload: ResizePayload) => {
+    if (typeof payload?.id === 'string' && Number.isInteger(payload.cols) && Number.isInteger(payload.rows) && payload.cols > 0 && payload.rows > 0) {
+      terminals.resize(event.sender, payload.id, payload.cols, payload.rows);
+    }
+  });
+  ipcMain.on(IpcChannels.TerminalDispose, (event, payload: { id: string }) => {
+    if (typeof payload?.id === 'string') terminals.dispose(event.sender, payload.id);
+  });
   // Kill every PTY on quit so no shell process is left orphaned.
   app.on('will-quit', () => terminals.disposeAll());
 }

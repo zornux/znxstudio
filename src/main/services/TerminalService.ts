@@ -6,6 +6,7 @@ import type { IPty } from '@lydell/node-pty';
 import { IpcChannels } from '../../shared/ipc';
 import type { TerminalCreateOptions } from '../../shared/types';
 import { candidateShells, type ShellProfile } from '../../shared/terminal/shells';
+import { terminalSessionKey } from './terminalSessionKey';
 
 type PtyModule = typeof import('@lydell/node-pty');
 /** Native PTY package: prebuilt N-API binaries, no build toolchain required. */
@@ -25,6 +26,7 @@ export class TerminalService {
   private ptyModule: PtyModule | null = null;
   private loadError: Error | null = null;
   private readonly sessions = new Map<string, Session>();
+  private readonly watchedSenders = new Set<number>();
 
   isAvailable(): boolean {
     try {
@@ -65,6 +67,8 @@ export class TerminalService {
   }
 
   create(options: TerminalCreateOptions, sender: WebContents): void {
+    const key = terminalSessionKey(sender.id, options.id);
+    if (this.sessions.has(key)) throw new Error(`Terminal already exists: ${options.id}`);
     const pty = this.load();
     // Run in Terminal: launch the program itself in the PTY (no shell wrapper),
     // so it gets a real TTY and interactive reads work. Otherwise open a shell.
@@ -89,27 +93,41 @@ export class TerminalService {
       if (!sender.isDestroyed()) {
         sender.send(IpcChannels.TerminalExit, { id: options.id, exitCode });
       }
-      this.sessions.delete(options.id);
+      this.sessions.delete(key);
     });
 
-    this.sessions.set(options.id, { pty: child, sender });
+    this.sessions.set(key, { pty: child, sender });
+    if (!this.watchedSenders.has(sender.id)) {
+      this.watchedSenders.add(sender.id);
+      sender.once('destroyed', () => {
+        for (const [sessionKey, session] of [...this.sessions]) {
+          if (session.sender.id === sender.id) this.disposeSession(sessionKey, session);
+        }
+        this.watchedSenders.delete(sender.id);
+      });
+    }
   }
 
-  write(id: string, data: string): void {
-    this.sessions.get(id)?.pty.write(data);
+  write(sender: WebContents, id: string, data: string): void {
+    this.sessions.get(terminalSessionKey(sender.id, id))?.pty.write(data);
   }
 
-  resize(id: string, cols: number, rows: number): void {
+  resize(sender: WebContents, id: string, cols: number, rows: number): void {
     try {
-      this.sessions.get(id)?.pty.resize(cols, rows);
+      this.sessions.get(terminalSessionKey(sender.id, id))?.pty.resize(cols, rows);
     } catch {
       /* resize can race with exit; ignore */
     }
   }
 
-  dispose(id: string): void {
-    const session = this.sessions.get(id);
+  dispose(sender: WebContents, id: string): void {
+    const key = terminalSessionKey(sender.id, id);
+    const session = this.sessions.get(key);
     if (!session) return;
+    this.disposeSession(key, session);
+  }
+
+  private disposeSession(key: string, session: Session): void {
     const pid = session.pty.pid;
     try {
       session.pty.kill();
@@ -128,11 +146,11 @@ export class TerminalService {
         /* already gone */
       }
     }
-    this.sessions.delete(id);
+    this.sessions.delete(key);
   }
 
   disposeAll(): void {
-    for (const id of [...this.sessions.keys()]) this.dispose(id);
+    for (const [key, session] of [...this.sessions]) this.disposeSession(key, session);
   }
 
   /**

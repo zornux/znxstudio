@@ -8,6 +8,8 @@ import {
   eligibleChannels,
   parseSemVer,
   parseUpdateFeed,
+  providerChannel,
+  isUpdateChannel,
   verifyChecksum,
 } from '../src/shared/update';
 
@@ -36,6 +38,14 @@ describe('update — semver (20F)', () => {
 });
 
 describe('update — channels (20F)', () => {
+  test('maps UI channels to isolated provider feeds and validates IPC values', () => {
+    expect(providerChannel('stable')).toBe('latest');
+    expect(providerChannel('preview')).toBe('rc');
+    expect(providerChannel('nightly')).toBe('nightly');
+    expect(isUpdateChannel('preview')).toBe(true);
+    expect(isUpdateChannel('canary')).toBe(false);
+  });
+
   test('eligibility widens with risk tolerance', () => {
     expect(eligibleChannels('stable')).toEqual(['stable']);
     expect(eligibleChannels('preview')).toEqual(['stable', 'preview']);

@@ -17,6 +17,8 @@ import { CommandIds } from '../commands/CommandIds';
 import { resizeSplit } from './split';
 import type { ShellProfile, Unsubscribe } from '../../shared/types';
 import { togglePanel } from '../layout/layoutModel';
+import { TerminalInputBuffer } from './inputBuffer';
+import { resolveTerminalShortcut } from './terminalShortcuts';
 
 /** One terminal: an xterm instance bound to a main-process PTY. */
 interface TerminalPane {
@@ -37,6 +39,7 @@ interface TerminalPane {
   ephemeral?: boolean;
   /** Relative size within its split (flex-grow weight); the divider adjusts it. */
   flexGrow: number;
+  inputBuffer: TerminalInputBuffer;
 }
 
 /** A tab: one or more panes split side by side or stacked, sharing a label. */
@@ -169,7 +172,9 @@ export class TerminalModule implements IModule, TerminalRunnerService {
 
     this.cwd = this.workspace?.currentFolder() ?? undefined;
     // New terminals adopt the latest workspace root; existing ones keep running.
-    this.workspace?.onDidChangeWorkspace((info) => (this.cwd = info?.root ?? undefined));
+    if (this.workspace) context.subscriptions.push(
+      this.workspace.onDidChangeWorkspace((info) => (this.cwd = info?.root ?? undefined)),
+    );
 
     this.observer = new ResizeObserver(() => this.syncActiveSizes());
     this.observer.observe(this.body);
@@ -239,6 +244,7 @@ export class TerminalModule implements IModule, TerminalRunnerService {
   deactivate(): void {
     this.observer?.disconnect();
     this.themeObserver?.disconnect();
+    for (const group of [...this.groups]) this.closeGroup(group.id);
   }
 
   /* ----- TerminalRunnerService (Run in Terminal) ----- */
@@ -443,12 +449,14 @@ export class TerminalModule implements IModule, TerminalRunnerService {
     term.open(el);
 
     const id = `term-${++this.counter}`;
+    const inputBuffer = new TerminalInputBuffer();
+    const sendInput = (data: string): void => window.znxstudio.terminal.input(id, data);
     const pane: TerminalPane = {
       id,
       term,
       fit,
       el,
-      inputDisposable: term.onData((data) => window.znxstudio.terminal.input(id, data)),
+      inputDisposable: term.onData((data) => inputBuffer.accept(data, sendInput)),
       unData: window.znxstudio.terminal.onData((event) => {
         if (event.id === id) term.write(event.data);
       }),
@@ -459,10 +467,12 @@ export class TerminalModule implements IModule, TerminalRunnerService {
       shellId,
       ephemeral: Boolean(run),
       flexGrow: 1,
+      inputBuffer,
     };
     // Clicking a pane focuses it and makes it the group's active pane.
     el.addEventListener('mousedown', () => this.setActivePane(group, id));
     group.panes.push(pane);
+    this.installKeyboardSupport(term);
     this.layoutGroup(group);
     this.setActivePane(group, id);
 
@@ -477,6 +487,7 @@ export class TerminalModule implements IModule, TerminalRunnerService {
         command: run?.command,
         args: run?.args,
       });
+      inputBuffer.markReady(sendInput);
       this.available = true;
       this.setStatus(`⌂ Terminal: ${this.groups.length}`, 'Integrated terminal is running');
       if (run) {
@@ -487,6 +498,7 @@ export class TerminalModule implements IModule, TerminalRunnerService {
       }
     } catch (error) {
       this.available = false;
+      inputBuffer.close();
       // A run tab is torn down and retried elsewhere by the caller — rethrow
       // rather than leaving an "unavailable" message in a tab about to close.
       if (run) throw error;
@@ -500,8 +512,51 @@ export class TerminalModule implements IModule, TerminalRunnerService {
     const pane = group.panes.find((p) => p.id === paneId);
     if (!pane || pane.exited) return;
     pane.exited = true;
+    pane.inputBuffer.close();
     pane.term.write('\r\n\x1b[90m[process exited]\x1b[0m\r\n');
     this.renderTabStrip();
+  }
+
+  /** Keep shell control keys native while handling terminal-UI shortcuts. */
+  private installKeyboardSupport(term: Terminal): void {
+    const isMac = navigator.platform.toLowerCase().includes('mac');
+    term.attachCustomKeyEventHandler((event) => {
+      const action = resolveTerminalShortcut(event, isMac);
+      if (action === 'shell') return true;
+      if (action === 'copy') {
+        void this.copyTerminalSelection(term);
+      } else if (action === 'paste') {
+        void this.pasteIntoTerminal(term);
+      } else if (action === 'next-tab') {
+        this.cycleTab(1);
+      } else {
+        this.cycleTab(-1);
+      }
+      // The shortcut belongs to the workbench; never encode it as PTY input.
+      return false;
+    });
+  }
+
+  private async copyTerminalSelection(term: Terminal): Promise<void> {
+    const selection = term.getSelection();
+    if (!selection) return;
+    try {
+      if (!navigator.clipboard) throw new Error('Clipboard unavailable');
+      await navigator.clipboard.writeText(selection);
+    } catch {
+      this.context.layout.showToast('Could not copy Terminal selection.', 'error');
+    }
+  }
+
+  private async pasteIntoTerminal(term: Terminal): Promise<void> {
+    try {
+      if (!navigator.clipboard) throw new Error('Clipboard unavailable');
+      const text = await navigator.clipboard.readText();
+      if (text) term.paste(text);
+      term.focus();
+    } catch {
+      this.context.layout.showToast('Could not read from the clipboard.', 'error');
+    }
   }
 
   private activeGroup(): TerminalGroup | undefined {
@@ -645,10 +700,10 @@ export class TerminalModule implements IModule, TerminalRunnerService {
     group.panes.find((p) => p.id === paneId)?.term.focus();
   }
 
-  private cycleTab(): void {
+  private cycleTab(delta = 1): void {
     if (this.groups.length < 2) return;
     const index = this.groups.findIndex((g) => g.id === this.activeGroupId);
-    const next = this.groups[(index + 1) % this.groups.length];
+    const next = this.groups[(index + delta + this.groups.length) % this.groups.length];
     this.setActiveGroup(next.id);
     this.saveLayout();
   }
@@ -705,6 +760,7 @@ export class TerminalModule implements IModule, TerminalRunnerService {
 
   private teardownPane(pane: TerminalPane): void {
     pane.inputDisposable?.dispose();
+    pane.inputBuffer.close();
     pane.unData?.();
     pane.unExit?.();
     window.znxstudio.terminal.dispose(pane.id);

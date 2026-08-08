@@ -55,7 +55,7 @@ see [`PHASE20J-HARDENING.md`](PHASE20J-HARDENING.md).
 | --- | --- |
 | Untrusted-workspace RCE via task runner | Workspace Trust, main-enforced on all 5 execution IPCs |
 | Silent unsaved-work loss on close/quit | Save/Don't-Save/Cancel prompt + window/quit guard |
-| Auto-update never ran at runtime | Real HTTP feed check wired; electron-updater optional for install |
+| Auto-update never ran at runtime | GitHub channel feeds + packaged electron-updater wired |
 | Accessibility gaps | Dialog/listbox ARIA on pickers, high-contrast themes, UI zoom |
 | i18n engine gaps | Pluralization, locale-aware formatting, RTL seam |
 
@@ -72,7 +72,7 @@ missing is the credentials and hardware to execute and certify it.
 
 | # | Item | Needs | Status |
 | --- | --- | --- | --- |
-| 1 | Windows production signing | Authenticode cert in CI (`CSC_LINK`) | ⛔ pending cert |
+| 1 | Windows production signing | Azure Trusted Signing credentials in CI | ⛔ pending credentials |
 | 2 | macOS signing + notarization | Apple Developer ID + macOS runner | ⛔ pending credentials |
 | 3 | Cross-OS package builds | `release.yml` 3-OS matrix goes green | ⏳ CI run required |
 | 4 | Clean-machine acceptance | fresh Windows / mac Intel+AS / Linux distros | ⛔ pending devices |
@@ -89,8 +89,8 @@ missing is the credentials and hardware to execute and certify it.
    to a dated `[1.0.0]` entry.
 5. Tag `v1.0.0`; the `release.yml` workflow packages, signs, checksums, and
    uploads artifacts across the matrix.
-6. Publish the `stable` update feed; confirm rc → GA auto-update on a **signed**
-   pair, then verify rollback.
+6. Confirm the workflow classified the final SemVer release as stable; test the
+   rc → GA auto-update on a **signed** pair, then verify rollback.
 
 > Per project policy, tagging and pushing are performed by the maintainer — this
 > repository's tooling prepares and verifies the release but does not cut it.

@@ -211,8 +211,10 @@ export function assetCardToEntry(card: unknown): MarketplaceEntry | null {
   const handle = pub ? str(pub.handle) : str(c.publisher);
   const publisherName = (pub && str(pub.name)) || handle;
   const slug = str(c.slug);
-  const version = str(c.latestVersion) || '0.0.0';
-  if (!handle || !slug) return null;
+  const version = str(c.latestVersion);
+  const assetType = str(c.type);
+  if (!handle || !slug || !ID_RE.test(`${handle}.${slug}`) || !SEMVER_RE.test(version)) return null;
+  if (assetType && assetType !== EXTENSION_ASSET_TYPE) return null;
   const category = str(c.category);
   const downloads = typeof c.downloads === 'number' ? c.downloads : undefined;
   return {
@@ -231,7 +233,7 @@ export function assetCardToEntry(card: unknown): MarketplaceEntry | null {
     verified: c.verified === true,
     downloads,
     updatedAt: str(c.updatedAt) || undefined,
-    assetType: str(c.type) || undefined,
+    assetType: assetType || undefined,
     iconUrl: str(c.iconUrl) || undefined,
   };
 }

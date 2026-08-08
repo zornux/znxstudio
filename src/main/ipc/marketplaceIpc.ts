@@ -25,7 +25,7 @@ export function registerMarketplaceIpc(): void {
       configuredBaseUrl: typeof configured === 'string' ? configured : undefined,
       allowLocalhost: !isPackaged(),
     });
-    return new ExtensionInstaller(registry, store);
+    return new ExtensionInstaller(registry, store, registry.source());
   }
 
   ipcMain.handle(IpcChannels.MarketplaceSearch, (_e, params: MarketplaceSearchParams) =>

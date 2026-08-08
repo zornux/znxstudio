@@ -93,7 +93,7 @@ for (const g of gates) console.log(`  ${g.ok ? '✅' : '❌'}  ${g.name}${g.deta
 
 console.log('\nDEFERRED — release-gate (needs certs + foreign-OS runners; see docs/GA-1.0.md):');
 for (const d of [
-  'Windows production signing (Authenticode cert)',
+  'Windows production signing (Azure Trusted Signing)',
   'macOS signing + notarization (Apple Developer ID, macOS runner)',
   'Cross-OS package builds go green (release.yml 3-OS matrix)',
   'Clean-machine acceptance (fresh Win / mac Intel+AS / Linux distros)',
@@ -114,7 +114,10 @@ if (failed.length === 0) {
 async function selfTestGate() {
   console.log('\n▶ Real-app self-test (headless Electron, ZNXSTUDIO_SELFTEST=1)');
   const electron = (await import('electron')).default; // path to the binary
-  const child = spawn(electron, ['.', '--enable-logging'], {
+  // Hosted Linux runners cannot use Electron's SUID sandbox. The production
+  // app remains sandboxed; only this isolated CI smoke process opts out.
+  const electronArgs = ['.', '--enable-logging', ...(process.env.CI === 'true' && process.platform === 'linux' ? ['--no-sandbox'] : [])];
+  const child = spawn(electron, electronArgs, {
     cwd: root,
     env: { ...process.env, ZNXSTUDIO_SELFTEST: '1' },
     stdio: ['ignore', 'pipe', 'pipe'],

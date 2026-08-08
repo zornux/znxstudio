@@ -44,6 +44,7 @@ export class ExtensionsManagerModule implements IModule {
   private searchTimer: ReturnType<typeof setTimeout> | undefined;
   /** Monotonic id so an out-of-order search response can't overwrite newer results. */
   private searchSeq = 0;
+  private hasConnected = false;
   /** Persistent shell elements — kept stable so typing never rebuilds the search box. */
   private searchInput?: HTMLInputElement;
   private clearSearch?: HTMLButtonElement;
@@ -73,6 +74,9 @@ export class ExtensionsManagerModule implements IModule {
     this.render();
     this.context.layout.setSideBar('Extensions', this.root);
     this.context.layout.focusSideBar();
+    // Establish the marketplace connection on first reveal; users should not need to
+    // type a character before live catalog results and connection errors appear.
+    if (!this.hasConnected && !this.remoteLoading) void this.runRemoteSearch();
   }
 
   private matches(text: string): boolean {
@@ -158,7 +162,7 @@ export class ExtensionsManagerModule implements IModule {
     const remote = this.remoteResults.filter((e) => !this.marketplace.isInstalled(e.id));
     list.appendChild(this.sectionHeader(`Marketplace — ${remote.length + bundled.length}`));
     if (this.remoteLoading) list.appendChild(this.empty('Searching the marketplace…'));
-    if (this.remoteError) list.appendChild(this.errorLine(`Marketplace unavailable: ${this.remoteError}`));
+    if (this.remoteError) list.appendChild(this.errorLine(`Marketplace unavailable: ${this.remoteError}`, true));
     if (!this.remoteLoading && !this.remoteError && remote.length + bundled.length === 0) {
       list.appendChild(this.empty('No matching extensions available.'));
     }
@@ -195,6 +199,7 @@ export class ExtensionsManagerModule implements IModule {
       const results = await this.marketplace.search(forQuery);
       if (seq !== this.searchSeq) return; // a newer search superseded this one
       this.remoteResults = results;
+      this.hasConnected = true;
     } catch (error) {
       if (seq !== this.searchSeq) return;
       this.remoteResults = [];
@@ -207,10 +212,20 @@ export class ExtensionsManagerModule implements IModule {
     }
   }
 
-  private errorLine(text: string): HTMLElement {
+  private errorLine(text: string, retry = false): HTMLElement {
     const el = document.createElement('div');
     el.className = 'znxstudio-extmgr-error';
-    el.textContent = text;
+    const message = document.createElement('span');
+    message.textContent = text;
+    el.appendChild(message);
+    if (retry) {
+      const button = document.createElement('button');
+      button.type = 'button';
+      button.className = 'znxstudio-btn-small';
+      button.textContent = 'Retry';
+      button.addEventListener('click', () => void this.runRemoteSearch());
+      el.appendChild(button);
+    }
     return el;
   }
 

@@ -10,7 +10,7 @@ import type { IModule, ModuleContext } from '../core/Module';
 import type { MenuEntry } from '../core/LayoutManager';
 import { CommandIds } from '../commands/CommandIds';
 import type { FileNode, WorkspaceInfo } from '../../shared/types';
-import { fileIcon, folderIcon } from './fileIcons';
+import { fileIcon, folderIconClass } from './fileIcons';
 import { isCollapsed, setCollapsed, sortSections } from './explorerSections';
 import { NEW_ITEMS, newItemCommandId } from './newItem';
 import { dirName } from './paths';
@@ -443,9 +443,7 @@ export class ProjectExplorerModule implements IModule, ExplorerService {
     const twisty = document.createElement('span');
     twisty.className = 'znxstudio-icon';
     twisty.textContent = '▾';
-    const icon = document.createElement('span');
-    icon.className = 'znxstudio-icon';
-    icon.textContent = 'P';
+    const icon = folderSpan(true);
     const name = document.createElement('span');
     name.className = 'znxstudio-explorer-root-name';
     name.textContent = info.project?.name ?? baseName(info.root);
@@ -634,7 +632,7 @@ export class ProjectExplorerModule implements IModule, ExplorerService {
     let childList: HTMLElement | null = null;
     const setLabel = () => {
       const twisty = iconSpan(expanded ? '▾' : '▸');
-      const folder = iconSpan(folderIcon());
+      const folder = folderSpan(expanded);
       twisty.setAttribute('aria-hidden', 'true'); // state is exposed via aria-expanded, not the glyph
       folder.setAttribute('aria-hidden', 'true');
       row.replaceChildren(twisty, folder, labelSpan(node.name));
@@ -837,6 +835,14 @@ function iconSpan(glyph: string): HTMLElement {
   const span = document.createElement('span');
   span.className = 'znxstudio-icon';
   span.textContent = glyph;
+  return span;
+}
+
+/** Theme-aware folder artwork with a blue tab and a neutral document body. */
+function folderSpan(expanded: boolean): HTMLElement {
+  const span = document.createElement('span');
+  span.className = folderIconClass(expanded);
+  span.setAttribute('aria-hidden', 'true');
   return span;
 }
 

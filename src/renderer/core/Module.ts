@@ -8,7 +8,8 @@ export interface Disposable {
 
 /**
  * Everything a module receives at activation time. This is the stable contract
- * that future Zornux/Zoijs modules — and third-party plugins — will build against.
+ * used by trusted built-in Zornux/Zoijs modules. Marketplace packages use the
+ * narrower declarative contribution contract instead.
  */
 export interface ModuleContext {
   readonly services: ServiceRegistry;

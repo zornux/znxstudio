@@ -33,6 +33,15 @@ export interface MarketplaceArtifact {
   version: string;
 }
 
+/** Keep renderer-provided search values small and predictable at the network boundary. */
+export function normalizeMarketplaceSearchParams(params: MarketplaceSearchParams = {}): Required<MarketplaceSearchParams> {
+  const query = typeof params.query === 'string' ? params.query.trim().slice(0, 200) : '';
+  const page = Number.isInteger(params.page) ? Math.min(10_000, Math.max(1, params.page!)) : 1;
+  const perPage = Number.isInteger(params.perPage) ? Math.min(100, Math.max(1, params.perPage!)) : 30;
+  const sort = typeof params.sort === 'string' && /^[a-zA-Z0-9_-]{1,32}$/.test(params.sort) ? params.sort : '';
+  return { query, page, perPage, sort };
+}
+
 export class MarketplaceRegistryService {
   private readonly baseUrl: string;
   private readonly policy: UrlPolicyOptions;
@@ -46,6 +55,7 @@ export class MarketplaceRegistryService {
 
   /** Search the live catalog, scoped to the extension asset type. Returns raw cards. */
   async search(params: MarketplaceSearchParams): Promise<{ items: unknown[]; total: number }> {
+    params = normalizeMarketplaceSearchParams(params);
     const qs = new URLSearchParams({ type: EXTENSION_ASSET_TYPE });
     if (params.query) qs.set('q', params.query);
     qs.set('page', String(params.page ?? 1));
@@ -54,6 +64,11 @@ export class MarketplaceRegistryService {
     const data = await this.getJson(`/api/v1/marketplace/assets?${qs.toString()}`);
     const d = (data ?? {}) as { items?: unknown[]; total?: number };
     return { items: Array.isArray(d.items) ? d.items : [], total: typeof d.total === 'number' ? d.total : 0 };
+  }
+
+  /** Effective, policy-validated registry origin recorded with installed packages. */
+  source(): string {
+    return this.baseUrl;
   }
 
   /** Full asset detail (card + description + versions). */
@@ -128,9 +143,7 @@ export class MarketplaceRegistryService {
         if (!res.ok) throw new Error(`Marketplace HTTP ${res.status}.`);
         const ctype = res.headers.get('content-type') ?? '';
         if (!/json/i.test(ctype)) throw new Error(`Unexpected content-type: ${ctype || 'none'}`);
-        const text = await res.text();
-        if (text.length > MAX_RESPONSE_BYTES) throw new Error('Response too large.');
-        return text;
+        return readBoundedText(res, MAX_RESPONSE_BYTES);
       }
     } catch (error) {
       const err = error as Error;
@@ -138,6 +151,37 @@ export class MarketplaceRegistryService {
     } finally {
       clearTimeout(timer);
     }
+  }
+}
+
+/** Stream a body through a byte counter so chunked responses cannot bypass the cap. */
+async function readBoundedText(response: Response, limit: number): Promise<string> {
+  if (!response.body) {
+    const bytes = new Uint8Array(await response.arrayBuffer());
+    if (bytes.byteLength > limit) throw new Error('Response too large.');
+    return new TextDecoder('utf-8', { fatal: true }).decode(bytes);
+  }
+  const reader = response.body.getReader();
+  const decoder = new TextDecoder('utf-8', { fatal: true });
+  let size = 0;
+  let text = '';
+  try {
+    for (;;) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      size += value.byteLength;
+      if (size > limit) {
+        await reader.cancel();
+        throw new Error('Response too large.');
+      }
+      text += decoder.decode(value, { stream: true });
+    }
+    return text + decoder.decode();
+  } catch (error) {
+    if (error instanceof TypeError) throw new Error('Marketplace returned invalid UTF-8.');
+    throw error;
+  } finally {
+    reader.releaseLock();
   }
 }
 

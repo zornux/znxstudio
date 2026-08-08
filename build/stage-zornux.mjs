@@ -2,7 +2,7 @@
 // electron-builder can bundle the toolchain with the IDE (extraResources).
 //
 // Usage:  node build/stage-zornux.mjs [rid...]        (default: host RID)
-// Env:    ZORNUX_REPO   path to the xojin repo (default: C:\Studio Apps\xojin)
+// Env:    ZORNUX_REPO   path to the zornux repo (local legacy folder: xojin)
 //
 // The publish flags mirror xojin's release workflow (.github/workflows/release.yml)
 // so the bundled runtime matches what ships standalone: self-contained, single
@@ -15,7 +15,8 @@ import { dirname, join } from 'node:path';
 const buildDir = dirname(fileURLToPath(import.meta.url));
 const stageRoot = join(buildDir, 'zornux');
 
-const repo = process.env.ZORNUX_REPO || join('C:\\', 'Studio Apps', 'xojin');
+const localSibling = join(buildDir, '..', '..', 'xojin');
+const repo = process.env.ZORNUX_REPO || localSibling;
 const csproj = join(repo, 'src', 'Zornux.Cli', 'Zornux.Cli.csproj');
 
 function hostRid() {
