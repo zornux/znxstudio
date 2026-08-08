@@ -10,6 +10,7 @@ import { Emitter } from '../core/Emitter';
 import { selfTestCoordinator } from '../core/SelfTestCoordinator';
 import type { IModule, ModuleContext } from '../core/Module';
 import { CommandIds } from '../commands/CommandIds';
+import { joinPath } from '../explorer/paths';
 import { captureTask } from '../database/runCapture';
 import {
   DEFAULT_DOC_OPTIONS,
@@ -106,7 +107,7 @@ export class ApiReferenceModule implements IModule, ApiReferenceService {
     try {
       const info = await window.znxstudio.app.getInfo();
       const slug = (root.split(/[\\/]/).filter(Boolean).pop() ?? 'project').replace(/[^\w.-]+/g, '-');
-      return `${info.tempDir}\\znxstudio-apidocs\\${slug}`;
+      return joinPath(joinPath(info.tempDir, 'znxstudio-apidocs'), slug);
     } catch {
       this.moduleContext.layout.showToast('Could not locate a scratch folder for the generated docs.', 'error');
       return null;
@@ -177,7 +178,7 @@ export class ApiReferenceModule implements IModule, ApiReferenceService {
       this.moduleContext.layout.showToast('Open a folder first.', 'info');
       return;
     }
-    const target = `${root}\\docs\\api`;
+    const target = joinPath(joinPath(root, 'docs'), 'api');
     await this.run(root, target, true);
   }
 

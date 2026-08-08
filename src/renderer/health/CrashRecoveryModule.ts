@@ -4,6 +4,7 @@ import type { DocumentManager } from '../language/DocumentManager';
 import { selfTestCoordinator } from '../core/SelfTestCoordinator';
 import type { IModule, ModuleContext } from '../core/Module';
 import { CommandIds } from '../commands/CommandIds';
+import { joinPath } from '../explorer/paths';
 import {
   SNAPSHOT_FILE,
   buildSnapshot,
@@ -61,7 +62,7 @@ export class CrashRecoveryModule implements IModule {
 
     try {
       const info = await window.znxstudio.app.getInfo();
-      this.snapshotPath = `${info.tempDir}\\znxstudio-session\\${SNAPSHOT_FILE}`;
+      this.snapshotPath = joinPath(joinPath(info.tempDir, 'znxstudio-session'), SNAPSHOT_FILE);
     } catch {
       this.snapshotPath = '';
     }

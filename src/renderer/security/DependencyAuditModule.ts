@@ -2,6 +2,7 @@ import { ServiceKeys, type EditorService, type SecurityService, type WorkspaceSe
 import { selfTestCoordinator } from '../core/SelfTestCoordinator';
 import type { IModule, ModuleContext } from '../core/Module';
 import { CommandIds } from '../commands/CommandIds';
+import { joinPath } from '../explorer/paths';
 import type { SecurityFinding } from './findings';
 import {
   ADVISORY_FEED_FILE,
@@ -85,7 +86,7 @@ export class DependencyAuditModule implements IModule {
 
   private async readFile(root: string, name: string): Promise<string | null> {
     try {
-      return await window.znxstudio.fs.readFile(`${root}\\${name}`);
+      return await window.znxstudio.fs.readFile(joinPath(root, name));
     } catch {
       return null;
     }
@@ -298,7 +299,7 @@ export class DependencyAuditModule implements IModule {
       },
     ]);
     try {
-      await window.znxstudio.fs.writeFile(`${root}\\${ADVISORY_FEED_FILE}`, content);
+      await window.znxstudio.fs.writeFile(joinPath(root, ADVISORY_FEED_FILE), content);
       this.moduleContext.layout.showToast(`Wrote ${ADVISORY_FEED_FILE}. It is read from disk, never fetched.`, 'info');
       await this.reload();
     } catch (error) {

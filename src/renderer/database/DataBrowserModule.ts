@@ -7,6 +7,7 @@ import {
 import { selfTestCoordinator } from '../core/SelfTestCoordinator';
 import type { IModule, ModuleContext } from '../core/Module';
 import { CommandIds } from '../commands/CommandIds';
+import { joinPath } from '../explorer/paths';
 import { buildSchema } from './schemaModel';
 import { buildBrowseProgram, parseRows } from './dataBrowser';
 import { captureTask } from './runCapture';
@@ -136,7 +137,7 @@ export class DataBrowserModule implements IModule {
 
     const program = buildBrowseProgram(source, connection.name, table, columns);
     const tempDir = (await window.znxstudio.app.getInfo()).tempDir;
-    const file = `${tempDir}\\znxstudio-browse.zx`;
+    const file = joinPath(tempDir, 'znxstudio-browse.zx');
     try {
       await window.znxstudio.fs.writeFile(file, program);
       const { output } = await captureTask(`"${info.path}" run "${file}"`, tempDir);
@@ -214,7 +215,7 @@ export class DataBrowserModule implements IModule {
         const columns = (schema?.tables.find((t) => t.table === 'People')?.columns ?? [])
           .filter((c) => !c.isPrivate)
           .map((c) => c.name);
-        const file = `${tempDir}\\znxstudio-browse.zx`;
+        const file = joinPath(tempDir, 'znxstudio-browse.zx');
         await window.znxstudio.fs.writeFile(file, buildBrowseProgram(source, 'Db', 'People', columns));
         const { output } = await captureTask(`"${info.path}" run "${file}"`, tempDir);
         const rows = parseRows(output);

@@ -2,6 +2,7 @@ import { ServiceKeys, type AiService, type SettingsService, type WorkspaceServic
 import { selfTestCoordinator } from '../core/SelfTestCoordinator';
 import type { IModule, ModuleContext } from '../core/Module';
 import { CommandIds } from '../commands/CommandIds';
+import { joinPath } from '../explorer/paths';
 import {
   EMPTY_TEAM_SETTINGS,
   explainSettings,
@@ -83,7 +84,7 @@ export class TeamModule implements IModule {
     const root = this.workspace?.currentFolder();
     if (!root) return null;
     try {
-      return await window.znxstudio.fs.readFile(`${root}\\${name}`);
+      return await window.znxstudio.fs.readFile(joinPath(root, name));
     } catch {
       return null;
     }
@@ -206,7 +207,7 @@ export class TeamModule implements IModule {
     if (!name) return;
     const content = renderTeamSettings({ name, defaults: { 'editor.tabSize': 4 }, locked: {}, notice: undefined });
     try {
-      await window.znxstudio.fs.writeFile(`${root}\\${TEAM_FILE}`, content);
+      await window.znxstudio.fs.writeFile(joinPath(root, TEAM_FILE), content);
       this.moduleContext.layout.showToast(`Wrote ${TEAM_FILE}. Commit it to share it.`, 'info');
       await this.reload();
     } catch (error) {

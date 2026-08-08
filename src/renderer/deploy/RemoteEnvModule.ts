@@ -2,6 +2,7 @@ import { ServiceKeys, type DeploymentService } from '../core/Contracts';
 import { selfTestCoordinator } from '../core/SelfTestCoordinator';
 import type { IModule, ModuleContext } from '../core/Module';
 import { CommandIds } from '../commands/CommandIds';
+import { joinPath } from '../explorer/paths';
 import { showArtifactPreview } from './artifactPreview';
 import { generateDevContainer, parseSshConfig, sshCommand, type SshHost } from './remote';
 
@@ -55,7 +56,7 @@ export class RemoteEnvModule implements IModule {
   private async loadHosts(): Promise<void> {
     try {
       const home = (await window.znxstudio.app.getInfo()).homeDir;
-      const text = await window.znxstudio.fs.readFile(`${home}\\.ssh\\config`);
+      const text = await window.znxstudio.fs.readFile(joinPath(joinPath(home, '.ssh'), 'config'));
       this.hosts = parseSshConfig(text);
     } catch {
       this.hosts = [];
@@ -142,7 +143,7 @@ export class RemoteEnvModule implements IModule {
     // Optional: read the real ~/.ssh/config if present.
     try {
       const home = (await window.znxstudio.app.getInfo()).homeDir;
-      const text = await window.znxstudio.fs.readFile(`${home}\\.ssh\\config`);
+      const text = await window.znxstudio.fs.readFile(joinPath(joinPath(home, '.ssh'), 'config'));
       log(`remote real ssh: config found, hosts=${parseSshConfig(text).length}`);
     } catch {
       log('remote real ssh: no ~/.ssh/config (parse verified on sample)');
