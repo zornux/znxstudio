@@ -3,14 +3,9 @@
  * validated against SETTINGS_JSON_SCHEMA; consumers read keys with these types.
  */
 
-/**
- * Default editor font size, matched to each OS's UI conventions: 12px on macOS
- * (denser Retina text), 14px on Windows/Linux. Detected synchronously from the
- * renderer's user-agent; falls back to 14 when navigator is absent (e.g. tests).
- */
+/** A readable, VS Code-like editor default across display densities. */
 export function defaultFontSize(): number {
-  const ua = typeof navigator !== 'undefined' ? navigator.userAgent : '';
-  return /Mac/i.test(ua) ? 12 : 14;
+  return 14;
 }
 
 export const DEFAULT_FONT_SIZE = defaultFontSize();
@@ -20,6 +15,7 @@ export const DEFAULT_KEYWORD_COLOR = '#ff5c9d';
 
 export interface ZnxStudioSettings {
   'editor.fontSize': number;
+  'editor.fontFamily': string;
   'editor.tabSize': number;
   /** Format the document with the active formatter on every explicit save. */
   'editor.formatOnSave': boolean;
@@ -80,6 +76,7 @@ export interface ZnxStudioSettings {
 
 export const SETTINGS_DEFAULTS: ZnxStudioSettings = {
   'editor.fontSize': DEFAULT_FONT_SIZE,
+  'editor.fontFamily': "'Cascadia Code', 'SFMono-Regular', Consolas, 'Liberation Mono', Menlo, monospace",
   'editor.tabSize': 2,
   'editor.formatOnSave': true,
   'editor.keywordColor': DEFAULT_KEYWORD_COLOR,
@@ -132,6 +129,10 @@ export const SETTINGS_JSON_SCHEMA = {
       description: 'Editor font size in pixels.',
       minimum: 8,
       maximum: 40,
+    },
+    'editor.fontFamily': {
+      type: 'string',
+      description: 'Editor font family. Uses the first installed font in the comma-separated list.',
     },
     'editor.tabSize': {
       type: 'number',
@@ -359,6 +360,7 @@ export function coerceSetting(key: string, value: unknown): { ok: true; value: u
 /** Descriptions rendered in the settings side pane. */
 export const SETTINGS_DESCRIPTIONS: { key: keyof ZnxStudioSettings; description: string }[] = [
   { key: 'editor.fontSize', description: 'Editor font size in pixels.' },
+  { key: 'editor.fontFamily', description: 'Editor font family stack.' },
   { key: 'editor.tabSize', description: 'Spaces per tab.' },
   { key: 'editor.formatOnSave', description: 'Format the document on every explicit save.' },
   { key: 'editor.keywordColor', description: 'Keyword syntax color (hex, e.g. #ff5c9d).' },

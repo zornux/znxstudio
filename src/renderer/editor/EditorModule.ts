@@ -110,6 +110,9 @@ export class EditorModule implements IModule, EditorService {
       theme: 'znxstudio-dark',
       automaticLayout: true,
       fontSize: DEFAULT_FONT_SIZE,
+      fontFamily: "'Cascadia Code', 'SFMono-Regular', Consolas, 'Liberation Mono', Menlo, monospace",
+      lineHeight: 21,
+      fontLigatures: true,
       mouseWheelZoom: true, // Ctrl/Cmd + scroll adjusts the editor font size
       minimap: { enabled: true },
       stickyScroll: { enabled: true }, // keep the enclosing scope headers pinned
@@ -159,9 +162,6 @@ export class EditorModule implements IModule, EditorService {
     const actions: { icon: string; label: string; command: string }[] = [
       { icon: '▶', label: t('action.run'), command: CommandIds.RunStart },
       { icon: '🐞', label: t('action.debug'), command: CommandIds.DebugStart },
-      { icon: '■', label: t('action.stop'), command: CommandIds.DebugStop },
-      { icon: '🔨', label: t('action.build'), command: CommandIds.BuildStart },
-      { icon: '⟳', label: t('action.rebuild'), command: CommandIds.BuildRebuild },
     ];
     const gated: { button: HTMLButtonElement; command: string }[] = [];
     for (const action of actions) {
@@ -176,6 +176,23 @@ export class EditorModule implements IModule, EditorService {
       host.appendChild(button);
       gated.push({ button, command: action.command });
     }
+
+    const more = document.createElement('button');
+    more.className = 'znxstudio-editor-action';
+    more.textContent = '⋯';
+    more.title = 'More run and build actions';
+    more.setAttribute('aria-label', 'More run and build actions');
+    more.setAttribute('aria-haspopup', 'menu');
+    more.addEventListener('click', () => {
+      const rect = more.getBoundingClientRect();
+      context.layout.openFloatingMenu(rect.right - 210, rect.bottom + 2, () => [
+        { label: t('action.stop'), onClick: () => void context.commands.execute(CommandIds.DebugStop) },
+        { separator: true },
+        { label: t('action.build'), onClick: () => void context.commands.execute(CommandIds.BuildStart) },
+        { label: t('action.rebuild'), onClick: () => void context.commands.execute(CommandIds.BuildRebuild) },
+      ]);
+    });
+    host.appendChild(more);
 
     // Reflect command enablement (e.g. run/build/debug disabled in Restricted Mode) and refresh live when
     // it changes — a disabled <button> both greys out and cannot be clicked, so the gate is visible here
@@ -841,8 +858,12 @@ export class EditorModule implements IModule, EditorService {
 
   private applySettings(): void {
     const fontSize = this.settings?.get('editor.fontSize', DEFAULT_FONT_SIZE) ?? DEFAULT_FONT_SIZE;
+    const fontFamily = this.settings?.get(
+      'editor.fontFamily',
+      "'Cascadia Code', 'SFMono-Regular', Consolas, 'Liberation Mono', Menlo, monospace",
+    );
     const tabSize = this.tabSize();
-    this.editor.updateOptions({ fontSize });
+    this.editor.updateOptions({ fontSize, fontFamily, lineHeight: Math.round(fontSize * 1.5) });
     for (const model of this.documents.models()) model.updateOptions({ tabSize });
 
     // Autosave (Phase 20J WI2): track the resolved mode so the focus/window blur

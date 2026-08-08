@@ -55,7 +55,7 @@ export class ExtensionsManagerModule implements IModule {
     this.root = document.createElement('div');
     this.root.className = 'znxstudio-extmgr';
 
-    context.layout.addActivityItem({ id: 'extensions', label: 'Extensions', icon: '🧩', onSelect: () => this.reveal() });
+    context.layout.addActivityItem({ id: 'extensions', label: 'Extensions', icon: '▦', onSelect: () => this.reveal() });
     context.commands.register(CommandIds.ExtensionsShow, () => this.reveal(), 'Extensions: Show Manager');
 
     this.extensions.onDidChange(() => this.render());

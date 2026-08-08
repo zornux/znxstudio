@@ -6,6 +6,14 @@
 
 :root,
 :root[data-theme='znxstudio-dark'] {
+  --z-font-ui: -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, Ubuntu, 'Helvetica Neue', sans-serif;
+  --z-font-mono: 'Cascadia Code', 'SFMono-Regular', Consolas, 'Liberation Mono', Menlo, monospace;
+  --z-mono: var(--z-font-mono);
+  --znxstudio-font-mono: var(--z-font-mono);
+  --z-type-ui: 13px;
+  --z-type-small: 12px;
+  --z-type-caption: 11px;
+  --z-control-height: 28px;
   --z-bg: #1a1b1e;
   --z-bg-elevated: #212226;
   --z-bg-panel: #1d1e22;
@@ -105,8 +113,11 @@ body {
 }
 
 body {
-  font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
-  font-size: 13px;
+  font-family: var(--z-font-ui);
+  font-size: var(--z-type-ui);
+  line-height: 1.4;
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
   color: var(--z-fg);
   background: var(--z-bg);
 }
@@ -117,6 +128,7 @@ body {
 
 button {
   font-family: inherit;
+  font-size: inherit;
   cursor: pointer;
 }
 
@@ -138,8 +150,8 @@ button {
 }
 
 .znxstudio-titlebar-brand {
-  font-weight: 700;
-  letter-spacing: 0.3px;
+  font-weight: 600;
+  letter-spacing: 0.1px;
 }
 
 .znxstudio-titlebar-subtitle {
@@ -170,8 +182,11 @@ button {
   border: none;
   background: transparent;
   color: var(--z-fg-muted);
-  font-size: 18px;
-  border-radius: 6px;
+  font-family: var(--z-font-ui);
+  font-size: 21px;
+  font-weight: 400;
+  line-height: 1;
+  border-radius: 4px;
 }
 
 .znxstudio-activity-item:hover {
@@ -190,7 +205,7 @@ button {
   left: -4px;
   top: 8px;
   bottom: 8px;
-  width: 2px;
+  width: 3px;
   border-radius: 2px;
   background: var(--z-accent);
 }
@@ -225,7 +240,9 @@ button {
 }
 
 .znxstudio-menu-item {
-  display: block;
+  display: flex;
+  align-items: center;
+  gap: 24px;
   width: 100%;
   text-align: left;
   padding: 6px 10px;
@@ -235,6 +252,27 @@ button {
   color: var(--z-fg);
   font-size: 13px;
   cursor: pointer;
+}
+
+.znxstudio-menu-label {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.znxstudio-menu-shortcut {
+  flex: 0 0 auto;
+  color: var(--z-fg-muted);
+  font: inherit;
+  font-size: var(--z-type-caption);
+}
+.znxstudio-menu-item:disabled {
+  opacity: 0.45;
+  cursor: default;
+}
+.znxstudio-menu-item:disabled:hover {
+  background: transparent;
+  color: var(--z-fg);
 }
 
 .znxstudio-menu-item:hover {
@@ -363,7 +401,8 @@ button {
   align-items: center;
   gap: 6px;
   padding: 6px 8px 6px 12px;
-  font-size: 11px;
+  min-height: 35px;
+  font-size: var(--z-type-caption);
   text-transform: uppercase;
   letter-spacing: 0.6px;
   color: var(--z-fg-muted);
@@ -496,6 +535,16 @@ button {
   padding: 0 6px;
   flex: 0 0 auto;
 }
+
+/* Keep the editor primary: only Run, Debug and progressive disclosure remain
+   visible. Secondary build/stop actions live in the adjacent menu. */
+.znxstudio-editor-actions::before {
+  content: '';
+  width: 1px;
+  height: 18px;
+  margin-right: 3px;
+  background: var(--z-border);
+}
 .znxstudio-editor-action {
   border: none;
   background: transparent;
@@ -533,7 +582,7 @@ button {
   align-items: center;
   gap: 6px;
   padding: 0 8px 0 12px;
-  font-size: 12px;
+  font-size: var(--z-type-small);
   border-right: 1px solid var(--z-border);
   background: var(--z-bg-elevated);
   color: var(--z-fg-muted);
@@ -613,7 +662,7 @@ button {
   padding: 0 10px;
   background: var(--z-bg-elevated);
   border-bottom: 1px solid var(--z-border);
-  font-size: 12px;
+  font-size: var(--z-type-small);
   overflow: hidden;
   position: relative;
 }
@@ -755,11 +804,39 @@ button {
   display: none;
 }
 
+.znxstudio-panel-header {
+  display: flex;
+  min-width: 0;
+  background: var(--z-bg-elevated);
+  border-bottom: 1px solid var(--z-border);
+}
+
 .znxstudio-panel-tabs {
+  flex: 1;
+  min-width: 0;
   height: 30px;
   display: flex;
   align-items: stretch;
-  border-bottom: 1px solid var(--z-border);
+}
+
+.znxstudio-panel-actions {
+  display: flex;
+  align-items: center;
+  flex: 0 0 auto;
+  padding: 0 6px;
+}
+.znxstudio-panel-actions button {
+  width: 26px;
+  height: 26px;
+  border: 0;
+  border-radius: 4px;
+  background: transparent;
+  color: var(--z-fg-muted);
+  cursor: pointer;
+}
+.znxstudio-panel-actions button:hover {
+  background: var(--z-hover);
+  color: var(--z-fg);
 }
 
 .znxstudio-panel-tab {
@@ -770,7 +847,7 @@ button {
   background: transparent;
   color: var(--z-fg-muted);
   padding: 0 8px 0 14px;
-  font-size: 11px;
+  font-size: var(--z-type-caption);
   text-transform: uppercase;
   letter-spacing: 0.6px;
   border-bottom: 2px solid transparent;
@@ -864,7 +941,7 @@ button {
   background: transparent;
   color: var(--z-fg-muted);
   padding: 3px 10px;
-  font-size: 12px;
+  font-size: var(--z-type-small);
   border-radius: 5px;
   cursor: pointer;
 }
@@ -895,7 +972,7 @@ button {
   display: flex;
   flex-direction: column;
   height: 100%;
-  background: #1d1e22;
+  background: var(--z-bg-panel);
 }
 
 /* ---- Terminal tab strip (VS Code-style, multi-shell) ---- */
@@ -904,8 +981,8 @@ button {
   align-items: stretch;
   gap: 4px;
   padding: 3px 6px;
-  border-bottom: 1px solid var(--znxstudio-border, #2a2b30);
-  background: #202127;
+  border-bottom: 1px solid var(--z-border);
+  background: var(--z-bg-elevated);
 }
 .znxstudio-term-tablist {
   display: flex;
@@ -922,18 +999,18 @@ button {
   max-width: 180px;
   padding: 3px 6px 3px 10px;
   border-radius: 4px;
-  color: #b8bbc2;
-  font-size: 12px;
+  color: var(--z-fg-muted);
+  font-size: var(--z-type-small);
   white-space: nowrap;
   cursor: pointer;
   user-select: none;
 }
 .znxstudio-term-tab:hover {
-  background: #2a2b31;
+  background: var(--z-hover);
 }
 .znxstudio-term-tab.is-active {
-  background: #31333b;
-  color: #eef0f4;
+  background: var(--z-bg);
+  color: var(--z-fg);
 }
 .znxstudio-term-tab.is-exited .znxstudio-term-tab-name {
   opacity: 0.55;
@@ -946,10 +1023,10 @@ button {
 .znxstudio-term-tab-rename {
   width: 110px;
   padding: 1px 4px;
-  border: 1px solid var(--znxstudio-accent, #5b7cff);
+  border: 1px solid var(--z-accent);
   border-radius: 3px;
-  background: #1a1b1f;
-  color: #eef0f4;
+  background: var(--z-bg);
+  color: var(--z-fg);
   font: inherit;
   font-size: 12px;
   outline: none;
@@ -971,7 +1048,7 @@ button {
 }
 .znxstudio-term-tab-close:hover {
   opacity: 1;
-  background: #45464e;
+  background: var(--z-hover);
 }
 .znxstudio-term-actions {
   display: flex;
@@ -982,7 +1059,7 @@ button {
 .znxstudio-term-split {
   border: none;
   background: transparent;
-  color: #b8bbc2;
+  color: var(--z-fg-muted);
   cursor: pointer;
   font-size: 14px;
   line-height: 1;
@@ -1000,8 +1077,8 @@ button {
 .znxstudio-term-new:hover,
 .znxstudio-term-new-caret:hover,
 .znxstudio-term-split:hover {
-  background: #2a2b31;
-  color: #eef0f4;
+  background: var(--z-hover);
+  color: var(--z-fg);
 }
 .znxstudio-term-body {
   position: relative;
@@ -1013,7 +1090,7 @@ button {
 .znxstudio-term-group {
   display: flex;
   height: 100%;
-  background: #141519;
+  background: var(--z-border);
 }
 /* Vertical split: panes stacked top/bottom instead of side by side. */
 .znxstudio-term-group.is-vertical {
@@ -1025,7 +1102,7 @@ button {
   min-height: 0;
   height: 100%;
   padding: 6px 8px;
-  background: #1d1e22;
+  background: var(--z-bg-panel);
 }
 .znxstudio-term-group.is-vertical .znxstudio-term-pane {
   height: auto;
@@ -1035,7 +1112,7 @@ button {
 .znxstudio-term-divider {
   flex: 0 0 6px;
   align-self: stretch;
-  background: #141519;
+  background: var(--z-border);
   cursor: col-resize;
   position: relative;
 }
@@ -1044,7 +1121,7 @@ button {
 }
 .znxstudio-term-divider:hover,
 body.is-resizing .znxstudio-term-divider {
-  background: var(--znxstudio-accent, #5b7cff);
+  background: var(--z-accent);
 }
 body.is-resizing {
   cursor: col-resize;
@@ -1053,16 +1130,16 @@ body.is-resizing {
 /* When split, the focused pane gets a subtle top accent so it's clear which one
    receives keystrokes. */
 .znxstudio-term-group.is-split .znxstudio-term-pane.is-active-pane {
-  box-shadow: inset 0 2px 0 var(--znxstudio-accent, #5b7cff);
+  box-shadow: inset 0 2px 0 var(--z-accent);
 }
 .znxstudio-context-menu {
   position: fixed;
   z-index: 1000;
   min-width: 160px;
   padding: 4px;
-  border: 1px solid var(--znxstudio-border, #2a2b30);
+  border: 1px solid var(--z-border);
   border-radius: 6px;
-  background: #26272d;
+  background: var(--z-bg-elevated);
   box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4);
 }
 .znxstudio-context-menu-item {
@@ -1071,14 +1148,14 @@ body.is-resizing {
   text-align: left;
   border: none;
   background: transparent;
-  color: #d7d9de;
-  font-size: 12px;
+  color: var(--z-fg);
+  font-size: var(--z-type-small);
   padding: 6px 10px;
   border-radius: 4px;
   cursor: pointer;
 }
 .znxstudio-context-menu-item:hover:not(:disabled) {
-  background: #34363e;
+  background: var(--z-hover);
 }
 .znxstudio-context-menu-item:disabled {
   opacity: 0.4;
@@ -1115,8 +1192,8 @@ body.is-resizing {
 .znxstudio-output-log {
   margin: 0;
   padding: 10px 14px;
-  font-family: 'Cascadia Code', 'Consolas', monospace;
-  font-size: 12px;
+  font-family: var(--z-font-mono);
+  font-size: var(--z-type-small);
   line-height: 1.5;
   color: var(--z-fg);
   white-space: pre-wrap;
@@ -1130,7 +1207,7 @@ body.is-resizing {
   justify-content: space-between;
   background: var(--z-status-bg);
   color: var(--z-status-fg);
-  font-size: 12px;
+  font-size: var(--z-type-small);
   padding: 0 8px;
 }
 
@@ -1644,8 +1721,9 @@ body.is-resizing {
   color: var(--z-fg);
   border: 1px solid var(--z-border);
   border-radius: 3px;
-  padding: 2px 6px;
-  font-size: 11px;
+  min-height: 26px;
+  padding: 3px 7px;
+  font-size: var(--z-type-small);
   min-width: 0;
   flex: 1;
 }
@@ -1672,8 +1750,9 @@ body.is-resizing {
   color: var(--z-fg);
   border: 1px solid var(--z-border);
   border-radius: 3px;
-  padding: 2px 4px;
-  font-size: 11px;
+  min-height: 26px;
+  padding: 3px 6px;
+  font-size: var(--z-type-small);
   max-width: 40%;
 }
 .znxstudio-btn-small {
@@ -6819,9 +6898,45 @@ body.is-resizing {
 .znxstudio-workbench.is-narrow .znxstudio-titlebar-subtitle {
   display: none;
 }
+.znxstudio-workbench.is-narrow .znxstudio-titlebar-brand {
+  display: none;
+}
+.znxstudio-workbench.is-narrow .znxstudio-titlebar {
+  gap: 4px;
+  padding-inline: 6px;
+}
+.znxstudio-workbench.is-narrow .znxstudio-menubar {
+  min-width: 0;
+  margin-left: 0;
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+.znxstudio-workbench.is-narrow .znxstudio-menubar::-webkit-scrollbar {
+  display: none;
+}
+.znxstudio-workbench.is-narrow .znxstudio-menubar-item {
+  padding-inline: 7px;
+}
 .znxstudio-workbench.is-compact .znxstudio-activitybar {
   /* keep icons but tighten the rail */
   width: 40px;
+}
+.znxstudio-workbench.is-compact .znxstudio-activity-item {
+  width: 36px;
+  height: 36px;
+}
+.znxstudio-workbench.is-compact .znxstudio-status-item {
+  max-width: 130px;
+}
+@media (max-height: 700px) {
+  .znxstudio-activitybar {
+    padding-top: 4px;
+    gap: 1px;
+  }
+  .znxstudio-activity-item {
+    width: 38px;
+    height: 38px;
+  }
 }
 .znxstudio-workbench.is-compact .znxstudio-editor-tab {
   max-width: 150px;

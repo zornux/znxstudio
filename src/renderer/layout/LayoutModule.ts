@@ -1,4 +1,4 @@
-import { ServiceKeys, type EditorService, type LayoutService, type SettingsService } from '../core/Contracts';
+import { ServiceKeys, type EditorService, type KeybindingService, type LayoutService, type SettingsService } from '../core/Contracts';
 import { Emitter } from '../core/Emitter';
 import { selfTestCoordinator } from '../core/SelfTestCoordinator';
 import type { IModule, ModuleContext } from '../core/Module';
@@ -106,6 +106,8 @@ export class LayoutModule implements IModule, LayoutService {
     // searchable "+" picker, and remember the last active tab.
     context.layout.onDidRequestClosePanel((id) => this.setPanelPreferences(closePanel(this.panelPreferences, id)));
     context.layout.onDidRequestOpenPanel(() => this.openPanelPicker());
+    context.layout.onDidRequestMaximizePanel(() => this.update(maximizePanel(this.current)));
+    context.layout.onDidRequestHidePanel(() => this.update(togglePanel(this.current, false)));
     context.layout.onDidChangeActivePanel((id) => {
       // Revealing a panel also OPENS it: a module calling showPanelView on a
       // panel that's in overflow (e.g. Run → Output) must actually surface it.
@@ -124,12 +126,20 @@ export class LayoutModule implements IModule, LayoutService {
       else if (!visible) this.update(toggleSideBar(this.current, true));
     });
 
-    // The title-bar menu bar (File · Edit · View · Help) — the app's single menu,
-    // replacing Electron's default OS menu (removed in main so there's one View).
+    // The title-bar menu bar — the app's single menu, replacing Electron's default
+    // OS menu (removed in main). Conventional top-level grouping so features are
+    // discoverable without all competing at one level (progressive disclosure):
+    // File · Edit · Selection · View · Go · Run · Terminal · Tools · AI · Help.
     context.layout.addMenu('File', () => this.buildFileMenu());
     context.layout.addMenu('Edit', () => this.buildEditMenu());
-    // UX-3: the View menu — a central launcher for panels + workspaces.
+    context.layout.addMenu('Selection', () => this.buildSelectionMenu());
+    // The View menu — a central launcher for panels + workspaces.
     context.layout.addMenu('View', () => this.buildViewMenu());
+    context.layout.addMenu('Go', () => this.buildGoMenu());
+    context.layout.addMenu('Run', () => this.buildRunMenu());
+    context.layout.addMenu('Terminal', () => this.buildTerminalMenu());
+    context.layout.addMenu('Tools', () => this.buildToolsMenu());
+    context.layout.addMenu('AI', () => this.buildAiMenu());
     context.layout.addMenu('Help', () => this.buildHelpMenu());
     register(CommandIds.ViewMenu, () => context.layout.triggerMenu('View'), 'View: Open View Menu');
     // Prune deleted/moved projects from the recent list on startup.
@@ -333,6 +343,148 @@ export class LayoutModule implements IModule, LayoutService {
     ];
   }
 
+  /** A command-backed menu item; a no-op (and harmless) if the command is unregistered. */
+  private menuItem(label: string, id: string): MenuEntry {
+    const keybindings = this.context.services.tryGet<KeybindingService>(ServiceKeys.Keybindings);
+    return {
+      label,
+      shortcut: keybindings?.keysFor(id) ?? undefined,
+      disabled: !this.context.commands.has(id) || !this.context.commands.isEnabled(id),
+      onClick: () => this.runCommand(id),
+    };
+  }
+
+  /** The Selection menu — multi-cursor and folding (Ctrl-A "Select All" lives in Edit). */
+  private buildSelectionMenu(): MenuEntry[] {
+    const m = (label: string, id: string) => this.menuItem(label, id);
+    return [
+      m('Add Cursor Above', CommandIds.MultiCursorAddAbove),
+      m('Add Cursor Below', CommandIds.MultiCursorAddBelow),
+      m('Add Next Occurrence', CommandIds.MultiCursorAddNext),
+      m('Select All Occurrences', CommandIds.MultiCursorSelectAll),
+      m('Add Cursors to Line Ends', CommandIds.MultiCursorPerLine),
+      { separator: true },
+      m('Clear Multiple Cursors', CommandIds.MultiCursorClear),
+      { separator: true },
+      m('Fold All', CommandIds.FoldAll),
+      m('Fold at Cursor', CommandIds.FoldAtCursor),
+    ];
+  }
+
+  /** The Go menu — navigation (Go to File / Everywhere / Find in Files). */
+  private buildGoMenu(): MenuEntry[] {
+    return [
+      this.menuItem('Go to File…', CommandIds.QuickOpen),
+      this.menuItem('Search Everywhere…', CommandIds.SearchEverywhere),
+      { separator: true },
+      this.menuItem('Find in Files', CommandIds.SearchShow),
+    ];
+  }
+
+  /** The Run menu — run/debug/build, with Debug, Test and Performance as submenus. */
+  private buildRunMenu(): MenuEntry[] {
+    const m = (label: string, id: string) => this.menuItem(label, id);
+    return [
+      m('Start Debugging', CommandIds.DebugStart),
+      m('Run Without Debugging', CommandIds.RunStart),
+      m('Stop', CommandIds.DebugStop),
+      { separator: true },
+      m('Build', CommandIds.BuildStart),
+      m('Rebuild', CommandIds.BuildRebuild),
+      m('Run Script…', CommandIds.RunScript),
+      { separator: true },
+      {
+        label: 'Debug',
+        submenu: () => [
+          m('Continue', CommandIds.DebugContinue),
+          m('Step Over', CommandIds.DebugStepOver),
+          m('Step Into', CommandIds.DebugStepIn),
+          m('Step Out', CommandIds.DebugStepOut),
+          m('Pause', CommandIds.DebugPause),
+          { separator: true },
+          m('Attach…', CommandIds.DebugAttach),
+        ],
+      },
+      {
+        label: 'Test',
+        submenu: () => [
+          m('Run All Tests', CommandIds.TestRunAll),
+          m('Test Explorer', CommandIds.TestExplorerShow),
+          m('Coverage', CommandIds.CoverageShow),
+          m('Test Performance', CommandIds.TestPerfShow),
+          m('Mocks', CommandIds.MockingShow),
+          m('Continuous Testing', CommandIds.ContinuousShow),
+        ],
+      },
+      {
+        label: 'Performance',
+        submenu: () => [
+          m('Profiler', CommandIds.ViewProfiler),
+          m('CPU', CommandIds.PerfCpuShow),
+          m('Memory', CommandIds.PerfMemoryShow),
+          m('Timeline', CommandIds.PerfTimelineShow),
+          m('Hotspots', CommandIds.PerfHotspotsShow),
+          m('Allocations', CommandIds.PerfAllocationsShow),
+        ],
+      },
+    ];
+  }
+
+  /** The Terminal menu. */
+  private buildTerminalMenu(): MenuEntry[] {
+    const m = (label: string, id: string) => this.menuItem(label, id);
+    return [
+      m('New Terminal', CommandIds.TerminalNew),
+      m('Split Terminal', CommandIds.TerminalSplit),
+      { separator: true },
+      m('Kill Terminal', CommandIds.TerminalKill),
+      { separator: true },
+      m('Toggle Terminal', CommandIds.TerminalToggle),
+      m('Next Terminal', CommandIds.TerminalNext),
+    ];
+  }
+
+  /** The Tools menu — advanced/ecosystem tooling that shouldn't compete at top level. */
+  private buildToolsMenu(): MenuEntry[] {
+    const m = (label: string, id: string) => this.menuItem(label, id);
+    return [
+      {
+        label: 'Source Control',
+        submenu: () => [
+          m('Open Source Control', CommandIds.ScmShow),
+          m('Commit…', CommandIds.ScmCommit),
+          m('Stage All Changes', CommandIds.ScmStageAll),
+          { separator: true },
+          m('History', CommandIds.HistoryShow),
+          m('Pull Requests', CommandIds.PrShow),
+        ],
+      },
+      { separator: true },
+      m('ORM Explorer', CommandIds.OrmExplorerShow),
+      m('Remote Development', CommandIds.RemoteShow),
+      m('Generate Dev Container', CommandIds.DevContainerGen),
+    ];
+  }
+
+  /** The AI menu — one intentional surface for ZnxStudio's AI capabilities. */
+  private buildAiMenu(): MenuEntry[] {
+    const m = (label: string, id: string) => this.menuItem(label, id);
+    return [
+      m('Ask Znx', CommandIds.AiChatShow),
+      m('New Chat', CommandIds.AiChatClear),
+      { separator: true },
+      m('Review Code', CommandIds.AiReview),
+      m('Debug with AI', CommandIds.AiExplainError),
+      m('Generate Tests', CommandIds.AiTestGen),
+      m('Generate Documentation', CommandIds.AiDocFile),
+      m('Document Symbol', CommandIds.AiDocSymbol),
+      m('Analyze Architecture', CommandIds.AiArchitecture),
+      m('Refactor with AI', CommandIds.AiRefactor),
+      { separator: true },
+      m('Configure AI…', CommandIds.AiConfigure),
+    ];
+  }
+
   /** The Help menu — version + docs. */
   private buildHelpMenu(): MenuEntry[] {
     return [
@@ -411,12 +563,7 @@ export class LayoutModule implements IModule, LayoutService {
 
   /** The View menu (UX-3): appearance toggles, an Open Panel picker, and every workspace by group. */
   private buildViewMenu(): MenuEntry[] {
-    const command = (label: string, id: string): MenuEntry => ({
-      label,
-      onClick: () => {
-        if (this.context.commands.has(id)) void this.context.commands.execute(id);
-      },
-    });
+    const command = (label: string, id: string): MenuEntry => this.menuItem(label, id);
     const entries: MenuEntry[] = [
       { header: t('view.appearance') },
       command(t('view.toggleSideBar'), CommandIds.LayoutToggleSideBar),

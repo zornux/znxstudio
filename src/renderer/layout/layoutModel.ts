@@ -45,7 +45,7 @@ export interface LayoutState {
 
 export const LAYOUT_LIMITS = {
   sidebarWidth: { min: 160, max: 720, default: 260 },
-  panelHeight: { min: 80, max: 900, default: 240 },
+  panelHeight: { min: 80, max: 900, default: 200 },
   panelWidth: { min: 200, max: 900, default: 380 },
 } as const;
 

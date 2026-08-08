@@ -80,7 +80,7 @@ export class TestExplorerModule implements IModule {
     context.commands.register(CommandIds.TestExplorerShow, () => this.reveal(), 'Test: Show Test Explorer');
     context.commands.register(CommandIds.TestRunAll, () => void this.runAll(), 'Test: Run All Tests');
     context.commands.register(CommandIds.TestRefresh, () => void this.discover(), 'Test: Refresh Tests');
-    context.layout.addActivityItem({ id: 'testing', label: 'Testing', icon: '🧪', onSelect: () => this.reveal() });
+    context.layout.addActivityItem({ id: 'testing', label: 'Testing', icon: '◇', onSelect: () => this.reveal() });
 
     this.workspace.onDidChangeWorkspace(() => void this.discover());
     void this.discover();

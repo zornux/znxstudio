@@ -45,7 +45,7 @@ export class ChatModule implements IModule {
     context.layout.addActivityItem({
       id: 'ai-chat',
       label: 'AI Chat',
-      icon: '🤖',
+      icon: '✦',
       onSelect: () => this.reveal(),
     });
     context.commands.register(CommandIds.AiChatShow, () => this.reveal(), 'AI: Chat');

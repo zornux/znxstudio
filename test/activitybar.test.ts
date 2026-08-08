@@ -32,8 +32,8 @@ describe('activity bar — curation', () => {
     const layout = curateActivityBar(REGISTERED, EMPTY_CURATION);
     expect(layout.pinned).toEqual([...DEFAULT_ACTIVITY]);
     // Overflow groups appear in GROUP_ORDER, each carrying its items.
-    expect(layout.overflow.map((g) => g.group)).toEqual(['AI', 'Security', 'Performance', 'Testing', 'Database', 'Cloud', 'Collaboration']);
-    expect(layout.overflow[0]).toEqual({ group: 'AI', ids: ['ai-chat'] });
+    expect(layout.overflow.map((g) => g.group)).toEqual(['Security', 'Performance', 'Database', 'Cloud', 'Collaboration']);
+    expect(layout.overflow[0]).toEqual({ group: 'Security', ids: ['security'] });
   });
 
   test('a custom pinned order wins over the defaults', () => {
@@ -75,7 +75,7 @@ describe('activity bar — curation transitions', () => {
 
   test('unpin from the defaults materializes them minus the item', () => {
     const next = unpinItem(EMPTY_CURATION, 'search');
-    expect(next.pinned).toEqual(['explorer', 'scm', 'run-debug', 'extensions']);
+    expect(next.pinned).toEqual(['explorer', 'scm', 'run-debug', 'testing', 'extensions', 'ai-chat']);
   });
 
   test('hide removes from pinned and records it; unhide reverses', () => {
@@ -103,8 +103,7 @@ describe('view menu — workspace grouping (UX-3)', () => {
       { id: 'mystery', label: 'Mystery' },
     ]);
     expect(groups[0].group).toBe('Core');
-    expect(groups[0].items.map((i) => i.id)).toEqual(['explorer', 'search']);
-    expect(groups.find((g) => g.group === 'AI')?.items[0].id).toBe('ai-chat');
+    expect(groups[0].items.map((i) => i.id)).toEqual(['explorer', 'ai-chat', 'search']);
     expect(groups[groups.length - 1].group).toBe('Other');
     expect(workspaceGroupOf('scm')).toBe('Core');
     expect(workspaceGroupOf('database')).toBe('Database');

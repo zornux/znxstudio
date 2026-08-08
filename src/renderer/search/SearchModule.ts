@@ -62,7 +62,7 @@ export class SearchModule implements IModule {
     context.layout.addActivityItem({
       id: 'search',
       label: 'Search',
-      icon: '🔎',
+      icon: '⌕',
       onSelect: () => this.reveal(),
     });
 

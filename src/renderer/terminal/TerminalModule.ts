@@ -93,6 +93,7 @@ export class TerminalModule implements IModule {
   private cwd: string | undefined;
   private shells: ShellProfile[] = [];
   private observer: ResizeObserver | null = null;
+  private themeObserver: MutationObserver | null = null;
   private available = true;
   /** True while restoring a persisted layout, so intermediate steps don't save. */
   private restoring = false;
@@ -144,6 +145,8 @@ export class TerminalModule implements IModule {
 
     this.observer = new ResizeObserver(() => this.syncActiveSizes());
     this.observer.observe(this.body);
+    this.themeObserver = new MutationObserver(() => this.applyTerminalTheme());
+    this.themeObserver.observe(document.documentElement, { attributes: true, attributeFilter: ['data-theme'] });
 
     // Discovery + the first terminal, then the self-test (which inspects live
     // groups) once that has settled.
@@ -151,6 +154,11 @@ export class TerminalModule implements IModule {
       await this.init();
       await selfTestCoordinator.run('terminal', () => this.maybeSelfTest());
     })();
+  }
+
+  deactivate(): void {
+    this.observer?.disconnect();
+    this.themeObserver?.disconnect();
   }
 
   /**
@@ -293,10 +301,11 @@ export class TerminalModule implements IModule {
 
   private async spawnPane(group: TerminalGroup, shellId?: string, cwd?: string): Promise<void> {
     const term = new Terminal({
-      fontSize: 13,
-      fontFamily: "'Cascadia Code', 'Consolas', monospace",
+      fontSize: 14,
+      lineHeight: 1.2,
+      fontFamily: "'Cascadia Code', 'SFMono-Regular', Consolas, 'Liberation Mono', Menlo, monospace",
       cursorBlink: true,
-      theme: { background: '#1d1e22', foreground: '#d7d9de' },
+      theme: this.terminalTheme(),
     });
     const fit = new FitAddon();
     term.loadAddon(fit);
@@ -384,8 +393,45 @@ export class TerminalModule implements IModule {
     divider.className = 'znxstudio-term-divider';
     divider.setAttribute('role', 'separator');
     divider.setAttribute('aria-orientation', group.orientation === 'vertical' ? 'horizontal' : 'vertical');
+    divider.setAttribute('aria-label', 'Resize terminal panes');
+    divider.tabIndex = 0;
     divider.addEventListener('mousedown', (event) => this.beginDrag(group, index, event));
+    divider.addEventListener('keydown', (event) => {
+      const vertical = group.orientation === 'vertical';
+      const decrease = vertical ? event.key === 'ArrowUp' : event.key === 'ArrowLeft';
+      const increase = vertical ? event.key === 'ArrowDown' : event.key === 'ArrowRight';
+      if (!decrease && !increase) return;
+      event.preventDefault();
+      const before = group.panes[index];
+      const after = group.panes[index + 1];
+      const resized = resizeSplit(
+        before.el.getBoundingClientRect()[vertical ? 'height' : 'width'],
+        after.el.getBoundingClientRect()[vertical ? 'height' : 'width'],
+        before.flexGrow,
+        after.flexGrow,
+        (decrease ? -1 : 1) * (event.shiftKey ? 40 : 10),
+      );
+      before.flexGrow = resized.before;
+      after.flexGrow = resized.after;
+      this.layoutGroup(group);
+      this.saveLayout();
+    });
     return divider;
+  }
+
+  private terminalTheme(): { background: string; foreground: string; cursor: string; selectionBackground: string } {
+    const styles = getComputedStyle(document.documentElement);
+    return {
+      background: styles.getPropertyValue('--z-bg-panel').trim() || '#1d1e22',
+      foreground: styles.getPropertyValue('--z-fg').trim() || '#d7d9de',
+      cursor: styles.getPropertyValue('--z-fg').trim() || '#d7d9de',
+      selectionBackground: styles.getPropertyValue('--z-accent').trim() || '#2f6fe0',
+    };
+  }
+
+  private applyTerminalTheme(): void {
+    const theme = this.terminalTheme();
+    for (const group of this.groups) for (const pane of group.panes) pane.term.options.theme = theme;
   }
 
   /** Resize the two panes flanking a divider as the pointer drags it. */

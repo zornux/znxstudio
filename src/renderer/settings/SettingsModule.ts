@@ -611,6 +611,8 @@ export class SettingsModule implements IModule, SettingsService {
       automaticLayout: true,
       minimap: { enabled: false },
       fontSize: this.get('editor.fontSize', 13),
+      fontFamily: this.get('editor.fontFamily', "'Cascadia Code', 'SFMono-Regular', Consolas, 'Liberation Mono', Menlo, monospace"),
+      lineHeight: Math.round(this.get('editor.fontSize', 14) * 1.5),
       scrollBeyondLastLine: false,
     });
 

@@ -8,8 +8,8 @@
  * Pure — no DOM — so the curation is unit-testable; `LayoutManager` renders it.
  */
 
-/** The five workspaces shown in the Activity Bar by default. */
-export const DEFAULT_ACTIVITY = ['explorer', 'search', 'scm', 'run-debug', 'extensions'] as const;
+/** The core developer workspaces shown in the Activity Bar by default. */
+export const DEFAULT_ACTIVITY = ['explorer', 'search', 'scm', 'run-debug', 'testing', 'extensions', 'ai-chat'] as const;
 
 /**
  * Which logical WORKSPACE each non-default activity item belongs to, so the

@@ -19,7 +19,7 @@ import {
 } from '../layout/activityBar';
 
 export type MenuEntry =
-  | { label: string; onClick: () => void }
+  | { label: string; onClick: () => void; disabled?: boolean; shortcut?: string }
   /** A checkable item (SB-3). Toggling keeps the menu open and re-renders it. */
   | { label: string; checked: boolean; onToggle: () => void }
   /** A nested submenu (VS Code-style ›). Opens a flyout of `submenu()` to the side. */
@@ -91,7 +91,13 @@ export class LayoutManager {
           <div class="znxstudio-editor-area" data-role="editor-area"></div>
           <div class="znxstudio-splitter znxstudio-splitter--panel" data-role="panel-splitter" role="separator" aria-orientation="horizontal" aria-label="Resize the panel" title="Drag to resize the panel"></div>
           <div class="znxstudio-panel" data-role="panel" aria-label="Panel">
-            <div class="znxstudio-panel-tabs" data-role="panel-tabs" role="tablist" aria-label="Panel Views"></div>
+            <div class="znxstudio-panel-header">
+              <div class="znxstudio-panel-tabs" data-role="panel-tabs" role="tablist" aria-label="Panel Views"></div>
+              <div class="znxstudio-panel-actions" role="toolbar" aria-label="Panel layout">
+                <button type="button" data-role="panel-maximize" title="Maximize or restore panel" aria-label="Maximize or restore panel">⌃</button>
+                <button type="button" data-role="panel-hide" title="Hide panel" aria-label="Hide panel">×</button>
+              </div>
+            </div>
             <div class="znxstudio-panel-views" data-role="panel-views"></div>
           </div>
         </div>
@@ -131,6 +137,8 @@ export class LayoutManager {
 
     this.wireSplitter(this.el.sidebarSplitter, 'sidebar');
     this.wireSplitter(this.el.panelSplitter, 'panel');
+    pick('panel-maximize').addEventListener('click', () => this.requestPanelMaximize());
+    pick('panel-hide').addEventListener('click', () => this.requestPanelHide());
     this.installResponsive();
   }
 
@@ -161,6 +169,18 @@ export class LayoutManager {
    * is docked on — a right-docked sidebar grows as the pointer moves LEFT.
    */
   private wireSplitter(handle: HTMLElement, region: 'sidebar' | 'panel'): void {
+    handle.tabIndex = 0;
+    handle.addEventListener('keydown', (event) => {
+      const horizontal = region === 'panel' && this.layoutState.panel.position === 'bottom';
+      const decrement = horizontal ? event.key === 'ArrowUp' : event.key === 'ArrowLeft';
+      const increment = horizontal ? event.key === 'ArrowDown' : event.key === 'ArrowRight';
+      if (!decrement && !increment) return;
+      event.preventDefault();
+      const current = region === 'sidebar' ? this.layoutState.sidebar.width : horizontal ? this.layoutState.panel.height : this.layoutState.panel.width;
+      const direction = decrement ? -1 : 1;
+      const physicalDirection = region === 'sidebar' && this.layoutState.sidebar.side === 'right' ? -direction : direction;
+      for (const handler of this.resizeHandlers) handler(region, current + physicalDirection * (event.shiftKey ? 40 : 10));
+    });
     handle.addEventListener('pointerdown', (event: PointerEvent) => {
       event.preventDefault();
       handle.setPointerCapture(event.pointerId);
@@ -225,6 +245,20 @@ export class LayoutManager {
   /** Fired when the "+" overflow button is clicked — the owner opens the panel picker. */
   onDidRequestOpenPanel(handler: () => void): void {
     this.panelOpenHandlers.push(handler);
+  }
+  private readonly panelMaximizeHandlers: (() => void)[] = [];
+  private readonly panelHideHandlers: (() => void)[] = [];
+  onDidRequestMaximizePanel(handler: () => void): void {
+    this.panelMaximizeHandlers.push(handler);
+  }
+  onDidRequestHidePanel(handler: () => void): void {
+    this.panelHideHandlers.push(handler);
+  }
+  private requestPanelMaximize(): void {
+    for (const handler of this.panelMaximizeHandlers) handler();
+  }
+  private requestPanelHide(): void {
+    for (const handler of this.panelHideHandlers) handler();
   }
   /** Fired when the active tab changes — the owner persists it (last-active memory). */
   onDidChangeActivePanel(handler: (id: string) => void): void {
@@ -633,11 +667,24 @@ export class LayoutManager {
     const button = document.createElement('button');
     button.className = 'znxstudio-menu-item';
     button.setAttribute('role', 'menuitem');
-    button.textContent = entry.label;
+    button.disabled = Boolean(entry.disabled);
+    button.setAttribute('aria-disabled', entry.disabled ? 'true' : 'false');
+    const label = document.createElement('span');
+    label.className = 'znxstudio-menu-label';
+    label.textContent = entry.label;
+    button.appendChild(label);
+    if (entry.shortcut) {
+      const shortcut = document.createElement('kbd');
+      shortcut.className = 'znxstudio-menu-shortcut';
+      shortcut.textContent = entry.shortcut;
+      shortcut.setAttribute('aria-hidden', 'true');
+      button.appendChild(shortcut);
+    }
     // Moving onto a non-parent item collapses any open sibling submenu.
     button.addEventListener('mouseenter', () => this.closeSubMenusBelow(button));
     button.addEventListener('click', (event) => {
       event.stopPropagation();
+      if (entry.disabled) return;
       this.closeMenu();
       entry.onClick();
     });
@@ -732,7 +779,9 @@ export class LayoutManager {
 
   private menuItems(): HTMLElement[] {
     const host = this.activeMenuEl();
-    return host ? [...host.querySelectorAll<HTMLElement>('[role="menuitem"], [role="menuitemcheckbox"]')] : [];
+    return host
+      ? [...host.querySelectorAll<HTMLElement>('[role="menuitem"]:not([aria-disabled="true"]), [role="menuitemcheckbox"]:not([aria-disabled="true"])')]
+      : [];
   }
 
   private readonly onDocumentClick = (event: MouseEvent): void => {

@@ -76,7 +76,7 @@ export class ProjectExplorerModule implements IModule, ExplorerService {
     context.layout.addActivityItem({
       id: 'explorer',
       label: 'Explorer',
-      icon: '🗂',
+      icon: '≡',
       // Swap the shared sidebar back to the file explorer (Solution may hold it).
       onSelect: () => {
         context.layout.setSideBar('Explorer', this.shell);
@@ -268,7 +268,15 @@ export class ProjectExplorerModule implements IModule, ExplorerService {
     const body = document.createElement('div');
     body.className = 'znxstudio-explorer-folder-body';
 
-    const entries = await window.znxstudio.fs.readDirectory(info.root);
+    let entries: FileNode[];
+    try {
+      entries = await window.znxstudio.fs.readDirectory(info.root);
+    } catch (error) {
+      // The root was moved, renamed, or deleted (e.g. a stale session-restored
+      // folder). Degrade to an inline notice + Remove action instead of letting
+      // the rejection escape and crash the renderer ("ENOENT: … scandir").
+      return this.renderUnavailableRoot(info, error);
+    }
     const groups = this.categorize(entries, info);
 
     const scripts = info.project?.scripts;
@@ -279,6 +287,26 @@ export class ProjectExplorerModule implements IModule, ExplorerService {
     if (groups.files.length) body.appendChild(this.section('Files', this.tree(groups.files)));
     if (groups.generated.length) body.appendChild(this.section('Generated', this.tree(groups.generated), true));
     return body;
+  }
+
+  /** Inline placeholder for a workspace root that can't be read (moved/deleted). */
+  private renderUnavailableRoot(info: WorkspaceInfo, error: unknown): HTMLElement {
+    const wrap = document.createElement('div');
+    wrap.className = 'znxstudio-explorer-empty';
+
+    const message = document.createElement('p');
+    message.textContent = 'This folder is no longer available (moved, renamed, or deleted).';
+    message.title = String((error as { message?: string })?.message ?? error);
+
+    const button = document.createElement('button');
+    button.className = 'znxstudio-btn';
+    button.textContent = 'Remove from Workspace';
+    button.addEventListener('click', () =>
+      void this.context.commands.execute(CommandIds.WorkspaceRemoveFolder, info.root),
+    );
+
+    wrap.append(message, button);
+    return wrap;
   }
 
   /** A collapsible root section with a name + remove button (multi-root). */
