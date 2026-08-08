@@ -144,9 +144,11 @@ function toManifest(ext: ValidatedExtension): unknown {
       commands: ext.contributions.commands,
       snippets: ext.contributions.snippets,
       keybindings: ext.contributions.keybindings,
-      // Rebuild themes as token→color so the shared validator re-checks them.
+      // Rebuild themes as token→color so the shared validator re-checks them. The stored
+      // id is `${ext.id}.${themeId}`; strip the extension-id PREFIX (not the last dot) so a
+      // themeId that itself contains a dot round-trips to the same id after a restart.
       themes: ext.contributions.themes.map((t) => ({
-        id: t.id.includes('.') ? t.id.slice(t.id.lastIndexOf('.') + 1) : t.id,
+        id: t.id.startsWith(`${ext.id}.`) ? t.id.slice(ext.id.length + 1) : t.id,
         label: t.label,
         type: t.type,
         colors: cssVarsToTokens(t.cssVars),
