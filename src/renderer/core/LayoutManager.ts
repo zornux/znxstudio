@@ -285,11 +285,17 @@ export class LayoutManager {
     this.closeMenu();
     const menu = document.createElement('div');
     menu.className = 'znxstudio-menu znxstudio-panel-picker';
+    menu.setAttribute('role', 'dialog');
+    menu.setAttribute('aria-label', 'Open a panel');
 
     const search = document.createElement('input');
     search.className = 'znxstudio-menu-search';
     search.placeholder = 'Search panels…';
+    search.setAttribute('aria-label', 'Search panels');
     const list = document.createElement('div');
+    list.className = 'znxstudio-panel-picker-results';
+    list.setAttribute('role', 'listbox');
+    list.setAttribute('aria-label', 'Available panels');
 
     const render = (filter: string): void => {
       list.replaceChildren();
@@ -305,6 +311,7 @@ export class LayoutManager {
       for (const item of matches) {
         const button = document.createElement('button');
         button.className = 'znxstudio-menu-item';
+        button.setAttribute('role', 'option');
         button.textContent = item.title;
         button.addEventListener('click', (event) => {
           event.stopPropagation();
@@ -315,6 +322,13 @@ export class LayoutManager {
       }
     };
     search.addEventListener('input', () => render(search.value));
+    search.addEventListener('keydown', (event) => {
+      if (event.key !== 'ArrowDown') return;
+      const first = list.querySelector<HTMLButtonElement>('.znxstudio-menu-item');
+      if (!first) return;
+      event.preventDefault();
+      first.focus();
+    });
     render('');
 
     menu.append(search, list);
@@ -323,6 +337,7 @@ export class LayoutManager {
     menu.style.bottom = `${rect ? window.innerHeight - rect.top + 6 : 40}px`;
     this.root.appendChild(menu);
     this.menuEl = menu;
+    this.menuReturnFocus = document.activeElement as HTMLElement | null;
     setTimeout(() => document.addEventListener('click', this.onDocumentClick, true), 0);
     document.addEventListener('keydown', this.onMenuKey, true);
     search.focus();
@@ -780,7 +795,7 @@ export class LayoutManager {
   private menuItems(): HTMLElement[] {
     const host = this.activeMenuEl();
     return host
-      ? [...host.querySelectorAll<HTMLElement>('[role="menuitem"]:not([aria-disabled="true"]), [role="menuitemcheckbox"]:not([aria-disabled="true"])')]
+      ? [...host.querySelectorAll<HTMLElement>('[role="menuitem"]:not([aria-disabled="true"]), [role="menuitemcheckbox"]:not([aria-disabled="true"]), [role="option"]:not([aria-disabled="true"])')]
       : [];
   }
 

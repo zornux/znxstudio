@@ -926,6 +926,19 @@ button {
 
 .znxstudio-panel-picker {
   min-width: 240px;
+  overflow: hidden;
+}
+
+/* Keep the search field permanently visible. Only the result viewport scrolls,
+   and its five-row cap prevents a large panel catalog covering the editor. */
+.znxstudio-panel-picker-results {
+  max-height: 150px;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  scrollbar-gutter: stable;
+}
+.znxstudio-panel-picker-results > .znxstudio-menu-item {
+  min-height: 30px;
 }
 
 /* ---- Menu bar (UX-3) ---- */
