@@ -148,6 +148,9 @@ export class LogModule implements IModule, LogService {
   async clear(): Promise<void> {
     this.buffer.clear();
     this.pending = [];
+    this.filterLevel = 'trace';
+    this.filterText = '';
+    this.filterSource = '';
     try {
       await window.znxstudio.log.clear();
     } catch {
@@ -179,17 +182,35 @@ export class LogModule implements IModule, LogService {
 
   private async revealPath(): Promise<void> {
     const path = await this.filePath();
-    this.moduleContext.layout.showToast(path ? `Log file: ${path}` : 'The log file is unavailable.', 'info');
+    if (!path) {
+      this.moduleContext.layout.showToast('The log file is unavailable.', 'info');
+      return;
+    }
+    try {
+      if (!navigator.clipboard) throw new Error('Clipboard unavailable');
+      await navigator.clipboard.writeText(path);
+      this.moduleContext.layout.showToast('Log file path copied.', 'success');
+    } catch {
+      this.moduleContext.layout.showToast(`Log file: ${path}`, 'info');
+    }
   }
 
   private render(): void {
     if (!this.view) return;
+    const focusedRole = this.view.contains(document.activeElement)
+      ? (document.activeElement as HTMLElement | null)?.dataset.logControl
+      : undefined;
+    const selection = document.activeElement instanceof HTMLInputElement
+      ? [document.activeElement.selectionStart, document.activeElement.selectionEnd] as const
+      : undefined;
     this.view.replaceChildren();
 
     const toolbar = document.createElement('div');
     toolbar.className = 'znxstudio-log-toolbar';
 
     const levelPicker = document.createElement('select');
+    levelPicker.dataset.logControl = 'capture-level';
+    levelPicker.setAttribute('aria-label', 'Minimum captured log level');
     levelPicker.title = 'Minimum level written to the buffer and the file.';
     for (const level of LOG_LEVELS) {
       const option = document.createElement('option');
@@ -202,6 +223,8 @@ export class LogModule implements IModule, LogService {
     toolbar.appendChild(levelPicker);
 
     const filterPicker = document.createElement('select');
+    filterPicker.dataset.logControl = 'filter-level';
+    filterPicker.setAttribute('aria-label', 'Minimum visible log level');
     filterPicker.title = 'Hide records below this level (view only).';
     for (const level of LOG_LEVELS) {
       const option = document.createElement('option');
@@ -217,12 +240,16 @@ export class LogModule implements IModule, LogService {
     toolbar.appendChild(filterPicker);
 
     const sourcePicker = document.createElement('select');
+    sourcePicker.dataset.logControl = 'source';
+    sourcePicker.setAttribute('aria-label', 'Filter logs by source');
     sourcePicker.title = 'Filter records by source.';
     const anySource = document.createElement('option');
     anySource.value = '';
     anySource.textContent = 'all sources';
     sourcePicker.appendChild(anySource);
-    for (const source of logSources(this.buffer.all())) {
+    const sources = logSources(this.buffer.all());
+    if (this.filterSource && !sources.includes(this.filterSource)) this.filterSource = '';
+    for (const source of sources) {
       const option = document.createElement('option');
       option.value = source;
       option.textContent = source;
@@ -237,6 +264,8 @@ export class LogModule implements IModule, LogService {
 
     const search = document.createElement('input');
     search.type = 'search';
+    search.dataset.logControl = 'search';
+    search.setAttribute('aria-label', 'Filter log messages');
     search.placeholder = 'Filter messages…';
     search.value = this.filterText;
     search.addEventListener('input', () => {
@@ -247,14 +276,23 @@ export class LogModule implements IModule, LogService {
 
     const clear = document.createElement('button');
     clear.className = 'znxstudio-btn-small';
+    clear.title = 'Clear the panel and the current log file';
     clear.textContent = 'Clear';
     clear.addEventListener('click', () => void this.clear());
     toolbar.appendChild(clear);
 
+    const path = document.createElement('button');
+    path.className = 'znxstudio-btn-small';
+    path.title = 'Copy the current log file path';
+    path.textContent = 'Log file';
+    path.addEventListener('click', () => void this.revealPath());
+    toolbar.appendChild(path);
+
     const counts = countByLevel(this.buffer.all());
     const summary = document.createElement('span');
     summary.className = 'znxstudio-log-counts';
-    summary.textContent = `${this.buffer.size} records · ${counts.error} error · ${counts.warn} warn`;
+    summary.textContent = `${this.buffer.size} total · ${counts.error} error · ${counts.warn} warning`;
+    summary.setAttribute('aria-live', 'polite');
     toolbar.appendChild(summary);
     this.view.appendChild(toolbar);
 
@@ -264,11 +302,86 @@ export class LogModule implements IModule, LogService {
       text: this.filterText,
     });
 
-    const list = document.createElement('pre');
+    const actions = document.createElement('div');
+    actions.className = 'znxstudio-log-subtoolbar';
+    const visibleCount = document.createElement('span');
+    visibleCount.textContent = `${visible.length} shown`;
+    actions.appendChild(visibleCount);
+    if (this.filterText || this.filterSource || this.filterLevel !== 'trace') {
+      const reset = document.createElement('button');
+      reset.className = 'znxstudio-log-link';
+      reset.textContent = 'Reset filters';
+      reset.addEventListener('click', () => {
+        this.filterText = '';
+        this.filterSource = '';
+        this.filterLevel = 'trace';
+        this.render();
+      });
+      actions.appendChild(reset);
+    }
+    const copy = document.createElement('button');
+    copy.className = 'znxstudio-log-link';
+    copy.textContent = 'Copy visible';
+    copy.disabled = visible.length === 0;
+    copy.addEventListener('click', async () => {
+      try {
+        if (!navigator.clipboard) throw new Error('Clipboard unavailable');
+        await navigator.clipboard.writeText(visible.map(formatRecord).join('\n'));
+        this.moduleContext.layout.showToast('Visible log entries copied.', 'success');
+      } catch {
+        this.moduleContext.layout.showToast('Could not copy the log entries.', 'error');
+      }
+    });
+    actions.appendChild(copy);
+    this.view.appendChild(actions);
+
+    const list = document.createElement('div');
     list.className = 'znxstudio-log-records';
-    // Newest last, the way a tailed file reads.
-    list.textContent = visible.map(formatRecord).join('\n') || '(no records)';
+    list.setAttribute('role', 'log');
+    list.setAttribute('aria-label', 'Application log records');
+    if (visible.length === 0) {
+      const empty = document.createElement('div');
+      empty.className = 'znxstudio-log-empty';
+      empty.textContent = this.buffer.size === 0
+        ? 'No log entries yet.'
+        : 'No entries match the current filters.';
+      list.appendChild(empty);
+    } else {
+      // Newest last, the way a tailed file reads.
+      for (const record of visible) list.appendChild(this.renderRecord(record));
+    }
     this.view.appendChild(list);
+    list.scrollTop = list.scrollHeight;
+
+    if (focusedRole) {
+      const next = this.view.querySelector<HTMLElement>(`[data-log-control="${focusedRole}"]`);
+      next?.focus();
+      if (selection && next instanceof HTMLInputElement) {
+        next.setSelectionRange(selection[0], selection[1]);
+      }
+    }
+  }
+
+  private renderRecord(record: LogRecord): HTMLElement {
+    const row = document.createElement('div');
+    row.className = `znxstudio-log-record is-${record.level}`;
+    row.title = formatRecord(record);
+
+    const time = document.createElement('time');
+    time.className = 'znxstudio-log-time';
+    time.dateTime = new Date(record.time).toISOString();
+    time.textContent = new Date(record.time).toLocaleTimeString([], { hour12: false });
+    const level = document.createElement('span');
+    level.className = 'znxstudio-log-level';
+    level.textContent = record.level.toUpperCase();
+    const source = document.createElement('span');
+    source.className = 'znxstudio-log-source';
+    source.textContent = record.source;
+    const message = document.createElement('span');
+    message.className = 'znxstudio-log-message';
+    message.textContent = record.message;
+    row.append(time, level, source, message);
+    return row;
   }
 
   /* ----- optional headless self-test (ZNXSTUDIO_SELFTEST=1) ----- */

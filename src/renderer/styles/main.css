@@ -6928,29 +6928,93 @@ body.is-resizing {
 /* ------------------------------------ Diagnostics / Health (Phase 19) ---- */
 .znxstudio-log, .znxstudio-health {
   height: 100%;
-  overflow: auto;
+  overflow: hidden;
   padding: 8px 10px;
   font-size: 12px;
+}
+.znxstudio-log {
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+  min-height: 0;
 }
 .znxstudio-log-toolbar, .znxstudio-health-toolbar {
   display: flex;
   align-items: center;
   gap: 6px;
   flex-wrap: wrap;
-  margin-bottom: 6px;
+  margin-bottom: 0;
 }
-.znxstudio-log-counts { font-size: 10px; opacity: 0.6; margin-left: auto; }
-.znxstudio-log-records {
-  font-family: var(--znxstudio-font-mono, monospace);
-  font-size: 11px;
-  line-height: 1.5;
-  background: var(--z-bg-panel);
+.znxstudio-log-toolbar select,
+.znxstudio-log-toolbar input {
+  min-height: 26px;
   border: 1px solid var(--z-border);
   border-radius: 4px;
-  padding: 8px;
-  margin: 0;
-  white-space: pre-wrap;
-  word-break: break-word;
+  background: var(--z-bg-input, var(--z-bg-panel));
+  color: var(--z-fg);
+  font: inherit;
+}
+.znxstudio-log-toolbar input { flex: 1 1 190px; min-width: 130px; padding: 3px 8px; }
+.znxstudio-log-toolbar select { padding: 2px 24px 2px 7px; }
+.znxstudio-log-counts { font-size: 11px; color: var(--z-fg-muted); margin-left: auto; white-space: nowrap; }
+.znxstudio-log-subtoolbar {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-height: 20px;
+  color: var(--z-fg-muted);
+  font-size: 11px;
+}
+.znxstudio-log-link {
+  border: 0;
+  padding: 1px 0;
+  background: transparent;
+  color: var(--z-accent);
+  font: inherit;
+  cursor: pointer;
+}
+.znxstudio-log-link:hover:not(:disabled) { text-decoration: underline; }
+.znxstudio-log-link:disabled { color: var(--z-fg-muted); cursor: default; opacity: 0.55; }
+.znxstudio-log-records {
+  flex: 1;
+  min-height: 0;
+  overflow: auto;
+  font-family: var(--znxstudio-font-mono, monospace);
+  font-size: 11.5px;
+  line-height: 1.45;
+  background: var(--z-bg-panel);
+  border: 1px solid var(--z-border);
+  border-radius: 6px;
+}
+.znxstudio-log-record {
+  display: grid;
+  grid-template-columns: 72px 54px minmax(70px, 130px) minmax(180px, 1fr);
+  gap: 8px;
+  align-items: baseline;
+  padding: 4px 8px;
+  border-left: 2px solid transparent;
+}
+.znxstudio-log-record:nth-child(even) { background: color-mix(in srgb, var(--z-fg) 2.5%, transparent); }
+.znxstudio-log-record:hover { background: var(--z-hover); }
+.znxstudio-log-record.is-warn { border-left-color: var(--znxstudio-warning, #d19a66); }
+.znxstudio-log-record.is-error { border-left-color: var(--znxstudio-error, #e06c75); }
+.znxstudio-log-time { color: var(--z-fg-muted); }
+.znxstudio-log-level { font-size: 10px; font-weight: 700; color: var(--z-fg-muted); }
+.znxstudio-log-record.is-debug .znxstudio-log-level { color: var(--z-accent); }
+.znxstudio-log-record.is-info .znxstudio-log-level { color: var(--znxstudio-info, #75beff); }
+.znxstudio-log-record.is-warn .znxstudio-log-level { color: var(--znxstudio-warning, #d19a66); }
+.znxstudio-log-record.is-error .znxstudio-log-level { color: var(--znxstudio-error, #e06c75); }
+.znxstudio-log-source {
+  overflow: hidden;
+  color: var(--z-fg-muted);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.znxstudio-log-message { white-space: pre-wrap; overflow-wrap: anywhere; }
+.znxstudio-log-empty { padding: 28px 16px; color: var(--z-fg-muted); text-align: center; }
+@media (max-width: 760px) {
+  .znxstudio-log-record { grid-template-columns: 68px 50px minmax(0, 1fr); }
+  .znxstudio-log-message { grid-column: 1 / -1; padding-left: 4px; }
 }
 .znxstudio-health-note {
   font-size: 10px;
