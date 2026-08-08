@@ -165,6 +165,9 @@ export class TerminalModule implements IModule {
       this.shells = [];
     }
     this.renderTabStrip();
+    // Let the workspace root resolve first, so the initial terminal opens in the project
+    // folder (like VS Code) rather than $HOME — a pty can't be re-homed once spawned.
+    await this.ensureWorkspaceReady();
     const saved = this.loadLayout();
     if (saved && saved.groups.length > 0) {
       await this.restoreLayout(saved);
@@ -263,6 +266,34 @@ export class TerminalModule implements IModule {
   private explorerRoot(): string | undefined {
     if (!this.workspace) this.workspace = this.context.services.tryGet<WorkspaceService>(ServiceKeys.Workspace);
     return this.workspace?.currentFolder() ?? this.cwd;
+  }
+
+  /**
+   * Wait (briefly) for the Workspace service to resolve its primary root before the FIRST
+   * terminal spawns, so it opens in the project folder instead of $HOME. The workspace
+   * restores asynchronously at startup and can settle after this module activates, and a
+   * pty's cwd can't change once spawned — so racing it would strand the terminal in $HOME.
+   * Resolves immediately once a root is known; a short timeout keeps a no-folder startup from
+   * stalling (the terminal then opens in the shell's default dir).
+   */
+  private async ensureWorkspaceReady(timeoutMs = 1500): Promise<void> {
+    if (!this.workspace) this.workspace = this.context.services.tryGet<WorkspaceService>(ServiceKeys.Workspace);
+    const ws = this.workspace;
+    if (!ws || ws.currentFolder()) return;
+    await new Promise<void>((resolve) => {
+      let settled = false;
+      const finish = (): void => {
+        if (settled) return;
+        settled = true;
+        clearTimeout(timer);
+        sub.dispose();
+        resolve();
+      };
+      const timer = setTimeout(finish, timeoutMs);
+      const sub = ws.onDidChangeWorkspace(() => {
+        if (ws.currentFolder()) finish();
+      });
+    });
   }
 
   private async spawnPane(group: TerminalGroup, shellId?: string, cwd?: string): Promise<void> {
