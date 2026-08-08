@@ -48,7 +48,7 @@ export class ReviewModule implements IModule {
     this.panel.className = 'znxstudio-review';
     context.layout.addPanelView({ id: 'ai-review', title: 'AI Review', element: this.panel });
 
-    context.commands.register(CommandIds.AiReview, () => void this.review(), 'AI: Review Code');
+    context.commands.register(CommandIds.AiReview, () => this.review(), 'AI: Review Code');
     context.commands.register(CommandIds.AiReviewClear, () => this.clear(), 'AI: Clear Review');
 
     // Findings pin to the file they were produced for; clear when switching away.

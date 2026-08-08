@@ -68,9 +68,12 @@ export class AiModule implements IModule, AiService {
       if (id === CommandIds.AiArchitecture) return this.isEnabled() && (workspace?.currentFolder() ?? null) !== null;
       return undefined;
     });
-    editor?.onDidChangeActiveFile(() => context.commands.notifyEnablementChanged());
-    editor?.onDidChangeSelections(() => context.commands.notifyEnablementChanged());
-    workspace?.onDidChangeWorkspace(() => context.commands.notifyEnablementChanged());
+    const fileSubscription = editor?.onDidChangeActiveFile(() => context.commands.notifyEnablementChanged());
+    const selectionSubscription = editor?.onDidChangeSelections(() => context.commands.notifyEnablementChanged());
+    const workspaceSubscription = workspace?.onDidChangeWorkspace(() => context.commands.notifyEnablementChanged());
+    if (fileSubscription) context.subscriptions.push(fileSubscription);
+    if (selectionSubscription) context.subscriptions.push(selectionSubscription);
+    if (workspaceSubscription) context.subscriptions.push(workspaceSubscription);
 
     // React to provider/model/key edits made anywhere (JSON editor or picker).
     this.settings.onDidChange((event) => {

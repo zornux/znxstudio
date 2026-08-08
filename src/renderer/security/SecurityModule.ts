@@ -69,8 +69,8 @@ export class SecurityModule implements IModule, SecurityService {
     this.view.className = 'znxstudio-security';
     context.layout.addActivityItem({ id: 'security', label: 'Security', icon: '🛡', onSelect: () => this.reveal() });
     context.commands.register(CommandIds.SecurityShow, () => this.reveal(), 'Security: Show');
-    context.commands.register(CommandIds.SecurityScanFile, () => void this.scanActiveFile(), 'Security: Scan File');
-    context.commands.register(CommandIds.SecurityScanWorkspace, () => void this.scanWorkspace(), 'Security: Scan Workspace');
+    context.commands.register(CommandIds.SecurityScanFile, () => this.scanActiveFile(), 'Security: Scan File');
+    context.commands.register(CommandIds.SecurityScanWorkspace, () => this.scanWorkspace(), 'Security: Scan Workspace');
 
     this.render();
     void selfTestCoordinator.run('security', () => this.maybeSelfTest());

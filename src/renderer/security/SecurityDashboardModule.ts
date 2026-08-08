@@ -45,7 +45,7 @@ export class SecurityDashboardModule implements IModule {
     context.layout.addPanelView({ id: 'security-dashboard', title: 'Security Dashboard', element: this.panel });
 
     context.commands.register(CommandIds.SecurityDashboardShow, () => this.reveal(), 'Security: Show Dashboard');
-    context.commands.register(CommandIds.SecurityExportReport, () => void this.exportReport(), 'Security: Export Report');
+    context.commands.register(CommandIds.SecurityExportReport, () => this.exportReport(), 'Security: Export Report');
 
     this.security?.onDidChange(() => void this.refresh());
     this.render();

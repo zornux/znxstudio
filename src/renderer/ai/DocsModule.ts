@@ -46,8 +46,8 @@ export class DocsModule implements IModule {
     this.panel.className = 'znxstudio-docs';
     context.layout.addPanelView({ id: 'ai-docs', title: 'AI Docs', element: this.panel });
 
-    context.commands.register(CommandIds.AiDocSymbol, () => void this.documentSymbol(), 'AI: Document Symbol');
-    context.commands.register(CommandIds.AiDocFile, () => void this.documentFile(), 'AI: Generate File Docs');
+    context.commands.register(CommandIds.AiDocSymbol, () => this.documentSymbol(), 'AI: Document Symbol');
+    context.commands.register(CommandIds.AiDocFile, () => this.documentFile(), 'AI: Generate File Docs');
 
     this.render();
     void selfTestCoordinator.run('ai-docs', () => this.maybeSelfTest());

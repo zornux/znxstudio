@@ -46,7 +46,7 @@ export class DebugAssistModule implements IModule {
     this.panel.className = 'znxstudio-debugai';
     context.layout.addPanelView({ id: 'ai-debug', title: 'AI Debug', element: this.panel });
 
-    context.commands.register(CommandIds.AiExplainError, () => void this.explain(), 'AI: Explain Error');
+    context.commands.register(CommandIds.AiExplainError, () => this.explain(), 'AI: Explain Error');
 
     this.render();
     void selfTestCoordinator.run('ai-debug', () => this.maybeSelfTest());

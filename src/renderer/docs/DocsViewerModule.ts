@@ -71,7 +71,7 @@ export class DocsViewerModule implements IModule, DocsService {
     context.commands.register(CommandIds.DocsBack, () => this.back(), 'Docs: Back');
     context.commands.register(CommandIds.DocsForward, () => this.forward(), 'Docs: Forward');
     context.commands.register(CommandIds.DocsOpenProductGuide, () => this.openProductGuide(), 'Help: ZnxStudio Documentation');
-    context.commands.register(CommandIds.DocsOpenWorkspaceReadme, () => void this.openWorkspaceReadme(), 'Docs: Open README');
+    context.commands.register(CommandIds.DocsOpenWorkspaceReadme, () => this.openWorkspaceReadme(), 'Docs: Open README');
 
     void selfTestCoordinator.run('docs-viewer', () => this.maybeSelfTest());
   }

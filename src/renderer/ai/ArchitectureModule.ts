@@ -46,7 +46,7 @@ export class ArchitectureModule implements IModule {
     this.panel.className = 'znxstudio-arch';
     context.layout.addPanelView({ id: 'ai-architecture', title: 'AI Architecture', element: this.panel });
 
-    context.commands.register(CommandIds.AiArchitecture, () => void this.analyze(), 'AI: Analyze Architecture');
+    context.commands.register(CommandIds.AiArchitecture, () => this.analyze(), 'AI: Analyze Architecture');
 
     this.render();
     void selfTestCoordinator.run('ai-architecture', () => this.maybeSelfTest());

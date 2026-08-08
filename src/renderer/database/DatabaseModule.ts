@@ -71,7 +71,7 @@ export class DatabaseModule implements IModule, DatabaseService {
     this.buildShell();
 
     context.commands.register(CommandIds.DatabaseShow, () => this.reveal(), 'Database: Show Databases');
-    context.commands.register(CommandIds.DatabaseRefresh, () => void this.discover(), 'Database: Refresh Databases');
+    context.commands.register(CommandIds.DatabaseRefresh, () => this.discover(), 'Database: Refresh Databases');
     context.layout.addActivityItem({
       id: 'database',
       label: 'Database',

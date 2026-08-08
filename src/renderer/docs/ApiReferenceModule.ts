@@ -68,8 +68,8 @@ export class ApiReferenceModule implements IModule, ApiReferenceService {
     this.view.className = 'znxstudio-apidocs';
     context.layout.addPanelView({ id: 'apidocs', title: 'API Reference', element: this.view });
 
-    context.commands.register(CommandIds.DocsGenerateApi, () => void this.generate(), 'Docs: Generate API Reference');
-    context.commands.register(CommandIds.DocsSaveApi, () => void this.saveToProject(), 'Docs: Save API Reference to Project');
+    context.commands.register(CommandIds.DocsGenerateApi, () => this.generate(), 'Docs: Generate API Reference');
+    context.commands.register(CommandIds.DocsSaveApi, () => this.saveToProject(), 'Docs: Save API Reference to Project');
 
     this.render();
     void selfTestCoordinator.run('api-reference', () => this.maybeSelfTest());

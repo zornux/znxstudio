@@ -73,8 +73,8 @@ export class LogModule implements IModule, LogService {
     context.layout.addPanelView({ id: 'log', title: 'Log', element: this.view });
 
     context.commands.register(CommandIds.LogShow, () => this.reveal(), 'Log: Show');
-    context.commands.register(CommandIds.LogClear, () => void this.clear(), 'Log: Clear');
-    context.commands.register(CommandIds.LogOpenFile, () => void this.revealPath(), 'Log: Show Log File Path');
+    context.commands.register(CommandIds.LogClear, () => this.clear(), 'Log: Clear');
+    context.commands.register(CommandIds.LogOpenFile, () => this.revealPath(), 'Log: Show Log File Path');
 
     this.timer = setInterval(() => void this.flush(), FLUSH_INTERVAL_MS);
     context.subscriptions.push({

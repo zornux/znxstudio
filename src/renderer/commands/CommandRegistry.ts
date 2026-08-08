@@ -40,6 +40,9 @@ export class CommandRegistry {
     if (!command) {
       throw new Error(`Unknown command: ${id}`);
     }
+    if (!this.isEnabled(id)) {
+      throw new Error(`Command is disabled in the current context: ${id}`);
+    }
     // Observers see the id BEFORE the handler runs, so the macro recorder
     // captures a command even when it later throws — the user did invoke it.
     for (const observer of this.observers) observer(id);

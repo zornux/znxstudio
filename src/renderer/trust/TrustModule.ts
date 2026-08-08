@@ -47,9 +47,9 @@ export class TrustModule implements IModule, TrustService {
     context.services.register<TrustService>(ServiceKeys.Trust, this);
 
     context.commands.register(CommandIds.TrustManage, () => this.promptTrust(true), 'Workspace: Manage Workspace Trust');
-    context.commands.register(CommandIds.TrustWorkspace, () => void this.trustWorkspace(), 'Workspace: Trust Workspace');
-    context.commands.register(CommandIds.TrustParentFolder, () => void this.trustParent(), 'Workspace: Trust Parent Folder');
-    context.commands.register(CommandIds.TrustRevoke, () => void this.revoke(), 'Workspace: Remove Workspace Trust');
+    context.commands.register(CommandIds.TrustWorkspace, () => this.trustWorkspace(), 'Workspace: Trust Workspace');
+    context.commands.register(CommandIds.TrustParentFolder, () => this.trustParent(), 'Workspace: Trust Parent Folder');
+    context.commands.register(CommandIds.TrustRevoke, () => this.revoke(), 'Workspace: Remove Workspace Trust');
 
     // Reflect trust in the UI: execution-class commands show disabled in Restricted Mode instead of only
     // failing once invoked. They re-enable automatically when trust is granted (surfaces read isEnabled

@@ -48,7 +48,7 @@ export class TestGenModule implements IModule {
     this.panel.className = 'znxstudio-testgen';
     context.layout.addPanelView({ id: 'ai-testgen', title: 'AI Tests', element: this.panel });
 
-    context.commands.register(CommandIds.AiTestGen, () => void this.generate(), 'AI: Generate Tests');
+    context.commands.register(CommandIds.AiTestGen, () => this.generate(), 'AI: Generate Tests');
 
     this.render();
     void selfTestCoordinator.run('ai-testgen', () => this.maybeSelfTest());

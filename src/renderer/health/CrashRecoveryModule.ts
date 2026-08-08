@@ -58,8 +58,8 @@ export class CrashRecoveryModule implements IModule {
     this.documents = context.services.tryGet<DocumentManager>(LanguageServiceKeys.Documents);
 
     this.installErrorHandlers(context);
-    context.commands.register(CommandIds.CrashRestore, () => void this.restore(), 'Recovery: Restore Unsaved Work');
-    context.commands.register(CommandIds.CrashDiscard, () => void this.discard(), 'Recovery: Discard Recovered Work');
+    context.commands.register(CommandIds.CrashRestore, () => this.restore(), 'Recovery: Restore Unsaved Work');
+    context.commands.register(CommandIds.CrashDiscard, () => this.discard(), 'Recovery: Discard Recovered Work');
 
     try {
       const info = await window.znxstudio.app.getInfo();

@@ -61,7 +61,7 @@ export class TasksModule implements IModule {
     context.layout.addPanelView({ id: 'tasks', title: 'Tasks', element: this.panel });
 
     context.commands.register(CommandIds.TasksShow, () => this.reveal(), 'Tasks: Show Tasks');
-    context.commands.register(CommandIds.TasksRefresh, () => void this.discover(), 'Tasks: Refresh Tasks');
+    context.commands.register(CommandIds.TasksRefresh, () => this.discover(), 'Tasks: Refresh Tasks');
 
     window.znxstudio.task.onExit((event) => this.onTaskExit(event.id, event.code));
     this.workspace.onDidChangeWorkspace(() => void this.discover());

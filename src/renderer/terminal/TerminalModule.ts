@@ -134,7 +134,7 @@ export class TerminalModule implements IModule {
       () => this.toggleTerminal(),
       'Terminal: Toggle',
     );
-    context.commands.register(CommandIds.TerminalNew, () => void this.requestNewTerminal(), 'Terminal: New Terminal');
+    context.commands.register(CommandIds.TerminalNew, () => this.requestNewTerminal(), 'Terminal: New Terminal');
     context.commands.register(
       CommandIds.TerminalNewProfile,
       () => void this.revealAndPickShell(),
@@ -147,8 +147,8 @@ export class TerminalModule implements IModule {
       },
       'Terminal: New Terminal Here',
     );
-    context.commands.register(CommandIds.TerminalSplit, () => void this.splitActive('horizontal'), 'Terminal: Split Terminal Right');
-    context.commands.register(CommandIds.TerminalSplitDown, () => void this.splitActive('vertical'), 'Terminal: Split Terminal Down');
+    context.commands.register(CommandIds.TerminalSplit, () => this.splitActive('horizontal'), 'Terminal: Split Terminal Right');
+    context.commands.register(CommandIds.TerminalSplitDown, () => this.splitActive('vertical'), 'Terminal: Split Terminal Down');
     context.commands.register(CommandIds.TerminalKill, () => this.closeGroup(this.activeGroupId), 'Terminal: Kill Active Terminal');
     context.commands.register(CommandIds.TerminalKillOthers, () => this.killOthers(this.activeGroupId), 'Terminal: Kill Other Terminals');
     context.commands.register(CommandIds.TerminalNext, () => this.cycleTab(), 'Terminal: Focus Next Terminal');

@@ -33,6 +33,21 @@ describe('command enablement (trust-gated UI)', () => {
     expect(registry.isEnabled('c')).toBe(false);
   });
 
+  test('execute enforces enablement instead of relying only on UI callers', async () => {
+    const registry = new CommandRegistry();
+    let ran = false;
+    registry.register('dangerous', () => { ran = true; });
+    registry.addEnablementRule((id) => id === 'dangerous' ? false : undefined);
+    let message = '';
+    try {
+      await registry.execute('dangerous');
+    } catch (error) {
+      message = (error as Error).message;
+    }
+    expect(ran).toBe(false);
+    expect(message).toContain('disabled');
+  });
+
   test('onDidChangeEnablement notifies subscribers until disposed', () => {
     const registry = new CommandRegistry();
     let count = 0;

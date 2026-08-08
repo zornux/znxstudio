@@ -66,10 +66,10 @@ export class PerformanceModule implements IModule, ProfilerService {
     this.view.className = 'znxstudio-perf';
     context.layout.addActivityItem({ id: 'performance', label: 'Performance', icon: '📈', onSelect: () => this.reveal() });
     context.commands.register(CommandIds.PerfShow, () => this.reveal(), 'Performance: Show');
-    context.commands.register(CommandIds.PerfProfileCpu, () => void this.profile(this.runState.engine === 'vm' ? 'vm-run' : 'run'), 'Performance: Profile CPU');
-    context.commands.register(CommandIds.PerfProfileAllocations, () => void this.profile('allocations'), 'Performance: Profile Allocations');
-    context.commands.register(CommandIds.PerfProfileHeap, () => void this.profile('heap'), 'Performance: Profile Heap');
-    context.commands.register(CommandIds.PerfProfileTimeline, () => void this.profile('timeline'), 'Performance: Profile Timeline');
+    context.commands.register(CommandIds.PerfProfileCpu, () => this.profile(this.runState.engine === 'vm' ? 'vm-run' : 'run'), 'Performance: Profile CPU');
+    context.commands.register(CommandIds.PerfProfileAllocations, () => this.profile('allocations'), 'Performance: Profile Allocations');
+    context.commands.register(CommandIds.PerfProfileHeap, () => this.profile('heap'), 'Performance: Profile Heap');
+    context.commands.register(CommandIds.PerfProfileTimeline, () => this.profile('timeline'), 'Performance: Profile Timeline');
 
     this.render();
     void selfTestCoordinator.run('performance', () => this.maybeSelfTest());

@@ -58,7 +58,7 @@ export class HealthModule implements IModule, HealthService {
       this.homeDir = '';
     }
 
-    context.commands.register(CommandIds.HealthCopyReport, () => void this.copyReport(), 'Health: Copy Diagnostics Report');
+    context.commands.register(CommandIds.HealthCopyReport, () => this.copyReport(), 'Health: Copy Diagnostics Report');
     void selfTestCoordinator.run('health', () => this.maybeSelfTest());
   }
 

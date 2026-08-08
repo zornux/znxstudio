@@ -231,12 +231,21 @@ export class ChatModule implements IModule {
       copy.textContent = 'Copy';
       copy.title = 'Copy the full reply';
       copy.setAttribute('aria-label', 'Copy the full reply');
-      copy.addEventListener('click', () => void navigator.clipboard?.writeText(message.content));
+      copy.addEventListener('click', () => void this.copyMessage(message.content));
       bubble.appendChild(copy);
     }
     this.log.appendChild(bubble);
     this.log.scrollTop = this.log.scrollHeight;
     return bubble;
+  }
+
+  private async copyMessage(content: string): Promise<void> {
+    try {
+      await navigator.clipboard.writeText(content);
+      this.context.layout.showToast('Response copied.', 'success');
+    } catch (error) {
+      this.context.layout.showToast(`Could not copy the response: ${error instanceof Error ? error.message : String(error)}`, 'error');
+    }
   }
 
   private send(): void {

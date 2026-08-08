@@ -17,6 +17,7 @@ export interface ModalButton {
   /** A non-closing action (e.g. "Learn more"); runs `onClick` and keeps the dialog open. */
   onClick?: () => void;
 }
+import { claimOverlay } from './overlayCoordinator';
 
 export interface ModalOptions {
   title: string;
@@ -33,8 +34,10 @@ const FOCUSABLE =
   'a[href], button:not([disabled]), input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])';
 
 let seq = 0;
+let dismissActiveModal: (() => void) | undefined;
 
 export function showModal(options: ModalOptions): Promise<string> {
+  dismissActiveModal?.();
   const dismissValue = options.dismissValue ?? 'cancel';
   const previouslyFocused = document.activeElement as HTMLElement | null;
   const id = `znxstudio-modal-${seq++}`;
@@ -65,15 +68,22 @@ export function showModal(options: ModalOptions): Promise<string> {
 
   return new Promise<string>((resolve) => {
     let settled = false;
+    let dismissThis: () => void;
+    let releaseOverlay: (() => void) | undefined;
     const close = (value: string): void => {
       if (settled) return;
       settled = true;
+      if (dismissActiveModal === dismissThis) dismissActiveModal = undefined;
+      releaseOverlay?.();
       document.removeEventListener('keydown', onKeyDown, true);
       backdrop.remove();
       // Restore focus to where it was before the dialog opened.
       if (previouslyFocused && typeof previouslyFocused.focus === 'function') previouslyFocused.focus();
       resolve(value);
     };
+    dismissThis = () => close(dismissValue);
+    dismissActiveModal = dismissThis;
+    releaseOverlay = claimOverlay(backdrop, dismissThis);
 
     for (const spec of options.buttons) {
       const btn = document.createElement('button');

@@ -88,7 +88,7 @@ export class LearningCenterModule implements IModule, LearningService {
     context.layout.addActivityItem({ id: 'learning', label: 'Learn', icon: '🎓', onSelect: () => this.reveal() });
     context.layout.addPanelView({ id: 'exercises', title: 'Exercises', element: this.exercisesView });
     context.commands.register(CommandIds.LearningShow, () => this.reveal(), 'Learn: Show Learning Center');
-    context.commands.register(CommandIds.LearningReload, () => void this.reload(), 'Learn: Reload Curriculum');
+    context.commands.register(CommandIds.LearningReload, () => this.reload(), 'Learn: Reload Curriculum');
     context.commands.register(CommandIds.LearningResetProgress, () => this.resetProgress(), 'Learn: Reset Progress');
 
     this.learnerProgress = parseProgress(this.settings?.get<unknown>(PROGRESS_SETTING, EMPTY_PROGRESS));

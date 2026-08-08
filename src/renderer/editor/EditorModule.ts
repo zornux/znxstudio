@@ -103,6 +103,7 @@ export class EditorModule implements IModule, EditorService {
   private restoringSession = false;
   private persistTimer: ReturnType<typeof setTimeout> | undefined;
   private notifyCommandEnablement: () => void = () => undefined;
+  private pathMutationActive = false;
 
   private readonly activeFileEmitter = new Emitter<string | null>();
   readonly onDidChangeActiveFile = this.activeFileEmitter.event;
@@ -132,7 +133,7 @@ export class EditorModule implements IModule, EditorService {
     this.tabsBar.setAttribute('aria-label', 'Open editors');
     this.breadcrumbs = area.querySelector<HTMLElement>('[data-role="breadcrumbs"]')!;
     this.overlay = area.querySelector<HTMLElement>('[data-role="overlay"]')!;
-    this.wireOverlayDismiss();
+    this.wireOverlayDismiss(context);
     const host = area.querySelector<HTMLElement>('[data-role="monaco"]')!;
 
     // SB-5: the editor's Run/Debug/Stop/Build/Rebuild action toolbar. These are
@@ -204,7 +205,7 @@ export class EditorModule implements IModule, EditorService {
       button.setAttribute('aria-label', action.label);
       button.addEventListener('click', () => {
         if (context.commands.has(action.command) && context.commands.isEnabled(action.command)) {
-          void context.commands.execute(action.command);
+          void this.executeToolbarCommand(context, action.command, action.label);
         }
       });
       host.appendChild(button);
@@ -224,7 +225,7 @@ export class EditorModule implements IModule, EditorService {
         disabled: !context.commands.has(command) || !context.commands.isEnabled(command),
         onClick: () => {
           if (context.commands.has(command) && context.commands.isEnabled(command)) {
-            void context.commands.execute(command);
+            void this.executeToolbarCommand(context, command, label);
           }
         },
       });
@@ -245,6 +246,14 @@ export class EditorModule implements IModule, EditorService {
     };
     refresh();
     context.subscriptions.push(context.commands.onDidChangeEnablement(refresh));
+  }
+
+  private async executeToolbarCommand(context: ModuleContext, command: string, label: string): Promise<void> {
+    try {
+      await context.commands.execute(command);
+    } catch (error) {
+      context.layout.showToast(`Could not ${label.toLowerCase()}: ${error instanceof Error ? error.message : String(error)}`, 'error');
+    }
   }
 
   private bindTabCommands(context: ModuleContext): void {
@@ -330,7 +339,11 @@ export class EditorModule implements IModule, EditorService {
     void this.confirmAndClose(uri);
   }
 
-  async prepareEditorsForPath(path: string): Promise<(() => void) | null> {
+  async prepareEditorsForPath(path: string): Promise<{ commit(): void; cancel(): void } | null> {
+    if (this.pathMutationActive) {
+      this.context.layout.showToast('Another file operation is already in progress.', 'info');
+      return null;
+    }
     const normalized = normalizeEditorPath(path);
     const affected = new Set(
       this.tabsState.tabs
@@ -340,23 +353,37 @@ export class EditorModule implements IModule, EditorService {
         })
         .map((tab) => tab.uri),
     );
-    if (affected.size === 0) return () => undefined;
+    if (affected.size === 0) return { commit: () => undefined, cancel: () => undefined };
     const dirty = this.tabsState.tabs
       .filter((tab) => affected.has(tab.uri) && tab.dirty)
       .map((tab) => ({ uri: tab.uri, name: tab.name }));
     if (dirty.length > 0 && !(await this.promptSaveBeforeClose(dirty))) return null;
 
-    // Defer disposal until the caller confirms its filesystem mutation worked.
-    // If rename/delete fails, every tab—including a deliberately unsaved one—
-    // stays open exactly as it was.
-    return () => {
-      const remaining = this.tabsState.tabs.filter((tab) => !affected.has(tab.uri));
-      const activeRemoved = Boolean(this.tabsState.activeUri && affected.has(this.tabsState.activeUri));
-      this.applyTabs({
-        tabs: remaining,
-        activeUri: activeRemoved ? remaining[0]?.uri ?? null : this.tabsState.activeUri,
-      });
-      for (const uri of affected) this.documents.close(uri);
+    this.pathMutationActive = true;
+    this.editor.updateOptions({ readOnly: true });
+    let settled = false;
+    const release = (): void => {
+      if (settled) return;
+      settled = true;
+      this.pathMutationActive = false;
+      this.editor.updateOptions({ readOnly: false });
+    };
+    return {
+      cancel: release,
+      commit: () => {
+        if (settled) return;
+        try {
+          const remaining = this.tabsState.tabs.filter((tab) => !affected.has(tab.uri));
+          const activeRemoved = Boolean(this.tabsState.activeUri && affected.has(this.tabsState.activeUri));
+          this.applyTabs({
+            tabs: remaining,
+            activeUri: activeRemoved ? remaining[0]?.uri ?? null : this.tabsState.activeUri,
+          });
+          for (const uri of affected) this.documents.close(uri);
+        } finally {
+          release();
+        }
+      },
     };
   }
 
@@ -443,8 +470,8 @@ export class EditorModule implements IModule, EditorService {
     this.editor.focus();
   }
 
-  onDidChangeSelections(handler: (selections: CursorSelection[]) => void): void {
-    this.editor.onDidChangeCursorSelection(() => handler(this.getSelections()));
+  onDidChangeSelections(handler: (selections: CursorSelection[]) => void): monaco.IDisposable {
+    return this.editor.onDidChangeCursorSelection(() => handler(this.getSelections()));
   }
 
   setDecorations(owner: string, decorations: EditorDecoration[]): void {
@@ -616,12 +643,14 @@ export class EditorModule implements IModule, EditorService {
 
   // Esc closes the editor-area overlay, except while a Monaco editor inside it has focus (there Esc
   // is the editor's own — dismissing its find widget, suggestions, etc.).
-  private wireOverlayDismiss(): void {
-    document.addEventListener('keydown', (event) => {
+  private wireOverlayDismiss(context: ModuleContext): void {
+    const onKeyDown = (event: KeyboardEvent): void => {
       if (event.key !== 'Escape' || !this.overlay.classList.contains('is-visible')) return;
       if ((event.target as HTMLElement | null)?.closest('.monaco-editor')) return;
       this.hideView();
-    });
+    };
+    document.addEventListener('keydown', onKeyDown);
+    context.subscriptions.push({ dispose: () => document.removeEventListener('keydown', onKeyDown) });
   }
 
   async openFile(path: string, options?: { preview?: boolean }): Promise<void> {
@@ -828,7 +857,14 @@ export class EditorModule implements IModule, EditorService {
       if (this.autosaveMode === 'onWindowChange') void this.documents.saveAllDirty().catch(() => undefined);
     };
     window.addEventListener('blur', onWindowBlur);
-    context.subscriptions.push({ dispose: () => window.removeEventListener('blur', onWindowBlur) });
+    const onWindowFocus = (): void => void this.checkExternalChanges();
+    window.addEventListener('focus', onWindowFocus);
+    context.subscriptions.push({
+      dispose: () => {
+        window.removeEventListener('blur', onWindowBlur);
+        window.removeEventListener('focus', onWindowFocus);
+      },
+    });
 
     // Window/quit guard (Phase 20J WI2): the main process asks before closing so
     // unsaved work is never lost to a window close or an app quit.
@@ -852,6 +888,27 @@ export class EditorModule implements IModule, EditorService {
       }
     }
     await this.documents.saveActive();
+  }
+
+  private async checkExternalChanges(): Promise<void> {
+    try {
+      const result = await this.documents.checkExternalChanges();
+      if (result.reloaded.length > 0) {
+        this.context.layout.showToast(
+          `${result.reloaded.length} file${result.reloaded.length === 1 ? '' : 's'} reloaded after changing on disk.`,
+          'info',
+        );
+      }
+      if (result.conflicts.length > 0 || result.missing.length > 0) {
+        const count = result.conflicts.length + result.missing.length;
+        this.context.layout.showToast(
+          `${count} open file${count === 1 ? '' : 's'} changed or disappeared on disk. Unsaved editor content was preserved.`,
+          'error',
+        );
+      }
+    } catch {
+      // A focus transition must never interrupt editing when the filesystem is unavailable.
+    }
   }
 
   /** Respond to the main process's pre-close query: prompt for unsaved work, then allow/cancel. */

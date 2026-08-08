@@ -40,8 +40,8 @@ export class NavHistoryModule implements IModule {
       }),
     );
 
-    this.editor.onDidChangeActiveFile(() => this.record());
-    this.editor.onDidChangeSelections(() => this.record());
+    context.subscriptions.push(this.editor.onDidChangeActiveFile(() => this.record()));
+    context.subscriptions.push(this.editor.onDidChangeSelections(() => this.record()));
     this.updateStatus();
     void selfTestCoordinator.run('navhistory', () => this.maybeSelfTest());
   }

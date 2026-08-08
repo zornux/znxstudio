@@ -63,17 +63,19 @@ export class PairModule implements IModule {
     });
 
     // Broadcast our own caret, and surrender a follow the moment we type.
-    this.editor?.onDidChangeSelections(() => {
+    const selectionSubscription = this.editor?.onDidChangeSelections(() => {
       const wasFollowing = this.followState.following;
       this.followState = breakFollowOnEdit(this.followState);
       if (wasFollowing !== this.followState.following) this.moduleContext.commands.notifyEnablementChanged();
       this.publishPresence();
       this.updateStatusBar();
     });
-    this.editor?.onDidChangeActiveFile(() => {
+    if (selectionSubscription) context.subscriptions.push(selectionSubscription);
+    const fileSubscription = this.editor?.onDidChangeActiveFile(() => {
       this.publishPresence();
       this.redraw();
     });
+    if (fileSubscription) context.subscriptions.push(fileSubscription);
 
     void selfTestCoordinator.run('collab-pair', () => this.maybeSelfTest());
   }

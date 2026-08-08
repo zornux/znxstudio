@@ -54,6 +54,7 @@ export class BreadcrumbsModule implements IModule {
   private host!: HTMLElement;
   private symbolsCache: { uri: string; version: number; symbols: DocumentSymbol[] } | null = null;
   private refreshTimer: ReturnType<typeof setTimeout> | null = null;
+  private closeDropdown: (() => void) | undefined;
 
   activate(context: ModuleContext): void {
     this.editor = context.services.get<EditorService>(ServiceKeys.Editor);
@@ -69,11 +70,15 @@ export class BreadcrumbsModule implements IModule {
     commands.register(CommandIds.UnfoldAtCursor, () => this.editor.runEditorAction(FOLD_ACTIONS.unfold), 'Editor: Unfold at Cursor');
     commands.register(CommandIds.ToggleFold, () => this.editor.runEditorAction(FOLD_ACTIONS.toggle), 'Editor: Toggle Fold');
 
-    this.editor.onDidChangeActiveFile(() => this.scheduleRefresh(0));
-    this.editor.onDidChangeSelections(() => this.scheduleRefresh(0));
-    this.documents.onDidChange((doc) => {
+    context.subscriptions.push(this.editor.onDidChangeActiveFile(() => this.scheduleRefresh(0)));
+    context.subscriptions.push(this.editor.onDidChangeSelections(() => this.scheduleRefresh(0)));
+    context.subscriptions.push(this.documents.onDidChange((doc) => {
       if (doc.uri === this.documents.getActive()?.uri) this.scheduleRefresh(250);
-    });
+    }));
+    context.subscriptions.push({ dispose: () => {
+      if (this.refreshTimer) clearTimeout(this.refreshTimer);
+      this.closeDropdown?.();
+    } });
 
     void selfTestCoordinator.run('breadcrumbs', () => this.maybeSelfTest());
   }
@@ -134,7 +139,8 @@ export class BreadcrumbsModule implements IModule {
     fileSegments.forEach((segment, index) => {
       if (index > 0) bar.appendChild(this.separator());
       const isFile = index === fileSegments.length - 1;
-      const crumb = document.createElement('span');
+      const crumb = document.createElement(isFile ? 'button' : 'span');
+      if (crumb instanceof HTMLButtonElement) crumb.type = 'button';
       crumb.className = `znxstudio-crumb znxstudio-crumb--path${isFile ? ' znxstudio-crumb--file' : ''}`;
       crumb.textContent = segment;
       if (isFile) crumb.addEventListener('click', () => this.editor.revealPosition(0, 0));
@@ -143,7 +149,8 @@ export class BreadcrumbsModule implements IModule {
 
     trail.forEach((segment, depth) => {
       bar.appendChild(this.separator());
-      const crumb = document.createElement('span');
+      const crumb = document.createElement('button');
+      crumb.type = 'button';
       crumb.className = 'znxstudio-crumb znxstudio-crumb--symbol';
       crumb.innerHTML = `<span class="znxstudio-crumb-icon">${KIND_ICON[segment.kind] ?? '•'}</span>`;
       crumb.appendChild(document.createTextNode(segment.name));
@@ -173,35 +180,63 @@ export class BreadcrumbsModule implements IModule {
     trail: BreadcrumbSegment[],
     depth: number,
   ): void {
-    this.host.querySelector('.znxstudio-crumb-menu')?.remove();
+    this.closeDropdown?.();
     const siblings = symbolsAtDepth(symbols, trail, depth);
     if (siblings.length <= 1) return;
 
     const menu = document.createElement('div');
     menu.className = 'znxstudio-crumb-menu';
+    menu.setAttribute('role', 'menu');
+    menu.setAttribute('aria-label', 'Sibling symbols');
     menu.style.left = `${anchor.offsetLeft}px`;
 
     for (const sibling of siblings) {
-      const item = document.createElement('div');
+      const item = document.createElement('button');
+      item.type = 'button';
       item.className = 'znxstudio-crumb-menu-item';
+      item.setAttribute('role', 'menuitem');
       item.innerHTML = `<span class="znxstudio-crumb-icon">${KIND_ICON[sibling.kind] ?? '•'}</span>`;
       item.appendChild(document.createTextNode(sibling.name));
       item.addEventListener('click', (event) => {
         event.stopPropagation();
-        menu.remove();
+        close(false);
         this.editor.revealPosition(sibling.selectionRange.start.line, sibling.selectionRange.start.character);
       });
       menu.appendChild(item);
     }
 
-    const dismiss = (event: MouseEvent) => {
+    const close = (restoreFocus = true): void => {
+      menu.remove();
+      window.removeEventListener('mousedown', dismiss, true);
+      document.removeEventListener('keydown', onKey, true);
+      if (this.closeDropdown === close) this.closeDropdown = undefined;
+      if (restoreFocus) anchor.focus();
+    };
+    const dismiss = (event: MouseEvent): void => {
       if (!menu.contains(event.target as Node)) {
-        menu.remove();
-        window.removeEventListener('mousedown', dismiss, true);
+        close(false);
       }
     };
+    const onKey = (event: KeyboardEvent): void => {
+      const items = [...menu.querySelectorAll<HTMLButtonElement>('[role="menuitem"]')];
+      const current = Math.max(0, items.indexOf(document.activeElement as HTMLButtonElement));
+      if (event.key === 'Escape') {
+        event.preventDefault();
+        close();
+      } else if (event.key === 'ArrowDown' || event.key === 'ArrowUp') {
+        event.preventDefault();
+        const delta = event.key === 'ArrowDown' ? 1 : -1;
+        items[(current + delta + items.length) % items.length]?.focus();
+      } else if (event.key === 'Home' || event.key === 'End') {
+        event.preventDefault();
+        items[event.key === 'Home' ? 0 : items.length - 1]?.focus();
+      }
+    };
+    this.closeDropdown = close;
     window.addEventListener('mousedown', dismiss, true);
+    document.addEventListener('keydown', onKey, true);
     this.host.appendChild(menu);
+    menu.querySelector<HTMLButtonElement>('[role="menuitem"]')?.focus();
   }
 
   /* ----- optional headless self-test (ZNXSTUDIO_SELFTEST=1) ----- */

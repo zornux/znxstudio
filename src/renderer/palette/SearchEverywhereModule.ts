@@ -8,6 +8,7 @@ import { SETTINGS_DESCRIPTIONS } from '../settings/SettingsSchema';
 import { LanguageServiceKeys, type DocumentSymbol } from '../language/api';
 import type { DocumentManager } from '../language/DocumentManager';
 import type { LanguageRegistry } from '../language/LanguageRegistry';
+import { claimOverlay } from '../ui/overlayCoordinator';
 import {
   CATEGORY_LABEL,
   CATEGORY_ORDER,
@@ -52,7 +53,10 @@ export class SearchEverywhereModule implements IModule {
   private listEl!: HTMLElement;
 
   private open = false;
+  private loading = false;
+  private collectionSequence = 0;
   private restoreFocus: (() => void) | undefined;
+  private releaseOverlay: (() => void) | undefined;
   private scope: SearchScope = 'all';
   private selection = 0;
   private hits: RankedHit[] = [];
@@ -73,13 +77,17 @@ export class SearchEverywhereModule implements IModule {
 
     // Ctrl+Shift+A is dispatched by the KeybindingService (17D) so it stays
     // rebindable; Escape merely dismisses whatever overlay is open.
-    window.addEventListener(
-      'keydown',
-      (event) => {
-        if (event.key === 'Escape' && this.open) this.hide();
+    const onKeyDown = (event: KeyboardEvent): void => {
+      if (event.key === 'Escape' && this.open) this.hide();
+    };
+    window.addEventListener('keydown', onKeyDown, true);
+    context.subscriptions.push({
+      dispose: () => {
+        window.removeEventListener('keydown', onKeyDown, true);
+        this.hide();
+        this.root.remove();
       },
-      true,
-    );
+    });
 
     void selfTestCoordinator.run('searcheverywhere', () => this.maybeSelfTest());
   }
@@ -117,21 +125,40 @@ export class SearchEverywhereModule implements IModule {
   /* ----- lifecycle ----- */
 
   private async show(scope: SearchScope = 'all'): Promise<void> {
+    if (this.open) {
+      this.input.focus();
+      this.input.select();
+      return;
+    }
     this.scope = scope;
-    await this.collectCandidates();
+    const sequence = ++this.collectionSequence;
     this.open = true;
+    this.releaseOverlay = claimOverlay(this, () => this.hide());
+    this.loading = true;
     this.restoreFocus = captureFocus();
     this.root.classList.add('is-open');
+    this.listEl.setAttribute('aria-busy', 'true');
     this.input.value = scope !== 'all' ? (CATEGORY_SIGIL[scope] ?? '') : '';
     this.renderTabs();
     this.refresh();
     this.input.focus();
     this.input.setSelectionRange(this.input.value.length, this.input.value.length);
+    try {
+      await this.collectCandidates(sequence);
+    } finally {
+      if (sequence !== this.collectionSequence) return;
+      this.loading = false;
+      this.listEl.removeAttribute('aria-busy');
+      if (this.open) this.refresh();
+    }
   }
 
   private hide(): void {
+    this.collectionSequence += 1;
     this.open = false;
     this.root.classList.remove('is-open');
+    this.releaseOverlay?.();
+    this.releaseOverlay = undefined;
     setActiveDescendant(this.input, null);
     this.restoreFocus?.();
     this.restoreFocus = undefined;
@@ -140,20 +167,21 @@ export class SearchEverywhereModule implements IModule {
 
   /* ----- candidate collection (per open) ----- */
 
-  private async collectCandidates(): Promise<void> {
+  private async collectCandidates(sequence: number): Promise<void> {
     this.actions.clear();
-    this.addCommands();
-    this.addSettings();
-    this.addViews();
-    await this.addFiles();
-    await this.addSymbols();
+    this.addCommands(sequence);
+    this.addSettings(sequence);
+    this.addViews(sequence);
+    await this.addFiles(sequence);
+    await this.addSymbols(sequence);
   }
 
-  private register(candidate: SearchCandidate, run: () => void | Promise<void>): void {
+  private register(candidate: SearchCandidate, run: () => void | Promise<void>, sequence: number): void {
+    if (sequence !== this.collectionSequence) return;
     this.actions.set(`${candidate.category}::${candidate.id}`, { candidate, run });
   }
 
-  private addCommands(): void {
+  private addCommands(sequence: number): void {
     for (const command of this.commands.list()) {
       if (HIDDEN_COMMANDS.has(command.id)) continue;
       this.register(
@@ -171,29 +199,32 @@ export class SearchEverywhereModule implements IModule {
           }
           void this.commands.execute(command.id);
         },
+        sequence,
       );
     }
   }
 
-  private addSettings(): void {
+  private addSettings(sequence: number): void {
     for (const setting of SETTINGS_DESCRIPTIONS) {
       this.register(
         { category: 'settings', id: setting.key, label: setting.key, detail: setting.description, keywords: setting.description },
-        () => void this.commands.execute(CommandIds.SettingsOpen),
+        () => this.commands.execute(CommandIds.SettingsOpen),
+        sequence,
       );
     }
   }
 
-  private addViews(): void {
+  private addViews(sequence: number): void {
     for (const item of this.context.layout.activityItemsList()) {
       this.register(
         { category: 'views', id: item.id, label: item.label, detail: 'View', keywords: item.id },
         () => this.context.layout.selectActivityById(item.id),
+        sequence,
       );
     }
   }
 
-  private async addFiles(): Promise<void> {
+  private async addFiles(sequence: number): Promise<void> {
     const workspace = this.context.services.tryGet<WorkspaceService>(ServiceKeys.Workspace);
     const editor = this.context.services.tryGet<EditorService>(ServiceKeys.Editor);
     const root = workspace?.currentFolder();
@@ -210,12 +241,13 @@ export class SearchEverywhereModule implements IModule {
       const name = relative.split('/').pop() ?? relative;
       this.register(
         { category: 'files', id: path, label: name, detail: relative, keywords: relative },
-        () => void editor.openFile(path, { preview: true }),
+        () => editor.openFile(path, { preview: true }),
+        sequence,
       );
     }
   }
 
-  private async addSymbols(): Promise<void> {
+  private async addSymbols(sequence: number): Promise<void> {
     const documents = this.context.services.tryGet<DocumentManager>(LanguageServiceKeys.Documents);
     const registry = this.context.services.tryGet<LanguageRegistry>(LanguageServiceKeys.Registry);
     const editor = this.context.services.tryGet<EditorService>(ServiceKeys.Editor);
@@ -245,6 +277,7 @@ export class SearchEverywhereModule implements IModule {
             keywords: symbol.kind,
           },
           () => editor.revealPosition(position.line, position.character),
+          sequence,
         );
         if (symbol.children?.length) walk(symbol.children, trail ? `${trail} › ${symbol.name}` : symbol.name);
       }
@@ -302,8 +335,12 @@ export class SearchEverywhereModule implements IModule {
     if (!this.hits.length) {
       const empty = document.createElement('div');
       empty.className = 'znxstudio-everywhere-empty';
-      empty.textContent = parsed.term ? 'No matches.' : 'Type to search across the IDE.';
+      empty.setAttribute('role', 'status');
+      empty.textContent = this.loading
+        ? 'Loading commands, files, symbols, and settings…'
+        : parsed.term ? 'No matches.' : 'Type to search across the IDE.';
       this.listEl.appendChild(empty);
+      setActiveDescendant(this.input, null);
       return;
     }
     let flatIndex = 0;

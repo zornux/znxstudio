@@ -4,6 +4,7 @@ import type { IModule, ModuleContext } from '../core/Module';
 import { CommandIds } from '../commands/CommandIds';
 import { captureFocus, markCombobox, markDialog, markListbox, markOption, setActiveDescendant } from '../ui/ariaListbox';
 import { fuzzyFilter } from './fuzzy';
+import { claimOverlay } from '../ui/overlayCoordinator';
 
 /**
  * Quick Open (Phase 7J). A Ctrl+P fuzzy file finder over the workspace. Loads the
@@ -23,52 +24,80 @@ export class QuickOpenModule implements IModule {
   private root: string | null = null;
   private picker: HTMLElement | undefined;
   private restoreFocus: (() => void) | undefined;
+  private requestSequence = 0;
+  private releaseOverlay: (() => void) | undefined;
 
   activate(context: ModuleContext): void {
     this.context = context;
     this.editor = context.services.get<EditorService>(ServiceKeys.Editor);
     this.workspace = context.services.get<WorkspaceService>(ServiceKeys.Workspace);
 
-    context.commands.register(CommandIds.QuickOpen, () => void this.open(), 'Go: Quick Open File');
+    context.commands.register(CommandIds.QuickOpen, () => this.open(), 'Go: Quick Open File');
 
-    this.workspace.onDidChangeWorkspace(() => {
+    context.subscriptions.push(this.workspace.onDidChangeWorkspace(() => {
+      this.requestSequence += 1;
       this.loaded = false;
       this.files = [];
-    });
+      this.root = null;
+      this.closePicker();
+    }));
 
     // Ctrl+P belongs to the KeybindingService (Phase 17D), which dispatches
     // `QuickOpen` — one listener owns the keyboard, so the binding is rebindable
     // and a conflict is detectable. Escape merely dismisses the picker.
-    window.addEventListener(
-      'keydown',
-      (event) => {
-        if (event.key === 'Escape' && this.picker) this.closePicker();
+    const onKeyDown = (event: KeyboardEvent): void => {
+      if (event.key === 'Escape' && this.picker) this.closePicker();
+    };
+    window.addEventListener('keydown', onKeyDown, true);
+    context.subscriptions.push({
+      dispose: () => {
+        window.removeEventListener('keydown', onKeyDown, true);
+        this.closePicker();
       },
-      true,
-    );
+    });
 
     void selfTestCoordinator.run('quickopen', () => this.maybeSelfTest());
   }
 
-  private async ensureFiles(): Promise<void> {
-    const root = this.workspace.currentFolder();
-    if (this.loaded && root === this.root) return;
-    this.root = root;
-    this.files = root ? await window.znxstudio.search.files(root) : [];
-    this.loaded = true;
+  private async filesFor(root: string, sequence: number): Promise<string[]> {
+    if (this.loaded && root === this.root) return this.files;
+    const files = await window.znxstudio.search.files(root);
+    if (sequence === this.requestSequence && this.workspace.currentFolder() === root) {
+      this.root = root;
+      this.files = files;
+      this.loaded = true;
+    }
+    return files;
   }
 
   private async open(): Promise<void> {
+    if (this.picker) {
+      const input = this.picker.querySelector<HTMLInputElement>('.znxstudio-quickopen-input');
+      input?.focus();
+      input?.select();
+      return;
+    }
     const root = this.workspace.currentFolder();
     if (!root) {
       this.context.layout.showToast('Open a folder to use Quick Open.', 'info');
       return;
     }
-    await this.ensureFiles();
+    const sequence = ++this.requestSequence;
+    this.showPicker(root, true);
+    try {
+      await this.filesFor(root, sequence);
+    } catch (error) {
+      if (sequence !== this.requestSequence) return;
+      this.closePicker();
+      const detail = error instanceof Error ? error.message : String(error);
+      this.context.layout.showToast(`Could not list workspace files: ${detail}`, 'error');
+      return;
+    }
+    if (sequence !== this.requestSequence || this.workspace.currentFolder() !== root) return;
     this.showPicker(root);
   }
 
-  private showPicker(root: string): void {
+  private showPicker(root: string, loading = false): void {
     this.closePicker();
     const rootLen = root.replace(/[\\/]+$/, '').length + 1;
     const relative = (path: string) => path.slice(rootLen).replace(/\\/g, '/');
@@ -83,7 +112,8 @@ export class QuickOpenModule implements IModule {
     box.className = 'znxstudio-quickopen-box';
     const input = document.createElement('input');
     input.className = 'znxstudio-quickopen-input';
-    input.placeholder = `Go to file… (${this.files.length} files)`;
+    input.placeholder = loading ? 'Loading workspace files…' : `Go to file… (${this.files.length} files)`;
+    input.readOnly = loading;
     const list = document.createElement('ul');
     list.className = 'znxstudio-quickopen-list';
 
@@ -102,6 +132,17 @@ export class QuickOpenModule implements IModule {
       shown = ranked;
       selection = 0;
       list.replaceChildren();
+      if (ranked.length === 0) {
+        const empty = document.createElement('li');
+        empty.className = 'znxstudio-quickopen-empty';
+        empty.setAttribute('role', 'status');
+        empty.textContent = loading
+          ? 'Loading workspace files…'
+          : query.trim() ? 'No matching files.' : 'No files found in this workspace.';
+        list.appendChild(empty);
+        setActiveDescendant(input, null);
+        return;
+      }
       ranked.forEach((path, index) => {
         const item = document.createElement('li');
         item.className = `znxstudio-quickopen-item${index === selection ? ' is-selected' : ''}`;
@@ -149,20 +190,29 @@ export class QuickOpenModule implements IModule {
     overlay.appendChild(box);
     document.body.appendChild(overlay);
     this.picker = overlay;
+    this.releaseOverlay = claimOverlay(this, () => this.closePicker());
     this.restoreFocus = captureFocus();
     render('');
+    if (loading) {
+      list.setAttribute('aria-busy', 'true');
+    }
     input.focus();
   }
 
   private choose(path: string): void {
     this.closePicker();
     // A picked file opens as a reusable preview tab (VS Code Quick Open feel).
-    void this.editor.openFile(path, { preview: true });
+    void this.editor.openFile(path, { preview: true }).catch((error) => {
+      const detail = error instanceof Error ? error.message : String(error);
+      this.context.layout.showToast(`Could not open ${path}: ${detail}`, 'error');
+    });
   }
 
   private closePicker(): void {
     this.picker?.remove();
     this.picker = undefined;
+    this.releaseOverlay?.();
+    this.releaseOverlay = undefined;
     this.restoreFocus?.();
     this.restoreFocus = undefined;
   }

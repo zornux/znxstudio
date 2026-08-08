@@ -71,15 +71,15 @@ export class SourceControlModule implements IModule, SourceControlService {
 
     context.layout.addActivityItem({ id: 'scm', label: 'Source Control', icon: '⎇', onSelect: () => this.reveal() });
     context.commands.register(CommandIds.ScmShow, () => this.reveal(), 'Source Control: Show');
-    context.commands.register(CommandIds.ScmRefresh, () => void this.refresh(), 'Source Control: Refresh');
-    context.commands.register(CommandIds.ScmCommit, () => void this.revealCommitComposer(), 'Source Control: Commit');
-    context.commands.register(CommandIds.ScmStageAll, () => void this.stageAll(), 'Source Control: Stage All');
+    context.commands.register(CommandIds.ScmRefresh, () => this.refresh(), 'Source Control: Refresh');
+    context.commands.register(CommandIds.ScmCommit, () => this.revealCommitComposer(), 'Source Control: Commit');
+    context.commands.register(CommandIds.ScmStageAll, () => this.stageAll(), 'Source Control: Stage All');
     context.commands.register(CommandIds.ScmOpenOnGitHub, () => this.openActiveOnGitHub(), 'Source Control: Open File on GitHub');
-    context.commands.register(CommandIds.ScmAcceptOurs, () => void this.resolveActive('ours'), 'Source Control: Accept Ours');
-    context.commands.register(CommandIds.ScmAcceptTheirs, () => void this.resolveActive('theirs'), 'Source Control: Accept Theirs');
-    context.commands.register(CommandIds.ScmAcceptBoth, () => void this.resolveActive('both'), 'Source Control: Accept Both');
+    context.commands.register(CommandIds.ScmAcceptOurs, () => this.resolveActive('ours'), 'Source Control: Accept Ours');
+    context.commands.register(CommandIds.ScmAcceptTheirs, () => this.resolveActive('theirs'), 'Source Control: Accept Theirs');
+    context.commands.register(CommandIds.ScmAcceptBoth, () => this.resolveActive('both'), 'Source Control: Accept Both');
     context.commands.register(CommandIds.ScmCheckout, () => this.showBranchPicker(), 'Source Control: Checkout Branch');
-    context.commands.register(CommandIds.ScmCreateBranch, () => void this.createBranchPrompt(), 'Source Control: Create Branch');
+    context.commands.register(CommandIds.ScmCreateBranch, () => this.createBranchPrompt(), 'Source Control: Create Branch');
     context.commands.addEnablementRule((id) => {
       if (id === CommandIds.ScmCheckout || id === CommandIds.ScmCreateBranch) {
         return this.repoRoot !== null && !this.creatingBranch;

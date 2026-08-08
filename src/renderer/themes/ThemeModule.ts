@@ -60,7 +60,7 @@ export class ThemeModule implements IModule, ThemeService {
 
     context.services.register(ServiceKeys.Theme, this);
     context.commands.register(CommandIds.ThemeToggle, () => this.toggle(), 'Preferences: Toggle Color Theme');
-    context.commands.register(CommandIds.ThemeSelect, () => void this.pickTheme(), 'Preferences: Select Color Theme…');
+    context.commands.register(CommandIds.ThemeSelect, () => this.pickTheme(), 'Preferences: Select Color Theme…');
     this.apply(this.theme);
 
     void selfTestCoordinator.run('themes', () => this.maybeSelfTest());

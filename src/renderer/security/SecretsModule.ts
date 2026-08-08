@@ -36,7 +36,7 @@ export class SecretsModule implements IModule {
     context.layout.addPanelView({ id: 'security-secrets', title: 'Secrets', element: this.panel });
 
     context.commands.register(CommandIds.SecuritySecretsShow, () => this.reveal(), 'Security: Show Secrets');
-    context.commands.register(CommandIds.SecuritySuppress, () => void this.suppressAtCursor(), 'Security: Suppress Finding at Cursor');
+    context.commands.register(CommandIds.SecuritySuppress, () => this.suppressAtCursor(), 'Security: Suppress Finding at Cursor');
 
     this.security?.onDidChange(() => this.render());
     this.render();

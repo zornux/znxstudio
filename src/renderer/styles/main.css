@@ -8,6 +8,7 @@
 :root[data-theme='znxstudio-dark'] {
   --z-font-ui: -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, Ubuntu, 'Helvetica Neue', sans-serif;
   --z-font-mono: 'Cascadia Code', 'SFMono-Regular', Consolas, 'Liberation Mono', Menlo, monospace;
+  --z-font-icons: 'Segoe Fluent Icons', 'Noto Sans Symbols 2', 'Segoe UI Symbol', sans-serif;
   --z-mono: var(--z-font-mono);
   --znxstudio-font-mono: var(--z-font-mono);
   --z-type-ui: 13px;
@@ -745,6 +746,9 @@ button {
   padding: 1px 4px;
   border-radius: 3px;
   color: var(--z-fg-muted);
+  border: 0;
+  background: transparent;
+  font: inherit;
 }
 .znxstudio-crumb--file {
   color: var(--z-fg);
@@ -787,8 +791,14 @@ button {
   border-radius: 3px;
   cursor: pointer;
   color: var(--z-fg);
+  width: 100%;
+  border: 0;
+  background: transparent;
+  font: inherit;
+  text-align: left;
 }
-.znxstudio-crumb-menu-item:hover {
+.znxstudio-crumb-menu-item:hover,
+.znxstudio-crumb-menu-item:focus-visible {
   background: var(--z-accent);
   color: var(--z-accent-fg);
 }
@@ -2623,6 +2633,13 @@ button.znxstudio-solution-action:focus-visible {
   overflow: auto;
 }
 
+.znxstudio-palette-empty {
+  padding: 14px 10px;
+  color: var(--z-fg-muted);
+  font-size: 12px;
+  text-align: center;
+}
+
 .znxstudio-palette-item {
   display: flex;
   justify-content: space-between;
@@ -3568,6 +3585,13 @@ button.znxstudio-solution-action:focus-visible {
   margin: 0;
   padding: 4px;
   overflow-y: auto;
+}
+
+.znxstudio-quickopen-empty {
+  padding: 16px 12px;
+  color: var(--z-fg-muted);
+  font-size: 12px;
+  text-align: center;
 }
 .znxstudio-quickopen-item {
   display: flex;
@@ -7585,6 +7609,35 @@ button.znxstudio-solution-action:focus-visible {
   .znxstudio-menubar {
     overflow-x: auto;
   }
+  .znxstudio-palette-box,
+  .znxstudio-everywhere-box,
+  .znxstudio-quickopen-box,
+  .znxstudio-inputbox-panel,
+  .znxstudio-modal {
+    width: calc(100vw - 16px);
+    max-width: none;
+    margin-top: 8px;
+    max-height: calc(100vh - 16px);
+  }
+  .znxstudio-palette-list,
+  .znxstudio-everywhere-list,
+  .znxstudio-quickopen-list {
+    max-height: calc(100vh - 130px);
+  }
+  .znxstudio-everywhere-tabs {
+    scrollbar-width: thin;
+  }
+  .znxstudio-editor-actions {
+    flex: 0 0 auto;
+  }
+}
+
+.znxstudio-editor-action,
+.znxstudio-activity-item,
+.znxstudio-panel-actions button,
+.znxstudio-crumb-icon {
+  font-family: var(--z-font-icons);
+  font-variant-emoji: text;
 }
 
 /* ---- Settings form UI (UX-8) ---- */

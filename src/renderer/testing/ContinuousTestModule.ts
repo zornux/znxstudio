@@ -47,7 +47,7 @@ export class ContinuousTestModule implements IModule {
     this.panel.className = 'znxstudio-continuous';
     context.layout.addPanelView({ id: 'continuous', title: 'Continuous', element: this.panel });
     context.commands.register(CommandIds.ContinuousShow, () => this.context.layout.showPanelView('continuous'), 'Test: Show Continuous Testing');
-    context.commands.register(CommandIds.ContinuousToggle, () => void this.toggle(), 'Test: Toggle Continuous Testing');
+    context.commands.register(CommandIds.ContinuousToggle, () => this.toggle(), 'Test: Toggle Continuous Testing');
     context.subscriptions.push(
       context.commands.addEnablementRule((id) => {
         if (id !== CommandIds.ContinuousToggle) return undefined;

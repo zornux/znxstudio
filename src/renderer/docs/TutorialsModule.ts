@@ -45,7 +45,7 @@ export class TutorialsModule implements IModule {
     context.commands.register(CommandIds.TutorialOpen, (id) => this.open(String(id)), 'Tutorial: Open');
     context.commands.register(CommandIds.TutorialNext, () => this.next(), 'Tutorial: Next Step');
     context.commands.register(CommandIds.TutorialPrevious, () => this.previous(), 'Tutorial: Previous Step');
-    context.commands.register(CommandIds.TutorialVerify, () => void this.verify(), 'Tutorial: Verify Step');
+    context.commands.register(CommandIds.TutorialVerify, () => this.verify(), 'Tutorial: Verify Step');
 
     this.render();
     void selfTestCoordinator.run('tutorials', () => this.maybeSelfTest());

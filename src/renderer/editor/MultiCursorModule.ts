@@ -68,8 +68,8 @@ export class MultiCursorModule implements IModule {
       'Editor: Clear Extra Cursors',
     );
 
-    this.editor.onDidChangeSelections((selections) => this.updateStatus(selections));
-    this.editor.onDidChangeActiveFile(() => this.updateStatus(this.editor.getSelections()));
+    context.subscriptions.push(this.editor.onDidChangeSelections((selections) => this.updateStatus(selections)));
+    context.subscriptions.push(this.editor.onDidChangeActiveFile(() => this.updateStatus(this.editor.getSelections())));
 
     void selfTestCoordinator.run('multicursor', () => this.maybeSelfTest());
   }

@@ -63,7 +63,7 @@ export class DependencyAuditModule implements IModule {
     context.layout.addPanelView({ id: 'security-dependencies', title: 'Dependencies', element: this.panel });
 
     context.commands.register(CommandIds.SecurityDependenciesShow, () => this.reveal(), 'Security: Show Dependency Audit');
-    context.commands.register(CommandIds.SecurityDependencyAudit, () => void this.audit(), 'Security: Audit Dependencies');
+    context.commands.register(CommandIds.SecurityDependencyAudit, () => this.audit(), 'Security: Audit Dependencies');
 
     this.workspace?.onDidChangeWorkspace(() => void this.reload());
     // Findings arrive with every scan, so the panel follows the scanner.

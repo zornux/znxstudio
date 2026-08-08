@@ -85,8 +85,8 @@ export class TestExplorerModule implements IModule {
     this.renderResults();
 
     context.commands.register(CommandIds.TestExplorerShow, () => this.reveal(), 'Test: Show Test Explorer');
-    context.commands.register(CommandIds.TestRunAll, () => void this.runAll(), 'Test: Run All Tests');
-    context.commands.register(CommandIds.TestRefresh, () => void this.discover(), 'Test: Refresh Tests');
+    context.commands.register(CommandIds.TestRunAll, () => this.runAll(), 'Test: Run All Tests');
+    context.commands.register(CommandIds.TestRefresh, () => this.discover(), 'Test: Refresh Tests');
     context.subscriptions.push(
       context.commands.addEnablementRule((id) => {
         if (id === CommandIds.TestRunAll) return this.files.length > 0 && !this.discovering && !this.runningAll;

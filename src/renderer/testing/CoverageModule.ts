@@ -33,7 +33,7 @@ export class CoverageModule implements IModule {
     context.layout.addPanelView({ id: 'coverage', title: 'Coverage', element: this.panel });
 
     context.commands.register(CommandIds.CoverageShow, () => this.context.layout.showPanelView('coverage'), 'Test: Show Coverage');
-    context.commands.register(CommandIds.CoverageCompute, () => void this.compute(), 'Test: Compute Coverage');
+    context.commands.register(CommandIds.CoverageCompute, () => this.compute(), 'Test: Compute Coverage');
     context.subscriptions.push(
       context.commands.addEnablementRule((id) =>
         id === CommandIds.CoverageCompute

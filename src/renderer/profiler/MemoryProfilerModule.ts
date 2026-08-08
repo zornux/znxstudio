@@ -35,7 +35,7 @@ export class MemoryProfilerModule implements IModule {
     context.layout.addPanelView({ id: 'memory-profiler', title: 'Memory', element: this.panel });
 
     context.commands.register(CommandIds.PerfMemoryShow, () => context.layout.showPanelView('memory-profiler'), 'Performance: Show Memory Profiler');
-    context.commands.register(CommandIds.PerfHeapCapture, () => void this.capture(), 'Performance: Capture Heap Snapshot');
+    context.commands.register(CommandIds.PerfHeapCapture, () => this.capture(), 'Performance: Capture Heap Snapshot');
 
     this.render();
     void selfTestCoordinator.run('perf-memory', () => this.maybeSelfTest());

@@ -7,6 +7,7 @@ import {
 } from '../core/Contracts';
 import { captureFocus, markCombobox, markDialog, markListbox, markOption, setActiveDescendant } from '../ui/ariaListbox';
 import { selfTestCoordinator } from '../core/SelfTestCoordinator';
+import { claimOverlay } from '../ui/overlayCoordinator';
 
 /**
  * A reusable, command-palette-style chooser (`ServiceKeys.QuickPick`). Any module
@@ -29,18 +30,23 @@ export class QuickPickModule implements IModule, QuickPickService {
   private restoreFocus: (() => void) | undefined;
   /** Resolver for the in-flight pick; called once with the value or undefined. */
   private settle: ((value: unknown) => void) | null = null;
+  private releaseOverlay: (() => void) | undefined;
 
   activate(context: ModuleContext): void {
     context.services.register<QuickPickService>(ServiceKeys.QuickPick, this);
     this.buildDom();
 
-    window.addEventListener(
-      'keydown',
-      (event) => {
-        if (event.key === 'Escape' && this.open) this.resolve(undefined);
+    const onKeyDown = (event: KeyboardEvent): void => {
+      if (event.key === 'Escape' && this.open) this.resolve(undefined);
+    };
+    window.addEventListener('keydown', onKeyDown, true);
+    context.subscriptions.push({
+      dispose: () => {
+        window.removeEventListener('keydown', onKeyDown, true);
+        this.resolve(undefined);
+        this.root.remove();
       },
-      true,
-    );
+    });
 
     void selfTestCoordinator.run('quickpick', () => this.maybeSelfTest());
   }
@@ -52,6 +58,7 @@ export class QuickPickModule implements IModule, QuickPickService {
     this.items = items as QuickPickItem[];
     this.input.placeholder = options.placeholder ?? 'Type to filter…';
     this.open = true;
+    this.releaseOverlay = claimOverlay(this, () => this.resolve(undefined));
     this.restoreFocus = captureFocus();
     this.root.classList.add('is-open');
     this.input.value = '';
@@ -105,6 +112,14 @@ export class QuickPickModule implements IModule, QuickPickService {
 
   private renderList(): void {
     this.list.replaceChildren();
+    if (this.filtered.length === 0) {
+      const empty = document.createElement('li');
+      empty.className = 'znxstudio-palette-empty';
+      empty.textContent = 'No matching choices.';
+      this.list.appendChild(empty);
+      setActiveDescendant(this.input, null);
+      return;
+    }
     this.filtered.forEach((item, index) => {
       const selected = index === this.selection;
       const row = document.createElement('li');
@@ -117,6 +132,7 @@ export class QuickPickModule implements IModule, QuickPickService {
       this.list.appendChild(row);
     });
     setActiveDescendant(this.input, this.filtered.length ? `znxstudio-quickpick-opt-${this.selection}` : null);
+    this.list.querySelector<HTMLElement>('.znxstudio-palette-item.is-selected')?.scrollIntoView({ block: 'nearest' });
   }
 
   private onInputKey(event: KeyboardEvent): void {
@@ -140,6 +156,8 @@ export class QuickPickModule implements IModule, QuickPickService {
     if (!this.open) return;
     this.open = false;
     this.root.classList.remove('is-open');
+    this.releaseOverlay?.();
+    this.releaseOverlay = undefined;
     setActiveDescendant(this.input, null);
     this.restoreFocus?.();
     this.restoreFocus = undefined;

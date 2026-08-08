@@ -54,8 +54,8 @@ export class MigrationsModule implements IModule {
     context.layout.addPanelView({ id: 'migrations', title: 'Migrations', element: this.panel });
 
     context.commands.register(CommandIds.MigrationsShow, () => this.context.layout.showPanelView('migrations'), 'Database: Show Migrations');
-    context.commands.register(CommandIds.MigrationsRefresh, () => void this.discover(), 'Database: Refresh Migrations');
-    context.commands.register(CommandIds.MigrationNew, () => void this.newMigration(), 'Database: New Migration');
+    context.commands.register(CommandIds.MigrationsRefresh, () => this.discover(), 'Database: Refresh Migrations');
+    context.commands.register(CommandIds.MigrationNew, () => this.newMigration(), 'Database: New Migration');
     context.commands.addEnablementRule((id) => id === CommandIds.MigrationNew
       ? !this.creatingMigration && Boolean(context.services.tryGet<EditorService>(ServiceKeys.Editor)?.currentFile()?.toLowerCase().endsWith('.zx'))
       : undefined);

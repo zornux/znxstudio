@@ -62,7 +62,7 @@ export class WorkbenchUxModule implements IModule {
 
     context.commands.register(CommandIds.MacroStartRecording, () => this.startRecording(), 'Macro: Start Recording');
     context.commands.register(CommandIds.MacroStopRecording, () => this.stopRecording(), 'Macro: Stop Recording');
-    context.commands.register(CommandIds.MacroReplay, () => void this.replay(), 'Macro: Replay');
+    context.commands.register(CommandIds.MacroReplay, () => this.replay(), 'Macro: Replay');
     context.commands.register(CommandIds.MacroShow, () => this.showMacros(), 'Macro: Show Macros');
     context.commands.register(CommandIds.LayoutProfilesShow, () => this.showProfiles(), 'View: Layout Profiles');
     context.commands.register(CommandIds.LayoutProfileSave, () => this.saveProfile(), 'View: Save Layout Profile');

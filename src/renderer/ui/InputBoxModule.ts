@@ -7,6 +7,7 @@ import {
 } from '../core/Contracts';
 import { captureFocus, markDialog } from '../ui/ariaListbox';
 import { selfTestCoordinator } from '../core/SelfTestCoordinator';
+import { claimOverlay } from './overlayCoordinator';
 
 /**
  * A small, reusable modal dialog service (`ServiceKeys.InputBox`): a single-field
@@ -20,6 +21,7 @@ export class InputBoxModule implements IModule, InputBoxService {
 
   private root!: HTMLElement;
   private cancelActive: (() => void) | undefined;
+  private releaseOverlay: (() => void) | undefined;
 
   activate(context: ModuleContext): void {
     context.services.register<InputBoxService>(ServiceKeys.InputBox, this);
@@ -50,6 +52,8 @@ export class InputBoxModule implements IModule, InputBoxService {
           this.root.onmousedown = null;
           this.root.replaceChildren();
           this.root.classList.remove('is-open');
+          this.releaseOverlay?.();
+          this.releaseOverlay = undefined;
         }
         document.removeEventListener('keydown', onKey, true);
         restoreFocus();
@@ -57,6 +61,7 @@ export class InputBoxModule implements IModule, InputBoxService {
       };
       cancelThis = () => settle(null);
       this.cancelActive = cancelThis;
+      this.releaseOverlay = claimOverlay(this, cancelThis);
 
       const panel = document.createElement('div');
       panel.className = 'znxstudio-inputbox-panel';
@@ -152,6 +157,8 @@ export class InputBoxModule implements IModule, InputBoxService {
           this.root.onmousedown = null;
           this.root.replaceChildren();
           this.root.classList.remove('is-open');
+          this.releaseOverlay?.();
+          this.releaseOverlay = undefined;
         }
         document.removeEventListener('keydown', onKey, true);
         restoreFocus();
@@ -159,6 +166,7 @@ export class InputBoxModule implements IModule, InputBoxService {
       };
       cancelThis = () => settle(false);
       this.cancelActive = cancelThis;
+      this.releaseOverlay = claimOverlay(this, cancelThis);
 
       const panel = document.createElement('div');
       panel.className = 'znxstudio-inputbox-panel';

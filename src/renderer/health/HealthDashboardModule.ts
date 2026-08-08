@@ -32,8 +32,8 @@ export class HealthDashboardModule implements IModule {
     this.view.className = 'znxstudio-health';
     context.layout.addPanelView({ id: 'health', title: 'Health', element: this.view });
 
-    context.commands.register(CommandIds.HealthShow, () => void this.reveal(), 'Health: Show Dashboard');
-    context.commands.register(CommandIds.HealthRefresh, () => void this.refresh(), 'Health: Refresh');
+    context.commands.register(CommandIds.HealthShow, () => this.reveal(), 'Health: Show Dashboard');
+    context.commands.register(CommandIds.HealthRefresh, () => this.refresh(), 'Health: Refresh');
 
     this.render();
     void selfTestCoordinator.run('health-dashboard', () => this.maybeSelfTest());

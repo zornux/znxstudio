@@ -1,4 +1,4 @@
-import { ServiceKeys, type EditorService, type KeybindingService, type LayoutService, type SettingsService } from '../core/Contracts';
+import { ServiceKeys, type EditorService, type InputBoxService, type KeybindingService, type LayoutService, type SettingsService } from '../core/Contracts';
 import { Emitter } from '../core/Emitter';
 import { selfTestCoordinator } from '../core/SelfTestCoordinator';
 import type { IModule, ModuleContext } from '../core/Module';
@@ -98,11 +98,11 @@ export class LayoutModule implements IModule, LayoutService {
     register(CommandIds.LayoutToggleZen, () => this.toggleZen(), 'View: Toggle Zen Mode');
     register(CommandIds.LayoutReset, () => this.update(DEFAULT_LAYOUT), 'View: Reset Layout');
     register(CommandIds.LayoutPanelsShow, () => this.showPanelManager(), 'View: Manage Panels');
-    register(CommandIds.FileSaveAll, () => void this.saveAllDocuments(), 'File: Save All');
+    register(CommandIds.FileSaveAll, () => this.saveAllDocuments(), 'File: Save All');
     // Window management (17C) lives in the main process; the renderer asks.
-    register(CommandIds.WindowToggleFullScreen, () => void this.toggleFullScreen(), 'Window: Toggle Full Screen');
-    register(CommandIds.WindowToggleMaximize, () => void window.znxstudio.window.toggleMaximize(), 'Window: Toggle Maximize');
-    register(CommandIds.WindowMinimize, () => void window.znxstudio.window.minimize(), 'Window: Minimize');
+    register(CommandIds.WindowToggleFullScreen, () => this.toggleFullScreen(), 'Window: Toggle Full Screen');
+    register(CommandIds.WindowToggleMaximize, () => window.znxstudio.window.toggleMaximize(), 'Window: Toggle Maximize');
+    register(CommandIds.WindowMinimize, () => window.znxstudio.window.minimize(), 'Window: Minimize');
 
     context.layout.applyLayout(this.current);
     this.updateZenExit(); // a persisted zen layout (restart in zen) still needs its way out
@@ -307,9 +307,22 @@ export class LayoutModule implements IModule, LayoutService {
     });
   }
 
-  /** Run a registered command by id, no-op if it isn't registered (module absent). */
+  /** Run a registered, enabled command and keep rejected handlers out of the global error channel. */
   private runCommand(id: string, ...args: unknown[]): void {
-    if (this.context.commands.has(id)) void this.context.commands.execute(id, ...args);
+    if (!this.context.commands.has(id)) {
+      this.context.layout.showToast('That action is not available in this installation.', 'info');
+      return;
+    }
+    if (!this.context.commands.isEnabled(id)) {
+      this.context.layout.showToast('That action is not available in the current context.', 'info');
+      return;
+    }
+    void this.context.commands.execute(id, ...args).catch((error) => {
+      // Save failures already identify the affected file through DocumentManager.
+      if (id === CommandIds.FileSave || id === CommandIds.FileSaveAll) return;
+      const detail = error instanceof Error ? error.message : String(error);
+      this.context.layout.showToast(`The action failed: ${detail}`, 'error');
+    });
   }
 
   /** The File menu — VS Code-like: new, open, recent (submenu), save, close, settings, exit. */
@@ -320,7 +333,7 @@ export class LayoutModule implements IModule, LayoutService {
     const cmd = (label: string, id: string): MenuEntry => ({ label, onClick: () => this.runCommand(id) });
     return [
       cmd('New Project…', CommandIds.WizardNewProject),
-      { label: 'New Window', onClick: () => void window.znxstudio.app.newWindow() },
+      { label: 'New Window', onClick: () => void this.openNewWindow() },
       { separator: true },
       { label: 'Open File…', onClick: () => void this.openFileFromDialog() },
       cmd('Open Folder…', CommandIds.WorkspaceOpenFolder),
@@ -334,7 +347,7 @@ export class LayoutModule implements IModule, LayoutService {
       { separator: true },
       cmd('Preferences: Settings', CommandIds.SettingsOpen),
       { separator: true },
-      { label: 'Exit', onClick: () => void window.znxstudio.window.close() },
+      { label: 'Exit', onClick: () => void this.closeWindow() },
     ];
   }
 
@@ -547,12 +560,20 @@ export class LayoutModule implements IModule, LayoutService {
       onClick: () => this.runCommand(CommandIds.WorkspaceOpenFolder, entry.path),
     }));
     entries.push({ separator: true });
-    entries.push({ label: 'Clear Recently Opened', onClick: () => this.clearRecents() });
+    entries.push({ label: 'Clear Recently Opened', onClick: () => void this.clearRecents() });
     return entries;
   }
 
-  private clearRecents(): void {
+  private async clearRecents(): Promise<void> {
+    const confirmed = await this.context.services.tryGet<InputBoxService>(ServiceKeys.InputBox)?.confirm({
+      title: 'Clear recently opened projects?',
+      message: 'This removes every project from File → Open Recent. No project files will be deleted.',
+      confirmLabel: 'Clear Recents',
+      danger: true,
+    });
+    if (!confirmed) return;
     this.context.services.tryGet<SettingsService>(ServiceKeys.Settings)?.set('workbench.recentWorkspaces', []);
+    this.context.layout.showToast('Recently opened projects cleared.', 'info');
   }
 
   /**
@@ -585,13 +606,32 @@ export class LayoutModule implements IModule, LayoutService {
   }
 
   private async openFileFromDialog(): Promise<void> {
-    const path = await window.znxstudio.dialog.openFile();
-    if (!path) return;
-    const editor = this.context.services.tryGet<EditorService>(ServiceKeys.Editor);
     try {
+      const path = await window.znxstudio.dialog.openFile();
+      if (!path) return;
+      const editor = this.context.services.tryGet<EditorService>(ServiceKeys.Editor);
       await editor?.openFile(path);
-    } catch {
-      this.context.layout.showToast('Could not open that file — open its folder first.', 'error');
+    } catch (error) {
+      const detail = error instanceof Error ? error.message : String(error);
+      this.context.layout.showToast(`Could not open that file: ${detail}`, 'error');
+    }
+  }
+
+  private async openNewWindow(): Promise<void> {
+    try {
+      await window.znxstudio.app.newWindow();
+    } catch (error) {
+      const detail = error instanceof Error ? error.message : String(error);
+      this.context.layout.showToast(`Could not open a new window: ${detail}`, 'error');
+    }
+  }
+
+  private async closeWindow(): Promise<void> {
+    try {
+      await window.znxstudio.window.close();
+    } catch (error) {
+      const detail = error instanceof Error ? error.message : String(error);
+      this.context.layout.showToast(`Could not close the window: ${detail}`, 'error');
     }
   }
 
@@ -661,7 +701,7 @@ export class LayoutModule implements IModule, LayoutService {
           this.context.commands.has(action.command) && this.context.commands.isEnabled(action.command),
         onClick: () => {
           if (this.context.commands.has(action.command) && this.context.commands.isEnabled(action.command)) {
-            void this.context.commands.execute(action.command);
+            this.runCommand(action.command);
           }
         },
       })),

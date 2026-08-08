@@ -34,6 +34,9 @@ export interface ManagedDocument {
   dirty: boolean;
   readonly model: monaco.editor.ITextModel;
   readonly document: TextDocument;
+  /** Last content read from or successfully written to disk. */
+  diskContent: string;
+  externalConflict: boolean;
 }
 
 /**
@@ -81,6 +84,8 @@ export class DocumentManager implements DocumentStore {
       path,
       languageId,
       dirty: false,
+      diskContent: content,
+      externalConflict: false,
       model,
       document: new ModelTextDocument(model, key, path, languageId),
     };
@@ -131,7 +136,14 @@ export class DocumentManager implements DocumentStore {
     const version = managed.model.getVersionId();
     const content = managed.model.getValue();
     try {
+      const diskContent = await window.znxstudio.fs.readFile(managed.path);
+      if (diskContent !== managed.diskContent) {
+        managed.externalConflict = true;
+        throw new Error('The file changed on disk. Revert or review the external version before saving.');
+      }
       await window.znxstudio.fs.writeFile(managed.path, content);
+      managed.diskContent = content;
+      managed.externalConflict = false;
       // Edits made while the IPC write was in flight are newer than the bytes
       // written to disk and must remain visibly dirty.
       managed.dirty = managed.model.getVersionId() !== version;
@@ -156,7 +168,40 @@ export class DocumentManager implements DocumentStore {
     if (timer) clearTimeout(timer);
     this.autosaveTimers.delete(uri);
     managed.dirty = false;
+    managed.diskContent = content;
+    managed.externalConflict = false;
     this.saveEmitter.fire(managed);
+  }
+
+  /** Refresh clean buffers and flag dirty buffers whose file changed externally. */
+  async checkExternalChanges(): Promise<{ reloaded: string[]; conflicts: string[]; missing: string[] }> {
+    const result = { reloaded: [] as string[], conflicts: [] as string[], missing: [] as string[] };
+    for (const managed of this.docs.values()) {
+      let content: string;
+      try {
+        content = await window.znxstudio.fs.readFile(managed.path);
+      } catch {
+        if (!managed.externalConflict) result.missing.push(managed.path);
+        managed.externalConflict = true;
+        continue;
+      }
+      if (content === managed.diskContent) continue;
+      if (managed.dirty) {
+        if (!managed.externalConflict) result.conflicts.push(managed.path);
+        managed.externalConflict = true;
+        continue;
+      }
+      managed.model.setValue(content);
+      const timer = this.autosaveTimers.get(managed.uri);
+      if (timer) clearTimeout(timer);
+      this.autosaveTimers.delete(managed.uri);
+      managed.diskContent = content;
+      managed.externalConflict = false;
+      managed.dirty = false;
+      this.saveEmitter.fire(managed);
+      result.reloaded.push(managed.path);
+    }
+    return result;
   }
 
   setAutosave(mode: AutosaveMode, delay = 1000): void {

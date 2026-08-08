@@ -23,7 +23,7 @@ export function applyContributions(context: ModuleContext, ext: ValidatedExtensi
   for (const c of ext.contributions.commands) {
     if (!EXTENSION_CONTRIBUTABLE_COMMANDS.includes(c.runs)) continue; // defence-in-depth
     try {
-      disposables.push(commands.register(c.command, () => void commands.execute(c.runs), c.title));
+      disposables.push(commands.register(c.command, () => commands.execute(c.runs), c.title));
     } catch {
       /* id already registered — skip this alias */
     }

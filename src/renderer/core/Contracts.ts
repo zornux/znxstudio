@@ -697,8 +697,8 @@ export interface EditorService {
   activateEditor(uri: string): void;
   /** Close an open editor by uri (disposes its model). */
   closeEditor(uri: string): void;
-  /** Confirm affected editors, returning a closer to run only after a mutation succeeds. */
-  prepareEditorsForPath(path: string): Promise<(() => void) | null>;
+  /** Confirm and temporarily lock affected editors for a filesystem mutation. */
+  prepareEditorsForPath(path: string): Promise<{ commit(): void; cancel(): void } | null>;
   /** Fires when the set / order / dirty / pin state of open editors changes. */
   readonly onDidChangeEditors: Event<void>;
   /** Overlay an arbitrary DOM view (welcome, settings, …) over the editor. */
@@ -756,7 +756,7 @@ export interface EditorService {
   /** The primary selection's text, or '' when nothing is selected. */
   selectedText(): string;
   /** Subscribe to cursor/selection changes; receives the current selections. */
-  onDidChangeSelections(handler: (selections: CursorSelection[]) => void): void;
+  onDidChangeSelections(handler: (selections: CursorSelection[]) => void): Disposable;
 }
 
 /** A validated, data-only theme contributed by a marketplace extension. */

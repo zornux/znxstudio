@@ -72,7 +72,7 @@ export class TeamModule implements IModule {
 
     context.commands.register(CommandIds.TeamSettingsShow, () => this.moduleContext.layout.showPanelView('team-settings'), 'Team: Show Settings');
     context.commands.register(CommandIds.TeamPoliciesShow, () => this.moduleContext.layout.showPanelView('team-policies'), 'Team: Show Policies');
-    context.commands.register(CommandIds.TeamPolicyCheck, () => void this.reload(), 'Team: Check Policy Compliance');
+    context.commands.register(CommandIds.TeamPolicyCheck, () => this.reload(), 'Team: Check Policy Compliance');
 
     this.workspace?.onDidChangeWorkspace(() => void this.reload());
     this.renderSettings();

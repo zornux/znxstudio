@@ -3,6 +3,7 @@ import type { IModule, ModuleContext } from '../core/Module';
 import { CommandIds } from '../commands/CommandIds';
 import { captureFocus, markCombobox, markDialog, markListbox, markOption, setActiveDescendant } from '../ui/ariaListbox';
 import { selfTestCoordinator } from '../core/SelfTestCoordinator';
+import { claimOverlay } from '../ui/overlayCoordinator';
 
 interface Entry {
   id: string;
@@ -32,6 +33,7 @@ export class CommandPaletteModule implements IModule {
   private selection = 0;
   private open = false;
   private restoreFocus: (() => void) | undefined;
+  private releaseOverlay: (() => void) | undefined;
 
   activate(context: ModuleContext): void {
     this.commands = context.commands;
@@ -43,13 +45,17 @@ export class CommandPaletteModule implements IModule {
     // Ctrl+Shift+P belongs to the KeybindingService (Phase 17D), which dispatches
     // `PaletteShow` — so the shortcut is rebindable and appears in the shortcuts
     // editor. Escape is not a binding: it dismisses whatever overlay is open.
-    window.addEventListener(
-      'keydown',
-      (event) => {
-        if (event.key === 'Escape' && this.open) this.hide();
+    const onKeyDown = (event: KeyboardEvent): void => {
+      if (event.key === 'Escape' && this.open) this.hide();
+    };
+    window.addEventListener('keydown', onKeyDown, true);
+    context.subscriptions.push({
+      dispose: () => {
+        window.removeEventListener('keydown', onKeyDown, true);
+        this.hide();
+        this.root.remove();
       },
-      true,
-    );
+    });
 
     void selfTestCoordinator.run('palette-a11y', () => this.maybeSelfTest());
   }
@@ -110,11 +116,17 @@ export class CommandPaletteModule implements IModule {
   }
 
   private show(): void {
+    if (this.open) {
+      this.input.focus();
+      this.input.select();
+      return;
+    }
     this.entries = this.commands
       .list()
       .filter((command) => !HIDDEN.has(command.id))
       .sort((a, b) => a.title.localeCompare(b.title));
     this.open = true;
+    this.releaseOverlay = claimOverlay(this, () => this.hide());
     this.restoreFocus = captureFocus();
     this.root.classList.add('is-open');
     this.input.value = '';
@@ -125,6 +137,8 @@ export class CommandPaletteModule implements IModule {
   private hide(): void {
     this.open = false;
     this.root.classList.remove('is-open');
+    this.releaseOverlay?.();
+    this.releaseOverlay = undefined;
     setActiveDescendant(this.input, null);
     // Return focus to wherever it was before the palette opened.
     this.restoreFocus?.();
@@ -145,6 +159,14 @@ export class CommandPaletteModule implements IModule {
 
   private renderList(): void {
     this.list.replaceChildren();
+    if (this.filtered.length === 0) {
+      const empty = document.createElement('li');
+      empty.className = 'znxstudio-palette-empty';
+      empty.textContent = 'No matching commands.';
+      this.list.appendChild(empty);
+      setActiveDescendant(this.input, null);
+      return;
+    }
     this.filtered.forEach((entry, index) => {
       const item = document.createElement('li');
       const selected = index === this.selection;
@@ -159,6 +181,7 @@ export class CommandPaletteModule implements IModule {
     });
     // Announce the highlighted option to assistive tech.
     setActiveDescendant(this.input, this.filtered.length ? `znxstudio-palette-opt-${this.selection}` : null);
+    this.list.querySelector<HTMLElement>('.znxstudio-palette-item.is-selected')?.scrollIntoView({ block: 'nearest' });
   }
 
   private onInputKey(event: KeyboardEvent): void {
@@ -183,6 +206,9 @@ export class CommandPaletteModule implements IModule {
       this.layout.showToast(`“${entry.title}” is not available in the current context.`, 'info');
       return;
     }
-    void this.commands.execute(entry.id);
+    void this.commands.execute(entry.id).catch((error) => {
+      const detail = error instanceof Error ? error.message : String(error);
+      this.layout.showToast(`Could not run “${entry.title}”: ${detail}`, 'error');
+    });
   }
 }

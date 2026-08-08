@@ -58,7 +58,7 @@ export class SamplesModule implements IModule {
     this.view = document.createElement('div');
     this.view.className = 'znxstudio-samples';
     context.layout.addPanelView({ id: 'samples', title: 'Samples', element: this.view });
-    context.commands.register(CommandIds.DocsSamplesShow, () => void this.reveal(), 'Docs: Browse Samples');
+    context.commands.register(CommandIds.DocsSamplesShow, () => this.reveal(), 'Docs: Browse Samples');
 
     this.render();
     void this.discover();

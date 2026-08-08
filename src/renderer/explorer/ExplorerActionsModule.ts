@@ -76,12 +76,12 @@ export class ExplorerActionsModule implements IModule {
       );
     }
 
-    context.commands.register(CommandIds.ExplorerRename, (path?: string) => void this.rename(path), 'Explorer: Rename');
-    context.commands.register(CommandIds.ExplorerDelete, (path?: string) => void this.remove(path), 'Explorer: Delete');
-    context.commands.register(CommandIds.ExplorerCopyPath, (path?: string) => void this.copyPath(path), 'Explorer: Copy Path');
-    context.commands.register(CommandIds.ExplorerRevealInOs, (path?: string) => void this.revealInOs(path), 'Explorer: Reveal in File Explorer');
-    context.commands.register(CommandIds.ExplorerOpenInTerminal, (path?: string) => void this.openInTerminal(path), 'Explorer: Open in Integrated Terminal');
-    context.commands.register(CommandIds.ExplorerRefresh, (path?: string) => void this.refresh(path), 'Explorer: Refresh');
+    context.commands.register(CommandIds.ExplorerRename, (path?: string) => this.rename(path), 'Explorer: Rename');
+    context.commands.register(CommandIds.ExplorerDelete, (path?: string) => this.remove(path), 'Explorer: Delete');
+    context.commands.register(CommandIds.ExplorerCopyPath, (path?: string) => this.copyPath(path), 'Explorer: Copy Path');
+    context.commands.register(CommandIds.ExplorerRevealInOs, (path?: string) => this.revealInOs(path), 'Explorer: Reveal in File Explorer');
+    context.commands.register(CommandIds.ExplorerOpenInTerminal, (path?: string) => this.openInTerminal(path), 'Explorer: Open in Integrated Terminal');
+    context.commands.register(CommandIds.ExplorerRefresh, (path?: string) => this.refresh(path), 'Explorer: Refresh');
   }
 
   /* ----- services ----- */
@@ -200,15 +200,18 @@ export class ExplorerActionsModule implements IModule {
       /* ignore — rename will surface the real error */
     }
     const editor = this.context.services.tryGet<EditorService>(ServiceKeys.Editor);
-    const closeEditors = editor ? await editor.prepareEditorsForPath(path) : () => undefined;
-    if (!closeEditors) return;
+    const editorMutation = editor
+      ? await editor.prepareEditorsForPath(path)
+      : { commit: () => undefined, cancel: () => undefined };
+    if (!editorMutation) return;
     try {
       await window.znxstudio.fs.rename(path, target);
     } catch (error) {
+      editorMutation.cancel();
       this.toast(`Could not rename: ${(error as Error).message}`, 'error');
       return;
     }
-    closeEditors();
+    editorMutation.commit();
     await this.explorer()?.refreshDirectory(parent);
     await this.explorer()?.revealPath(target);
     this.toast(`Renamed to ${newName}.`, 'success');
@@ -226,15 +229,18 @@ export class ExplorerActionsModule implements IModule {
     });
     if (!confirmed) return;
     const editor = this.context.services.tryGet<EditorService>(ServiceKeys.Editor);
-    const closeEditors = editor ? await editor.prepareEditorsForPath(path) : () => undefined;
-    if (!closeEditors) return;
+    const editorMutation = editor
+      ? await editor.prepareEditorsForPath(path)
+      : { commit: () => undefined, cancel: () => undefined };
+    if (!editorMutation) return;
     try {
       await window.znxstudio.fs.delete(path);
     } catch (error) {
+      editorMutation.cancel();
       this.toast(`Could not delete "${name}": ${(error as Error).message}`, 'error');
       return;
     }
-    closeEditors();
+    editorMutation.commit();
     await this.explorer()?.refreshDirectory(dirName(path));
     this.toast(`Deleted ${name}.`, 'success');
   }
