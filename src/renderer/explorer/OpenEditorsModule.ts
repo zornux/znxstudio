@@ -90,13 +90,24 @@ export class OpenEditorsModule implements IModule {
     close.className = 'znxstudio-open-editors-close';
     close.textContent = '×';
     close.title = 'Close';
+    close.setAttribute('aria-label', `Close ${open.name}`);
     close.addEventListener('click', (event) => {
       event.stopPropagation();
       this.editor?.closeEditor(open.uri);
     });
     row.appendChild(close);
 
-    row.addEventListener('click', () => this.editor?.activateEditor(open.uri));
+    row.tabIndex = 0;
+    row.setAttribute('role', 'button');
+    row.setAttribute('aria-current', open.active ? 'true' : 'false');
+    const activate = (): void => this.editor?.activateEditor(open.uri);
+    row.addEventListener('click', activate);
+    row.addEventListener('keydown', (event) => {
+      if (event.target === row && (event.key === 'Enter' || event.key === ' ')) {
+        event.preventDefault();
+        activate();
+      }
+    });
     row.addEventListener('mousedown', (event) => {
       if (event.button === 1) {
         event.preventDefault();

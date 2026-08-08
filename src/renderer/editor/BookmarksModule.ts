@@ -157,7 +157,16 @@ export class BookmarksModule implements IModule {
       row.className = 'znxstudio-tree-row znxstudio-bookmarks-row';
       row.innerHTML = '<span class="znxstudio-icon">🔖</span>';
       row.appendChild(document.createTextNode(`Line ${bookmark.line + 1}`));
-      row.addEventListener('click', () => void this.editor.revealLocation(bookmark.uri, bookmark.line, 0));
+      row.tabIndex = 0;
+      row.setAttribute('role', 'button');
+      const reveal = (): void => void this.editor.revealLocation(bookmark.uri, bookmark.line, 0);
+      row.addEventListener('click', reveal);
+      row.addEventListener('keydown', (event) => {
+        if (event.key === 'Enter' || event.key === ' ') {
+          event.preventDefault();
+          reveal();
+        }
+      });
       host.appendChild(row);
     }
   }

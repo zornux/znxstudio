@@ -474,12 +474,18 @@ button {
 
 /* ---- Explorer ---- */
 .znxstudio-explorer-empty {
-  padding: 16px 12px;
+  margin: 12px;
+  padding: 22px 14px;
+  border: 1px dashed var(--z-border);
+  border-radius: 7px;
   color: var(--z-fg-muted);
   display: flex;
   flex-direction: column;
   gap: 10px;
+  align-items: flex-start;
+  line-height: 1.45;
 }
+.znxstudio-explorer-empty p { margin: 0; }
 
 .znxstudio-btn,
 .znxstudio-welcome-btn {
@@ -515,7 +521,7 @@ button {
 .znxstudio-tree-row {
   display: flex;
   align-items: center;
-  height: 22px; /* fixed row height — no vertical reflow on hover (VS Code parity) */
+  height: 24px; /* fixed row height — no vertical reflow on hover (VS Code parity) */
   padding: 0 8px;
   border-radius: 4px;
   white-space: nowrap;
@@ -523,6 +529,15 @@ button {
   text-overflow: ellipsis;
   user-select: none;
   cursor: pointer;
+}
+.znxstudio-tree-row > span:last-child {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.znxstudio-tree-row.is-active {
+  box-shadow: inset 2px 0 var(--z-accent);
+  background: color-mix(in srgb, var(--z-accent) 12%, transparent);
 }
 
 .znxstudio-tree-row:hover {
@@ -1490,13 +1505,18 @@ body.is-resizing {
   display: flex;
   flex-direction: column;
   height: 100%;
+  min-height: 0;
+  background: var(--z-bg-sidebar, var(--z-bg-panel));
 }
 
 .znxstudio-explorer-toolbar {
   display: flex;
   justify-content: flex-end;
-  padding: 2px 6px;
+  align-items: center;
+  min-height: 31px;
+  padding: 3px 7px;
   border-bottom: 1px solid var(--z-border);
+  background: color-mix(in srgb, var(--z-fg) 2%, transparent);
 }
 
 .znxstudio-icon-btn {
@@ -1507,11 +1527,16 @@ body.is-resizing {
   width: 24px;
   height: 22px;
   border-radius: 4px;
+  cursor: pointer;
 }
 
 .znxstudio-icon-btn:hover {
   background: var(--z-hover);
   color: var(--z-fg);
+}
+.znxstudio-icon-btn:focus-visible {
+  outline: 1px solid var(--z-accent);
+  outline-offset: 1px;
 }
 
 .znxstudio-explorer {
@@ -1526,7 +1551,7 @@ body.is-resizing {
   flex: 0 0 auto;
   display: flex;
   flex-direction: column;
-  max-height: 55%;
+  max-height: 50%;
   overflow: auto;
 }
 
@@ -1541,7 +1566,7 @@ body.is-resizing {
   /* Fixed height + border-box so revealing the hover actions (a taller icon
      button) only changes the background — never the row height (no vertical
      "shake"/reflow of everything below). */
-  height: 26px;
+  height: 28px;
   box-sizing: border-box;
   padding: 0 8px;
   font-size: 10px;
@@ -1582,6 +1607,13 @@ body.is-resizing {
 .znxstudio-explorer-cs-header:hover .znxstudio-explorer-cs-actions {
   display: inline-flex;
 }
+.znxstudio-explorer-cs-header:focus-within .znxstudio-explorer-cs-actions {
+  display: inline-flex;
+}
+.znxstudio-explorer-cs-disclosure:focus-visible {
+  outline: 1px solid var(--z-accent);
+  outline-offset: 1px;
+}
 .znxstudio-explorer-cs-body {
   max-height: 220px;
   overflow: auto;
@@ -1602,7 +1634,8 @@ body.is-resizing {
   font-style: italic;
 }
 .znxstudio-open-editors-row.is-active {
-  background: var(--z-hover);
+  box-shadow: inset 2px 0 var(--z-accent);
+  background: color-mix(in srgb, var(--z-accent) 12%, transparent);
 }
 .znxstudio-open-editors-name {
   flex: 1;
@@ -1636,13 +1669,14 @@ body.is-resizing {
 .znxstudio-open-editors-row:hover .znxstudio-open-editors-close {
   visibility: visible;
 }
+.znxstudio-open-editors-close:focus-visible { visibility: visible; outline: 1px solid var(--z-accent); }
 .znxstudio-open-editors-close:hover {
   background: var(--z-hover);
   color: var(--z-fg);
 }
 
 .znxstudio-explorer-section {
-  margin-bottom: 6px;
+  margin-bottom: 4px;
 }
 
 .znxstudio-explorer-section.is-dimmed {
@@ -1650,7 +1684,7 @@ body.is-resizing {
 }
 
 .znxstudio-explorer-section-header {
-  padding: 4px 12px;
+  padding: 7px 10px 3px;
   font-size: 10px;
   text-transform: uppercase;
   letter-spacing: 0.7px;
@@ -1665,7 +1699,8 @@ body.is-resizing {
   display: flex;
   align-items: center;
   gap: 2px;
-  padding: 4px 8px;
+  min-height: 29px;
+  padding: 3px 8px;
   font-size: 11px;
   font-weight: 600;
   text-transform: uppercase;
@@ -1676,6 +1711,11 @@ body.is-resizing {
 }
 .znxstudio-explorer-root-header:hover {
   color: var(--z-fg);
+  background: var(--z-hover);
+}
+.znxstudio-explorer-root-header:focus-visible {
+  outline: 1px solid var(--z-accent);
+  outline-offset: -1px;
 }
 .znxstudio-explorer-root-name {
   flex: 1;
@@ -1689,6 +1729,7 @@ body.is-resizing {
 .znxstudio-explorer-root-header:hover .znxstudio-icon-btn {
   opacity: 0.7;
 }
+.znxstudio-explorer-root-header:focus-within .znxstudio-icon-btn { opacity: 0.7; }
 
 /* Solution Explorer (Phase 5B) — a project-centric view. */
 .znxstudio-solution-shell {

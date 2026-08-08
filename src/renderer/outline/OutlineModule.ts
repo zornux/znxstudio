@@ -31,6 +31,7 @@ export class OutlineModule implements IModule {
   private registry!: LanguageRegistry;
   private documents!: DocumentManager;
   private refreshTimer: ReturnType<typeof setTimeout> | null = null;
+  private refreshGeneration = 0;
 
   activate(context: ModuleContext): void {
     this.context = context;
@@ -61,6 +62,12 @@ export class OutlineModule implements IModule {
     editor?.onDidChangeActiveFile(() => this.scheduleRefresh(0));
     this.documents.onDidChange((doc) => {
       if (doc.uri === this.documents.getActive()?.uri) this.scheduleRefresh(250);
+    });
+    context.subscriptions.push({
+      dispose: () => {
+        if (this.refreshTimer) clearTimeout(this.refreshTimer);
+        this.refreshGeneration += 1;
+      },
     });
 
     this.renderMessage('Open a file to see its outline.');
@@ -110,6 +117,7 @@ export class OutlineModule implements IModule {
   }
 
   private async refresh(): Promise<void> {
+    const generation = ++this.refreshGeneration;
     const active = this.documents.getActive();
     if (!active) {
       this.renderMessage('Open a file to see its outline.');
@@ -124,6 +132,7 @@ export class OutlineModule implements IModule {
 
     try {
       const symbols = await service.documentSymbols.provideDocumentSymbols(active.document);
+      if (generation !== this.refreshGeneration || this.documents.getActive()?.uri !== active.uri) return;
       if (!symbols.length) {
         this.renderMessage('No symbols found.');
         return;
@@ -161,10 +170,25 @@ export class OutlineModule implements IModule {
     const row = document.createElement('div');
     row.className = 'znxstudio-tree-row';
     row.title = `${symbol.kind} ${symbol.name}`;
-    row.innerHTML = `<span class="znxstudio-icon">${KIND_ICON[symbol.kind] ?? '•'}</span>${symbol.name}`;
-    row.addEventListener('click', () => {
+    const icon = document.createElement('span');
+    icon.className = 'znxstudio-icon';
+    icon.setAttribute('aria-hidden', 'true');
+    icon.textContent = KIND_ICON[symbol.kind] ?? '•';
+    const label = document.createElement('span');
+    label.textContent = symbol.name;
+    row.append(icon, label);
+    row.tabIndex = 0;
+    row.setAttribute('role', 'button');
+    const reveal = (): void => {
       const editor = this.context.services.tryGet<EditorService>(ServiceKeys.Editor);
       editor?.revealPosition(symbol.selectionRange.start.line, symbol.selectionRange.start.character);
+    };
+    row.addEventListener('click', reveal);
+    row.addEventListener('keydown', (event) => {
+      if (event.key === 'Enter' || event.key === ' ') {
+        event.preventDefault();
+        reveal();
+      }
     });
     item.appendChild(row);
 

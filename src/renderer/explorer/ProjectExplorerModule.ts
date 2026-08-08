@@ -16,6 +16,8 @@ import { NEW_ITEMS, newItemCommandId } from './newItem';
 import { dirName } from './paths';
 
 const COLLAPSE_KEY = 'znxstudio.explorer.collapsed';
+const VISIBILITY_KEY = 'znxstudio.explorer.sectionVisibility';
+const OPT_IN_SECTIONS = new Set(['openEditors', 'outline', 'bookmarks']);
 
 const SOURCE_DIRS = ['src', 'app', 'source', 'lib', 'components', 'pages'];
 const GENERATED_DIRS = ['dist', 'out', 'build', 'node_modules', '.git', 'bin', 'obj', 'target'];
@@ -51,6 +53,8 @@ export class ProjectExplorerModule implements IModule, ExplorerService {
 
   private readonly sections = new Map<string, ExplorerSection>();
   private collapsed: Record<string, boolean> = {};
+  private sectionVisibility: Record<string, boolean> = {};
+  private renderGeneration = 0;
   private readonly sectionsEmitter = new Emitter<void>();
   readonly onDidChange = this.sectionsEmitter.event;
 
@@ -58,6 +62,7 @@ export class ProjectExplorerModule implements IModule, ExplorerService {
     this.context = context;
     this.workspace = context.services.get<WorkspaceService>(ServiceKeys.Workspace);
     this.collapsed = this.loadCollapsed();
+    this.sectionVisibility = this.loadSectionVisibility();
 
     this.container = document.createElement('div');
     this.container.className = 'znxstudio-explorer';
@@ -89,7 +94,7 @@ export class ProjectExplorerModule implements IModule, ExplorerService {
     const editor = context.services.tryGet<EditorService>(ServiceKeys.Editor);
     editor?.onDidChangeActiveFile((path) => this.highlight(path));
 
-    this.renderEmpty();
+    void this.render();
   }
 
   /** Sidebar body: a header with a refresh button, plus the tree container. */
@@ -102,9 +107,22 @@ export class ProjectExplorerModule implements IModule, ExplorerService {
     const refresh = document.createElement('button');
     refresh.className = 'znxstudio-icon-btn';
     refresh.title = 'Refresh Explorer';
+    refresh.setAttribute('aria-label', 'Refresh Explorer');
     refresh.textContent = '⟳';
     refresh.addEventListener('click', () => void this.workspace.refresh());
-    toolbar.appendChild(refresh);
+    const create = document.createElement('button');
+    create.className = 'znxstudio-icon-btn';
+    create.title = 'New File or Folder';
+    create.setAttribute('aria-label', 'New File or Folder');
+    create.textContent = '+';
+    create.addEventListener('click', () => this.openNewMenu(create));
+    const sections = document.createElement('button');
+    sections.className = 'znxstudio-icon-btn';
+    sections.title = 'Explorer Sections';
+    sections.setAttribute('aria-label', 'Choose Explorer sections');
+    sections.textContent = '⋯';
+    sections.addEventListener('click', () => this.openSectionsMenu(sections));
+    toolbar.append(create, refresh, sections);
 
     // Contributed sections (Open Editors / Outline / Bookmarks) stack here, above
     // the file tree — their render paths never touch the tree container.
@@ -131,7 +149,7 @@ export class ProjectExplorerModule implements IModule, ExplorerService {
 
   private renderSections(): void {
     this.sectionsHost.replaceChildren();
-    for (const section of sortSections([...this.sections.values()])) {
+    for (const section of sortSections([...this.sections.values()]).filter((item) => this.isSectionVisible(item.id))) {
       this.sectionsHost.appendChild(this.renderSection(section));
     }
   }
@@ -176,6 +194,7 @@ export class ProjectExplorerModule implements IModule, ExplorerService {
         const btn = document.createElement('button');
         btn.className = 'znxstudio-icon-btn';
         btn.title = action.tooltip;
+        btn.setAttribute('aria-label', action.tooltip);
         btn.textContent = action.icon;
         btn.addEventListener('click', (event) => {
           event.stopPropagation();
@@ -226,6 +245,58 @@ export class ProjectExplorerModule implements IModule, ExplorerService {
     }
   }
 
+  private loadSectionVisibility(): Record<string, boolean> {
+    try {
+      const raw = localStorage.getItem(VISIBILITY_KEY);
+      const parsed = raw ? (JSON.parse(raw) as unknown) : {};
+      return parsed && typeof parsed === 'object' && !Array.isArray(parsed)
+        ? (parsed as Record<string, boolean>)
+        : {};
+    } catch {
+      return {};
+    }
+  }
+
+  private isSectionVisible(id: string): boolean {
+    return Object.prototype.hasOwnProperty.call(this.sectionVisibility, id)
+      ? this.sectionVisibility[id]
+      : !OPT_IN_SECTIONS.has(id);
+  }
+
+  private setSectionVisible(id: string, visible: boolean): void {
+    this.sectionVisibility = { ...this.sectionVisibility, [id]: visible };
+    try {
+      localStorage.setItem(VISIBILITY_KEY, JSON.stringify(this.sectionVisibility));
+    } catch {
+      /* disabled storage only affects persistence */
+    }
+    this.renderSections();
+    this.sectionsEmitter.fire();
+  }
+
+  private openSectionsMenu(anchor: HTMLElement): void {
+    const rect = anchor.getBoundingClientRect();
+    const entries = (): MenuEntry[] => [
+      { header: 'Explorer Sections' },
+      ...sortSections([...this.sections.values()]).map((section) => ({
+        label: section.title,
+        checked: this.isSectionVisible(section.id),
+        onToggle: () => this.setSectionVisible(section.id, !this.isSectionVisible(section.id)),
+      }) as MenuEntry),
+    ];
+    this.context.layout.openFloatingMenu(rect.right, rect.bottom + 2, entries);
+  }
+
+  private openNewMenu(anchor: HTMLElement): void {
+    const rect = anchor.getBoundingClientRect();
+    const dir = this.contextDirectory();
+    const entries: MenuEntry[] = NEW_ITEMS.map((def) => ({
+      label: def.label,
+      onClick: () => void this.context.commands.execute(newItemCommandId(def.id), dir ?? undefined),
+    }));
+    this.context.layout.openFloatingMenu(rect.left, rect.bottom + 2, () => entries);
+  }
+
   private renderEmpty(): void {
     const wrap = document.createElement('div');
     wrap.className = 'znxstudio-explorer-empty';
@@ -245,6 +316,7 @@ export class ProjectExplorerModule implements IModule, ExplorerService {
   }
 
   private async render(): Promise<void> {
+    const generation = ++this.renderGeneration;
     this.folderHandles.clear();
     const folders = this.workspace.folders();
     if (folders.length === 0) {
@@ -260,6 +332,7 @@ export class ProjectExplorerModule implements IModule, ExplorerService {
       // Multi-root: each folder is a collapsible, removable root section.
       for (const folder of folders) fragment.appendChild(await this.renderRoot(folder));
     }
+    if (generation !== this.renderGeneration) return;
     this.container.replaceChildren(fragment);
   }
 
@@ -331,6 +404,7 @@ export class ProjectExplorerModule implements IModule, ExplorerService {
     const remove = document.createElement('button');
     remove.className = 'znxstudio-icon-btn';
     remove.title = 'Remove Folder from Workspace';
+    remove.setAttribute('aria-label', `Remove ${name.textContent ?? 'folder'} from workspace`);
     remove.textContent = '✕';
     remove.addEventListener('click', (event) => {
       event.stopPropagation();
@@ -340,10 +414,21 @@ export class ProjectExplorerModule implements IModule, ExplorerService {
     header.append(twisty, icon, name, remove);
 
     const body = await this.renderFolderBody(info);
-    header.addEventListener('click', () => {
+    header.tabIndex = 0;
+    header.setAttribute('role', 'button');
+    header.setAttribute('aria-expanded', 'true');
+    const toggle = (): void => {
       const collapsed = body.style.display === 'none';
       body.style.display = collapsed ? '' : 'none';
       twisty.textContent = collapsed ? '▾' : '▸';
+      header.setAttribute('aria-expanded', String(collapsed));
+    };
+    header.addEventListener('click', toggle);
+    header.addEventListener('keydown', (event) => {
+      if (event.target === header && (event.key === 'Enter' || event.key === ' ')) {
+        event.preventDefault();
+        toggle();
+      }
     });
 
     root.append(header, body);
@@ -399,9 +484,16 @@ export class ProjectExplorerModule implements IModule, ExplorerService {
       row.title = command;
       // Build via DOM (name is untrusted — never interpolate into innerHTML).
       row.append(iconSpan('▶'), labelSpan(name));
-      row.addEventListener('click', () =>
-        void this.context.commands.execute(CommandIds.RunScript, name),
-      );
+      row.tabIndex = 0;
+      row.setAttribute('role', 'button');
+      const run = (): void => void this.context.commands.execute(CommandIds.RunScript, name);
+      row.addEventListener('click', run);
+      row.addEventListener('keydown', (event) => {
+        if (event.key === 'Enter' || event.key === ' ') {
+          event.preventDefault();
+          run();
+        }
+      });
       item.appendChild(row);
       list.appendChild(item);
     }
@@ -470,7 +562,13 @@ export class ProjectExplorerModule implements IModule, ExplorerService {
     // Expand (re-)reads the directory so a freshly created child appears; exposed
     // via folderHandles so refreshDirectory()/revealPath() can drive it.
     const expand = async (): Promise<void> => {
-      const children = await window.znxstudio.fs.readDirectory(node.path);
+      let children: FileNode[];
+      try {
+        children = await window.znxstudio.fs.readDirectory(node.path);
+      } catch (error) {
+        this.context.layout.showToast(`Could not open ${node.name}: ${(error as Error).message}`, 'error');
+        return;
+      }
       const fresh = this.tree(children, level + 1, false);
       if (childList) childList.replaceWith(fresh);
       else item.appendChild(fresh);
