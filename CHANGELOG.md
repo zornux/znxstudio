@@ -10,6 +10,12 @@ ZnxStudio is an enterprise IDE platform built first-class for **Zornux** and
 
 ## [Unreleased]
 
+## [1.0.0-rc.1] - 2026-08-08
+
+First release candidate for 1.0.0 — published for user testing ahead of GA.
+Signed Windows installers via Azure Trusted Signing, GitHub-native auto-update
+from the public repo, and the Phase 20J hardening below.
+
 ### Added — Phase 20J GA Hardening
 Resolves the release-blocking findings from the Phase 20 audit
 ([`docs/PHASE20J-HARDENING.md`](docs/PHASE20J-HARDENING.md)). All backward-compatible.
