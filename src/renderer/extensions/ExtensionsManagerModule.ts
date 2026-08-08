@@ -45,6 +45,7 @@ export class ExtensionsManagerModule implements IModule {
   private searchSeq = 0;
   /** Persistent shell elements — kept stable so typing never rebuilds the search box. */
   private searchInput?: HTMLInputElement;
+  private clearSearch?: HTMLButtonElement;
   private listEl?: HTMLElement;
 
   activate(context: ModuleContext): void {
@@ -84,22 +85,47 @@ export class ExtensionsManagerModule implements IModule {
     if (this.searchInput && this.listEl) return;
     this.root.replaceChildren();
 
+    const searchWrap = document.createElement('div');
+    searchWrap.className = 'znxstudio-extmgr-search-wrap';
+    const searchIcon = document.createElement('span');
+    searchIcon.className = 'znxstudio-extmgr-search-icon';
+    searchIcon.textContent = '⌕';
+    searchIcon.setAttribute('aria-hidden', 'true');
     const search = document.createElement('input');
     search.className = 'znxstudio-extmgr-search';
     search.placeholder = 'Search the marketplace…';
+    search.setAttribute('aria-label', 'Search installed and marketplace extensions');
     search.value = this.query;
     search.addEventListener('input', () => {
       this.query = search.value;
       this.renderList(); // only the results re-render — the input keeps focus + caret
+      this.updateClearSearch();
       this.scheduleRemoteSearch();
     });
     this.searchInput = search;
+    const clear = document.createElement('button');
+    clear.className = 'znxstudio-extmgr-search-clear';
+    clear.type = 'button';
+    clear.textContent = '×';
+    clear.title = 'Clear extension search';
+    clear.setAttribute('aria-label', 'Clear extension search');
+    clear.addEventListener('click', () => {
+      this.query = '';
+      search.value = '';
+      this.updateClearSearch();
+      this.renderList();
+      this.scheduleRemoteSearch();
+      search.focus();
+    });
+    this.clearSearch = clear;
+    searchWrap.append(searchIcon, search, clear);
+    this.updateClearSearch();
 
     const list = document.createElement('div');
     list.className = 'znxstudio-extmgr-list';
     this.listEl = list;
 
-    this.root.append(search, list);
+    this.root.append(searchWrap, list);
   }
 
   private render(): void {
@@ -135,6 +161,18 @@ export class ExtensionsManagerModule implements IModule {
     }
     for (const entry of remote) list.appendChild(this.marketplaceRow(entry));
     for (const entry of bundled) list.appendChild(this.marketplaceRow(entry));
+  }
+
+  private updateClearSearch(): void {
+    if (this.clearSearch) this.clearSearch.hidden = this.query.length === 0;
+  }
+
+  private extensionMark(name: string): HTMLElement {
+    const mark = document.createElement('span');
+    mark.className = 'znxstudio-extmgr-mark';
+    mark.textContent = name.trim().charAt(0).toUpperCase() || 'E';
+    mark.setAttribute('aria-hidden', 'true');
+    return mark;
   }
 
   /** Debounce live-marketplace search so we don't fire a request per keystroke. */
@@ -177,6 +215,7 @@ export class ExtensionsManagerModule implements IModule {
   private remoteInstalledRow(info: RemoteInstalled): HTMLElement {
     const row = document.createElement('div');
     row.className = 'znxstudio-extmgr-row';
+    row.appendChild(this.extensionMark(info.name));
 
     const head = document.createElement('div');
     head.className = 'znxstudio-extmgr-head';
@@ -209,6 +248,7 @@ export class ExtensionsManagerModule implements IModule {
     });
     const uninstall = document.createElement('button');
     uninstall.className = 'znxstudio-btn-small';
+    uninstall.classList.add('is-danger');
     uninstall.textContent = 'Uninstall';
     uninstall.addEventListener('click', () => {
       this.marketplace.uninstall(info.id).catch((error: unknown) =>
@@ -237,6 +277,7 @@ export class ExtensionsManagerModule implements IModule {
   private installedRow(info: ExtensionInfo): HTMLElement {
     const row = document.createElement('div');
     row.className = 'znxstudio-extmgr-row';
+    row.appendChild(this.extensionMark(info.name));
 
     const head = document.createElement('div');
     head.className = 'znxstudio-extmgr-head';
@@ -301,6 +342,7 @@ export class ExtensionsManagerModule implements IModule {
     if (catalogEntry && !catalogEntry.preinstalled) {
       const uninstall = document.createElement('button');
       uninstall.className = 'znxstudio-btn-small';
+      uninstall.classList.add('is-danger');
       uninstall.textContent = 'Uninstall';
       uninstall.addEventListener('click', () => void this.marketplace.uninstall(info.id));
       actions.appendChild(uninstall);
@@ -312,6 +354,7 @@ export class ExtensionsManagerModule implements IModule {
   private marketplaceRow(entry: ReturnType<MarketplaceService['catalog']>[number]): HTMLElement {
     const row = document.createElement('div');
     row.className = 'znxstudio-extmgr-row';
+    row.appendChild(this.extensionMark(entry.name));
 
     const head = document.createElement('div');
     head.className = 'znxstudio-extmgr-head';
@@ -353,6 +396,7 @@ export class ExtensionsManagerModule implements IModule {
     actions.className = 'znxstudio-extmgr-actions';
     const install = document.createElement('button');
     install.className = 'znxstudio-btn-small';
+    install.classList.add('is-primary');
     // Remote entries carry no engine range in the card; compatibility is validated at install.
     const compatible = entry.remote ? true : isInstallable(entry);
     if (compatible) {
