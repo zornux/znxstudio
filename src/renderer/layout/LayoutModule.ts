@@ -98,6 +98,7 @@ export class LayoutModule implements IModule, LayoutService {
     register(CommandIds.LayoutToggleZen, () => this.toggleZen(), 'View: Toggle Zen Mode');
     register(CommandIds.LayoutReset, () => this.update(DEFAULT_LAYOUT), 'View: Reset Layout');
     register(CommandIds.LayoutPanelsShow, () => this.showPanelManager(), 'View: Manage Panels');
+    register(CommandIds.FileSaveAll, () => void this.saveAllDocuments(), 'File: Save All');
     // Window management (17C) lives in the main process; the renderer asks.
     register(CommandIds.WindowToggleFullScreen, () => void this.toggleFullScreen(), 'Window: Toggle Full Screen');
     register(CommandIds.WindowToggleMaximize, () => void window.znxstudio.window.toggleMaximize(), 'Window: Toggle Maximize');
@@ -141,6 +142,9 @@ export class LayoutModule implements IModule, LayoutService {
       if (wasActive && visible) this.update(toggleSideBar(this.current, false));
       else if (!visible) this.update(toggleSideBar(this.current, true));
     });
+    context.subscriptions.push(
+      context.commands.onDidChangeEnablement(() => context.layout.refreshSideBarToolbar()),
+    );
 
     // The title-bar menu bar — the app's single menu, replacing Electron's default
     // OS menu (removed in main). Conventional top-level grouping so features are
@@ -323,7 +327,7 @@ export class LayoutModule implements IModule, LayoutService {
       { label: 'Open Recent', submenu: () => this.recentSubmenu() },
       { separator: true },
       this.menuItem('Save', CommandIds.FileSave),
-      { label: 'Save All', onClick: () => void this.saveAllDocuments() },
+      this.menuItem('Save All', CommandIds.FileSaveAll),
       { separator: true },
       this.menuItem('Close Editor', CommandIds.EditorClose),
       { separator: true },
@@ -335,25 +339,15 @@ export class LayoutModule implements IModule, LayoutService {
 
   /** The Edit menu — clipboard/history acting on the focused editor or input. */
   private buildEditMenu(): MenuEntry[] {
-    const exec = (label: string, command: string): MenuEntry => ({
-      label,
-      onClick: () => {
-        try {
-          document.execCommand(command);
-        } catch {
-          /* not available for the focused element — Ctrl-shortcuts still work */
-        }
-      },
-    });
     return [
-      exec('Undo', 'undo'),
-      exec('Redo', 'redo'),
+      this.menuItem('Undo', CommandIds.EditorUndo),
+      this.menuItem('Redo', CommandIds.EditorRedo),
       { separator: true },
-      exec('Cut', 'cut'),
-      exec('Copy', 'copy'),
-      exec('Paste', 'paste'),
+      this.menuItem('Cut', CommandIds.EditorCut),
+      this.menuItem('Copy', CommandIds.EditorCopy),
+      this.menuItem('Paste', CommandIds.EditorPaste),
       { separator: true },
-      exec('Select All', 'selectAll'),
+      this.menuItem('Select All', CommandIds.EditorSelectAll),
       { separator: true },
       this.menuItem('Find in File', CommandIds.EditorFind),
     ];
@@ -382,18 +376,42 @@ export class LayoutModule implements IModule, LayoutService {
       { separator: true },
       m('Clear Multiple Cursors', CommandIds.MultiCursorClear),
       { separator: true },
-      m('Fold All', CommandIds.FoldAll),
-      m('Fold at Cursor', CommandIds.FoldAtCursor),
+      {
+        label: 'Folding',
+        submenu: () => [
+          m('Toggle Fold', CommandIds.ToggleFold),
+          m('Fold at Cursor', CommandIds.FoldAtCursor),
+          m('Unfold at Cursor', CommandIds.UnfoldAtCursor),
+          { separator: true },
+          m('Fold All', CommandIds.FoldAll),
+          m('Unfold All', CommandIds.UnfoldAll),
+        ],
+      },
     ];
   }
 
   /** The Go menu — navigation (Go to File / Everywhere / Find in Files). */
   private buildGoMenu(): MenuEntry[] {
     return [
+      this.menuItem('Back', CommandIds.NavBack),
+      this.menuItem('Forward', CommandIds.NavForward),
+      { separator: true },
       this.menuItem('Go to File…', CommandIds.QuickOpen),
       this.menuItem('Search Everywhere…', CommandIds.SearchEverywhere),
       { separator: true },
       this.menuItem('Find in Files', CommandIds.SearchShow),
+      { separator: true },
+      {
+        label: 'Bookmarks',
+        submenu: () => [
+          this.menuItem('Toggle Bookmark', CommandIds.BookmarkToggle),
+          this.menuItem('Next Bookmark', CommandIds.BookmarkNext),
+          this.menuItem('Previous Bookmark', CommandIds.BookmarkPrevious),
+          { separator: true },
+          this.menuItem('Show Bookmarks', CommandIds.BookmarksShow),
+          this.menuItem('Clear All Bookmarks', CommandIds.BookmarkClearAll),
+        ],
+      },
     ];
   }
 
@@ -583,16 +601,21 @@ export class LayoutModule implements IModule, LayoutService {
   /** The View menu (UX-3): appearance toggles, an Open Panel picker, and every workspace by group. */
   private buildViewMenu(): MenuEntry[] {
     const command = (label: string, id: string): MenuEntry => this.menuItem(label, id);
+    const toggle = (label: string, checked: boolean, id: string): MenuEntry => ({
+      label,
+      checked,
+      onToggle: () => this.runCommand(id),
+    });
     const entries: MenuEntry[] = [
       { header: t('view.appearance') },
-      command(t('view.toggleSideBar'), CommandIds.LayoutToggleSideBar),
-      command(t('view.togglePanel'), CommandIds.LayoutTogglePanel),
-      command(t('view.toggleActivityBar'), CommandIds.LayoutToggleActivityBar),
-      command(t('view.toggleStatusBar'), CommandIds.LayoutToggleStatusBar),
-      command(t('view.toggleZen'), CommandIds.LayoutToggleZen),
+      toggle(t('view.toggleSideBar'), this.current.sidebar.visible, CommandIds.LayoutToggleSideBar),
+      toggle(t('view.togglePanel'), this.current.panel.visible, CommandIds.LayoutTogglePanel),
+      toggle(t('view.toggleActivityBar'), this.current.activityBarVisible, CommandIds.LayoutToggleActivityBar),
+      toggle(t('view.toggleStatusBar'), this.current.statusBarVisible, CommandIds.LayoutToggleStatusBar),
+      toggle(t('view.toggleZen'), isZen(this.current), CommandIds.LayoutToggleZen),
       { separator: true },
-      { label: t('view.workspaces'), onClick: () => this.openWorkspacesMenu() },
-      { label: t('view.panels'), onClick: () => this.openPanelsMenu() },
+      { label: t('view.workspaces'), submenu: () => this.buildWorkspacesMenu() },
+      { label: t('view.panels'), submenu: () => this.buildPanelsMenu() },
       { label: t('view.openPanel'), onClick: () => this.openAnyPanel() },
       command(t('view.managePanels'), CommandIds.LayoutPanelsShow),
       { separator: true },
@@ -602,15 +625,11 @@ export class LayoutModule implements IModule, LayoutService {
   }
 
   /** View → Workspaces (SB-4): pick a purpose-built environment. */
-  private openWorkspacesMenu(): void {
-    const rect = this.context.layout.menuBarRect();
-    this.context.layout.openFloatingMenu(rect.left, rect.bottom + 2, () => {
-      const entries: MenuEntry[] = [{ header: t('view.workspaces') }];
-      for (const workspace of WORKSPACES) {
-        entries.push({ label: workspace.label, onClick: () => this.activateWorkspace(workspace) });
-      }
-      return entries;
-    });
+  private buildWorkspacesMenu(): MenuEntry[] {
+    return WORKSPACES.map((workspace) => ({
+      label: workspace.label,
+      onClick: () => this.activateWorkspace(workspace),
+    }));
   }
 
   /**
@@ -626,8 +645,12 @@ export class LayoutModule implements IModule, LayoutService {
       (def.toolbar ?? []).map((action) => ({
         icon: action.icon,
         label: action.label,
+        isEnabled: () =>
+          this.context.commands.has(action.command) && this.context.commands.isEnabled(action.command),
         onClick: () => {
-          if (this.context.commands.has(action.command)) void this.context.commands.execute(action.command);
+          if (this.context.commands.has(action.command) && this.context.commands.isEnabled(action.command)) {
+            void this.context.commands.execute(action.command);
+          }
         },
       })),
     );
@@ -659,12 +682,7 @@ export class LayoutModule implements IModule, LayoutService {
     );
   }
 
-  /** View → Panels (SB-3): a checkable menu that toggles every panel on/off. */
-  private openPanelsMenu(): void {
-    const rect = this.context.layout.menuBarRect();
-    this.context.layout.openFloatingMenu(rect.left, rect.bottom + 2, () => this.buildPanelsMenu());
-  }
-
+  /** View → Panels (SB-3): a checkable submenu that toggles every panel on/off. */
   private buildPanelsMenu(): MenuEntry[] {
     const descriptors = this.context.layout.panelDescriptors();
     const entries: MenuEntry[] = [{ header: t('view.panels') }];

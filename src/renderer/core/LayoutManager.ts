@@ -69,6 +69,7 @@ export class LayoutManager {
   private readonly menuButtons = new Map<string, HTMLElement>();
   private readonly menuBarEntries: Array<{ button: HTMLElement; build: () => MenuEntry[] }> = [];
   private activeMenuButton: HTMLElement | null = null;
+  private readonly sidebarToolbarButtons: Array<{ button: HTMLButtonElement; isEnabled?: () => boolean }> = [];
 
   mount(root: HTMLElement): void {
     this.root = root;
@@ -363,21 +364,35 @@ export class LayoutManager {
    * SB-6: render a workspace's action toolbar in the sidebar header (AI: Chat /
    * Explain / Review …). Cleared automatically whenever the sidebar view changes.
    */
-  setSideBarToolbar(actions: { icon: string; label: string; onClick: () => void }[]): void {
+  setSideBarToolbar(actions: { icon: string; label: string; onClick: () => void; isEnabled?: () => boolean }[]): void {
     this.el.sidebarToolbar.replaceChildren();
+    this.sidebarToolbarButtons.length = 0;
     for (const action of actions) {
       const button = document.createElement('button');
       button.className = 'znxstudio-sidebar-tool';
       button.textContent = action.icon;
       button.title = action.label;
       button.setAttribute('aria-label', action.label);
-      button.addEventListener('click', action.onClick);
+      button.addEventListener('click', () => {
+        if (action.isEnabled?.() === false) return;
+        action.onClick();
+      });
       this.el.sidebarToolbar.appendChild(button);
+      this.sidebarToolbarButtons.push({ button, isEnabled: action.isEnabled });
+    }
+    this.refreshSideBarToolbar();
+  }
+
+  /** Re-evaluate command-backed workspace tools without rebuilding a cleared toolbar. */
+  refreshSideBarToolbar(): void {
+    for (const { button, isEnabled } of this.sidebarToolbarButtons) {
+      button.disabled = isEnabled?.() === false;
     }
   }
 
   clearSideBarToolbar(): void {
     this.el.sidebarToolbar.replaceChildren();
+    this.sidebarToolbarButtons.length = 0;
   }
 
   setSideBarTitle(title: string): void {

@@ -42,6 +42,12 @@ import {
 
 const ACTIVE_EDITOR_COMMANDS = new Set<string>([
   CommandIds.FileSave,
+  CommandIds.EditorUndo,
+  CommandIds.EditorRedo,
+  CommandIds.EditorCut,
+  CommandIds.EditorCopy,
+  CommandIds.EditorPaste,
+  CommandIds.EditorSelectAll,
   CommandIds.EditorFind,
   CommandIds.EditorClose,
   CommandIds.EditorPin,
@@ -229,6 +235,15 @@ export class EditorModule implements IModule, EditorService {
   }
 
   private bindTabCommands(context: ModuleContext): void {
+    const editorAction = (id: string, action: string, title: string): void => {
+      context.commands.register(id, () => this.runEditorAction(action), title);
+    };
+    editorAction(CommandIds.EditorUndo, 'undo', 'Undo');
+    editorAction(CommandIds.EditorRedo, 'redo', 'Redo');
+    editorAction(CommandIds.EditorCut, 'editor.action.clipboardCutAction', 'Cut');
+    editorAction(CommandIds.EditorCopy, 'editor.action.clipboardCopyAction', 'Copy');
+    editorAction(CommandIds.EditorPaste, 'editor.action.clipboardPasteAction', 'Paste');
+    editorAction(CommandIds.EditorSelectAll, 'editor.action.selectAll', 'Select All');
     context.commands.register(
       CommandIds.EditorFind,
       () => this.runEditorAction('actions.find'),
@@ -261,6 +276,7 @@ export class EditorModule implements IModule, EditorService {
     this.notifyCommandEnablement = () => context.commands.notifyEnablementChanged();
     context.subscriptions.push(
       context.commands.addEnablementRule((id) => {
+        if (id === CommandIds.FileSaveAll) return this.tabsState.tabs.some((tab) => tab.dirty);
         if (id === CommandIds.MultiCursorClear) return this.active !== null && this.getSelections().length > 1;
         return ACTIVE_EDITOR_COMMANDS.has(id) ? this.active !== null : undefined;
       }),
@@ -690,6 +706,7 @@ export class EditorModule implements IModule, EditorService {
       if (!this.tabsState.tabs.some((tab) => tab.uri === uri)) return;
       this.tabsState = markDirty(this.tabsState, uri, dirty);
       this.renderTabs();
+      this.notifyCommandEnablement();
     };
     this.documents.onDidChange((doc) => refresh(doc.uri, doc.dirty));
     this.documents.onDidSave((doc) => refresh(doc.uri, doc.dirty));

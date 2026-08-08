@@ -1,4 +1,4 @@
-import { ServiceKeys, type DeploymentService } from '../core/Contracts';
+import { ServiceKeys, type DeploymentService, type WorkspaceService } from '../core/Contracts';
 import { selfTestCoordinator } from '../core/SelfTestCoordinator';
 import type { IModule, ModuleContext } from '../core/Module';
 import { CommandIds } from '../commands/CommandIds';
@@ -21,6 +21,7 @@ export class RemoteEnvModule implements IModule {
   private panel!: HTMLElement;
   private hosts: SshHost[] = [];
   private loaded = false;
+  private generateButton: HTMLButtonElement | undefined;
 
   activate(context: ModuleContext): void {
     this.context = context;
@@ -32,6 +33,14 @@ export class RemoteEnvModule implements IModule {
 
     context.commands.register(CommandIds.DevContainerGen, () => this.generateDevContainer(), 'Deploy: Generate Dev Container');
     context.commands.register(CommandIds.RemoteShow, () => this.reveal(), 'Remote: Show Environments');
+    const workspace = context.services.get<WorkspaceService>(ServiceKeys.Workspace);
+    context.subscriptions.push(
+      context.commands.addEnablementRule((id) =>
+        id === CommandIds.DevContainerGen ? workspace.currentFolder() !== null : undefined,
+      ),
+      context.commands.onDidChangeEnablement(() => this.refreshCommandState()),
+    );
+    workspace.onDidChangeWorkspace(() => context.commands.notifyEnablementChanged());
     this.deployment.registerAction({ id: 'devcontainer', label: 'Generate Dev Container', group: 'Remote', command: CommandIds.DevContainerGen });
 
     this.render();
@@ -73,12 +82,18 @@ export class RemoteEnvModule implements IModule {
     const gen = document.createElement('button');
     gen.className = 'znxstudio-btn-small';
     gen.textContent = '📦 Generate Dev Container';
-    gen.addEventListener('click', () => this.generateDevContainer());
+    this.generateButton = gen;
+    gen.addEventListener('click', () => {
+      if (this.context.commands.isEnabled(CommandIds.DevContainerGen)) {
+        void this.context.commands.execute(CommandIds.DevContainerGen);
+      }
+    });
     const refresh = document.createElement('button');
     refresh.className = 'znxstudio-btn-small';
     refresh.textContent = '⟳ SSH Hosts';
     refresh.addEventListener('click', () => void this.loadHosts());
     toolbar.append(gen, refresh);
+    this.refreshCommandState();
     this.panel.appendChild(toolbar);
 
     const section = document.createElement('div');
@@ -112,6 +127,15 @@ export class RemoteEnvModule implements IModule {
       });
       row.append(name, detail, copy);
       this.panel.appendChild(row);
+    }
+  }
+
+  private refreshCommandState(): void {
+    if (this.generateButton) {
+      this.generateButton.disabled = !this.context.commands.isEnabled(CommandIds.DevContainerGen);
+      this.generateButton.title = this.generateButton.disabled
+        ? 'Open a folder to generate a Dev Container'
+        : 'Generate a Dev Container configuration';
     }
   }
 

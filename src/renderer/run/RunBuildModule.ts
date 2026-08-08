@@ -34,6 +34,7 @@ export class RunBuildModule implements IModule {
   readonly displayName = 'Run & Build';
 
   private context!: ModuleContext;
+  private readonly runDebugButtons = new Map<string, HTMLButtonElement>();
   /** Uris carrying diagnostics from the last build, so we can clear them. */
   private lastBuildUris: string[] = [];
 
@@ -44,6 +45,19 @@ export class RunBuildModule implements IModule {
     context.commands.register(CommandIds.BuildStart, () => this.build(), 'Zornux: Build Project');
     context.commands.register(CommandIds.BuildRebuild, () => this.rebuild(), 'Zornux: Rebuild Project');
     context.commands.register(CommandIds.RunScript, (name?: string) => this.runScript(name), 'Zornux: Run Script');
+    const workspace = context.services.get<WorkspaceService>(ServiceKeys.Workspace);
+    context.subscriptions.push(
+      context.commands.addEnablementRule((id) => {
+        const info = workspace.currentWorkspace();
+        if (id === CommandIds.RunScript) return Boolean(info && Object.keys(info.project?.scripts ?? {}).length > 0);
+        if (id === CommandIds.RunStart || id === CommandIds.BuildStart || id === CommandIds.BuildRebuild) {
+          return info !== null;
+        }
+        return undefined;
+      }),
+      context.commands.onDidChangeEnablement(() => this.refreshRunDebugActions()),
+    );
+    workspace.onDidChangeWorkspace(() => context.commands.notifyEnablementChanged());
 
     const status = this.status();
     status?.setItem('run.action', {
@@ -88,6 +102,7 @@ export class RunBuildModule implements IModule {
 
   /** Build and reveal the Run & Debug sidebar of action buttons. */
   private revealRunDebug(): void {
+    this.runDebugButtons.clear();
     const view = document.createElement('div');
     view.className = 'znxstudio-rundebug';
 
@@ -104,15 +119,24 @@ export class RunBuildModule implements IModule {
       const button = document.createElement('button');
       button.className = 'znxstudio-btn-small znxstudio-rundebug-action';
       button.textContent = action.label;
-      button.disabled = !this.context.commands.has(action.command);
+      this.runDebugButtons.set(action.command, button);
       button.addEventListener('click', () => {
-        if (this.context.commands.has(action.command)) void this.context.commands.execute(action.command);
+        if (this.context.commands.has(action.command) && this.context.commands.isEnabled(action.command)) {
+          void this.context.commands.execute(action.command);
+        }
       });
       view.appendChild(button);
     }
+    this.refreshRunDebugActions();
 
     this.context.layout.setSideBar('Run & Debug', view);
     this.context.layout.focusSideBar();
+  }
+
+  private refreshRunDebugActions(): void {
+    for (const [command, button] of this.runDebugButtons) {
+      button.disabled = !this.context.commands.has(command) || !this.context.commands.isEnabled(command);
+    }
   }
 
   /** Rebuild: drop the compiler cache first so the build runs from scratch. */

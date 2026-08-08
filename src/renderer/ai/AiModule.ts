@@ -5,6 +5,7 @@ import {
   type EditorService,
   type SettingsService,
   type StatusService,
+  type WorkspaceService,
 } from '../core/Contracts';
 import { Emitter } from '../core/Emitter';
 import { selfTestCoordinator } from '../core/SelfTestCoordinator';
@@ -51,11 +52,32 @@ export class AiModule implements IModule, AiService {
     context.services.register(ServiceKeys.Ai, this);
     context.commands.register(CommandIds.AiConfigure, () => this.openSettings(), 'AI: Configure Provider');
 
+    const editor = context.services.tryGet<EditorService>(ServiceKeys.Editor);
+    const workspace = context.services.tryGet<WorkspaceService>(ServiceKeys.Workspace);
+    const fileCommands = new Set<string>([
+      CommandIds.AiComplete,
+      CommandIds.AiReview,
+      CommandIds.AiDocSymbol,
+      CommandIds.AiDocFile,
+      CommandIds.AiTestGen,
+      CommandIds.AiExplainError,
+    ]);
+    context.commands.addEnablementRule((id) => {
+      if (fileCommands.has(id)) return this.isEnabled() && (editor?.currentFile() ?? null) !== null;
+      if (id === CommandIds.AiRefactor) return this.isEnabled() && (editor?.selectedCharCount() ?? 0) > 0;
+      if (id === CommandIds.AiArchitecture) return this.isEnabled() && (workspace?.currentFolder() ?? null) !== null;
+      return undefined;
+    });
+    editor?.onDidChangeActiveFile(() => context.commands.notifyEnablementChanged());
+    editor?.onDidChangeSelections(() => context.commands.notifyEnablementChanged());
+    workspace?.onDidChangeWorkspace(() => context.commands.notifyEnablementChanged());
+
     // React to provider/model/key edits made anywhere (JSON editor or picker).
     this.settings.onDidChange((event) => {
       if (event.key.startsWith('ai.')) {
         this.updateStatus();
         this.changeEmitter.fire(this.config());
+        context.commands.notifyEnablementChanged();
       }
     });
 

@@ -65,6 +65,16 @@ export class BookmarksModule implements IModule {
     context.commands.register(CommandIds.BookmarkPrevious, () => this.jump('prev'), 'Bookmarks: Previous');
     context.commands.register(CommandIds.BookmarkClearAll, () => this.clearAll(), 'Bookmarks: Clear All');
     context.commands.register(CommandIds.BookmarksShow, () => this.context.layout.showPanelView('bookmarks'), 'Bookmarks: Show');
+    context.subscriptions.push(
+      context.commands.addEnablementRule((id) => {
+        const uri = this.editor.currentUri();
+        if (id === CommandIds.BookmarkNext || id === CommandIds.BookmarkPrevious) {
+          return Boolean(uri && this.model.lines(uri).length > 0);
+        }
+        if (id === CommandIds.BookmarkClearAll) return this.model.count() > 0;
+        return undefined;
+      }),
+    );
 
     this.model.load(this.persisted());
     this.editor.onDidChangeActiveFile(() => this.renderGlyphs());
@@ -114,6 +124,7 @@ export class BookmarksModule implements IModule {
   private renderGlyphs(): void {
     const uri = this.editor.currentUri();
     this.editor.setBookmarkGlyphs(uri ? this.model.lines(uri) : []);
+    this.context.commands.notifyEnablementChanged();
     this.status?.setItem('editor.bookmarks', {
       text: `🔖 ${this.model.count()}`,
       tooltip: 'Bookmarks — click to view',

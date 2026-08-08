@@ -32,6 +32,13 @@ export class NavHistoryModule implements IModule {
 
     context.commands.register(CommandIds.NavBack, () => void this.go('back'), 'Go: Back');
     context.commands.register(CommandIds.NavForward, () => void this.go('forward'), 'Go: Forward');
+    context.subscriptions.push(
+      context.commands.addEnablementRule((id) => {
+        if (id === CommandIds.NavBack) return this.history.canBack();
+        if (id === CommandIds.NavForward) return this.history.canForward();
+        return undefined;
+      }),
+    );
 
     this.editor.onDidChangeActiveFile(() => this.record());
     this.editor.onDidChangeSelections(() => this.record());
@@ -74,6 +81,7 @@ export class NavHistoryModule implements IModule {
   }
 
   private updateStatus(): void {
+    this.context.commands.notifyEnablementChanged();
     if (!this.status) return;
     const back = this.history.canBack();
     const forward = this.history.canForward();
@@ -84,7 +92,7 @@ export class NavHistoryModule implements IModule {
     this.status.setItem('editor.navHistory', {
       text: `${back ? '◀' : '◁'} ${forward ? '▶' : '▷'}`,
       tooltip: 'Navigation history (Go Back / Go Forward)',
-      command: CommandIds.NavBack,
+      command: back ? CommandIds.NavBack : CommandIds.NavForward,
       side: 'right',
       priority: 21,
     });

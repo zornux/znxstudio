@@ -6,7 +6,7 @@ import { classifyStatus, type StatusLevel } from './statusPolicy';
 
 interface Entry {
   item: StatusItem;
-  element: HTMLElement;
+  element: HTMLButtonElement;
   level: StatusLevel;
   side: 'left' | 'right';
 }
@@ -29,6 +29,9 @@ export class StatusBarModule implements IModule, StatusService {
     this.layout = context.layout;
     this.commands = context.commands;
     context.services.register(ServiceKeys.Status, this);
+    context.subscriptions.push(
+      context.commands.onDidChangeEnablement(() => this.refreshCommandStates()),
+    );
 
     try {
       const info = await window.znxstudio.app.getInfo();
@@ -52,9 +55,16 @@ export class StatusBarModule implements IModule, StatusService {
     element.textContent = item.text;
     element.title = item.tooltip ?? '';
     element.classList.toggle('is-action', Boolean(item.command));
-    element.onclick = item.command ? () => void this.commands.execute(item.command!) : null;
+    element.onclick = item.command
+      ? () => {
+          if (this.commands.has(item.command!) && this.commands.isEnabled(item.command!)) {
+            void this.commands.execute(item.command!);
+          }
+        }
+      : null;
 
     this.entries.set(id, { item, element, level: policy.level, side });
+    this.refreshCommandState(element, item.command);
 
     // A fresh set cancels any pending auto-hide from a previous value.
     this.clearTimer(id);
@@ -92,6 +102,19 @@ export class StatusBarModule implements IModule, StatusService {
       clearTimeout(timer);
       this.hideTimers.delete(id);
     }
+  }
+
+  private refreshCommandStates(): void {
+    for (const { item, element } of this.entries.values()) {
+      this.refreshCommandState(element, item.command);
+    }
+  }
+
+  private refreshCommandState(element: HTMLButtonElement, command: string | undefined): void {
+    const disabled = Boolean(command && (!this.commands.has(command) || !this.commands.isEnabled(command)));
+    element.disabled = disabled;
+    element.classList.toggle('is-disabled', disabled);
+    element.setAttribute('aria-disabled', String(disabled));
   }
 
   /** Re-order a side's rendered items by ascending priority. */

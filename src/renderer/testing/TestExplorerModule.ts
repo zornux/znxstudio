@@ -85,6 +85,15 @@ export class TestExplorerModule implements IModule {
     context.commands.register(CommandIds.TestExplorerShow, () => this.reveal(), 'Test: Show Test Explorer');
     context.commands.register(CommandIds.TestRunAll, () => void this.runAll(), 'Test: Run All Tests');
     context.commands.register(CommandIds.TestRefresh, () => void this.discover(), 'Test: Refresh Tests');
+    context.subscriptions.push(
+      context.commands.addEnablementRule((id) => {
+        if (id === CommandIds.TestRunAll) return this.files.length > 0 && !this.discovering && !this.runningAll;
+        if (id === CommandIds.TestRefresh) {
+          return this.workspace.currentFolder() !== null && !this.discovering && !this.runningAll;
+        }
+        return undefined;
+      }),
+    );
     context.layout.addActivityItem({ id: 'testing', label: 'Testing', icon: '◇', onSelect: () => this.reveal() });
 
     this.workspace.onDidChangeWorkspace(() => void this.discover());
@@ -311,10 +320,11 @@ export class TestExplorerModule implements IModule {
 
   private updateControls(): void {
     if (!this.runAllButton || !this.refreshButton) return;
-    this.runAllButton.disabled = this.runningAll || this.discovering;
+    this.runAllButton.disabled = !this.context.commands.isEnabled(CommandIds.TestRunAll);
     this.runAllButton.textContent = this.runningAll ? 'Running…' : '▶ Run All';
-    this.refreshButton.disabled = this.discovering || this.runningAll;
+    this.refreshButton.disabled = !this.context.commands.isEnabled(CommandIds.TestRefresh);
     this.refreshButton.classList.toggle('is-spinning', this.discovering);
+    this.context.commands.notifyEnablementChanged();
   }
 
   private recordSummary(summary: FileSummary): void {
