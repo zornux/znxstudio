@@ -84,6 +84,11 @@ mac:
 linux:
   category: Development
   maintainer: ZnxStudio <release@znxstudio.dev>
+  # Fixes window↔launcher association on Linux desktops: derives the installed
+  # .desktop filename from package.json `desktopName` so it matches StartupWMClass
+  # and Electron's app_id — the taskbar then groups/labels the window and pins the
+  # right icon (without it, GNOME/KDE show a generic "unknown" entry).
+  syncDesktopName: true
   target:
     - target: AppImage
       arch: [x64, arm64]
@@ -91,4 +96,7 @@ linux:
       arch: [x64, arm64]
     - target: rpm
       arch: [x64, arm64]
-  # Package/repo signing (.deb/.rpm) is handled in CI when GPG secrets are present.
+  # No purchased cert is required on Linux. The release workflow GPG-signs the
+  # SHA256SUMS manifest (covering AppImage/deb/rpm) and ships the public key, so
+  # every artifact's integrity + authorship is verifiable. Signing runs when the
+  # GPG_PRIVATE_KEY / GPG_PASSPHRASE secrets are present. See .github/workflows/release.yml.
