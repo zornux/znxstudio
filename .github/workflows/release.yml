@@ -50,8 +50,25 @@ jobs:
       # install it so packaging metadata + auto-update wiring resolve.
       - run: npm i -D electron-updater@^6
 
-      # On a tag build, electron-builder publishes to the GitHub Release for the
-      # tag (installers + blockmaps + latest.yml, the electron-updater feed).
+      # Create the GitHub Release up front so EVERY uploader — electron-builder here,
+      # electron-builder in the Linux job, and the `gh release upload` steps — converges
+      # on this one release object. Without a pre-existing release, electron-builder and
+      # gh can each create/resolve a DIFFERENT release for the same tag, splitting the
+      # binaries and the checksums/signature across duplicate releases (which is exactly
+      # what happened on v1.0.0-rc.2). Idempotent: no-op if the release already exists.
+      - name: Ensure a single release exists for the tag
+        if: startsWith(github.ref, 'refs/tags/v')
+        shell: bash
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          gh release view "$GITHUB_REF_NAME" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1 \
+            || gh release create "$GITHUB_REF_NAME" --repo "$GITHUB_REPOSITORY" \
+                 --prerelease --title "$GITHUB_REF_NAME" \
+                 --notes "Automated release for $GITHUB_REF_NAME."
+
+      # On a tag build, electron-builder publishes to the release created above
+      # (installers + blockmaps + latest.yml, the electron-updater feed).
       # On a workflow_dispatch (no tag) it stays a dry-run: build + sign, publish
       # nothing. latest.yml is only generated when publishing.
       - name: Package (+ Trusted Signing, publish on tag)
