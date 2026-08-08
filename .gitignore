@@ -14,3 +14,9 @@ Thumbs.db
 # win-x64 is vendored so CI bundles the toolchain into the Windows installer.
 build/zornux/*/
 !build/zornux/win-x64/
+
+# Leaked self-test artifacts. Under ZNXSTUDIO_SELFTEST the coordinator writes scratch
+# projects to the OS temp dir; on Windows a mis-joined path can materialize a literal
+# `C:\Users\...\AppData\...` name inside the repo root. Those names are illegal on NTFS,
+# so committing them aborts every Windows checkout. Never track them.
+/C:*

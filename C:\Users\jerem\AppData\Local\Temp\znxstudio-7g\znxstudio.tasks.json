@@ -1,1 +1,0 @@
-{"tasks":[{"label":"deploy","command":"echo deploy"},{"label":"build","command":"custom build","group":"build"}]}
