@@ -45,11 +45,14 @@ export class ProjectExplorerModule implements IModule, ExplorerService {
   private container!: HTMLElement;
   private sectionsHost!: HTMLElement;
   private shell!: HTMLElement;
+  private createButton!: HTMLButtonElement;
+  private refreshButton!: HTMLButtonElement;
   private activePath: string | null = null;
   /** The directory the last context menu targeted (right-clicked node's folder). */
   private contextDir: string | null = null;
   /** Per-folder "expand/refresh" handles, keyed by folder path (rebuilt each render). */
   private readonly folderHandles = new Map<string, () => Promise<void>>();
+  private readonly scriptRows: HTMLElement[] = [];
 
   private readonly sections = new Map<string, ExplorerSection>();
   private collapsed: Record<string, boolean> = {};
@@ -89,7 +92,18 @@ export class ProjectExplorerModule implements IModule, ExplorerService {
       },
     });
 
-    this.workspace.onDidChangeFolders(() => void this.render());
+    this.workspace.onDidChangeFolders(() => {
+      this.contextDir = null;
+      this.refreshToolbarState();
+      void this.render();
+    });
+    context.subscriptions.push(
+      context.commands.onDidChangeEnablement(() => {
+        this.refreshScriptRows();
+        this.refreshToolbarState();
+        this.renderSections();
+      }),
+    );
 
     const editor = context.services.tryGet<EditorService>(ServiceKeys.Editor);
     editor?.onDidChangeActiveFile((path) => this.highlight(path));
@@ -105,12 +119,19 @@ export class ProjectExplorerModule implements IModule, ExplorerService {
     const toolbar = document.createElement('div');
     toolbar.className = 'znxstudio-explorer-toolbar';
     const refresh = document.createElement('button');
+    this.refreshButton = refresh;
     refresh.className = 'znxstudio-icon-btn';
     refresh.title = 'Refresh Explorer';
     refresh.setAttribute('aria-label', 'Refresh Explorer');
     refresh.textContent = '⟳';
-    refresh.addEventListener('click', () => void this.workspace.refresh());
+    refresh.addEventListener('click', () => {
+      if (this.context.commands.has(CommandIds.ExplorerRefresh) &&
+          this.context.commands.isEnabled(CommandIds.ExplorerRefresh)) {
+        void this.context.commands.execute(CommandIds.ExplorerRefresh);
+      }
+    });
     const create = document.createElement('button');
+    this.createButton = create;
     create.className = 'znxstudio-icon-btn';
     create.title = 'New File or Folder';
     create.setAttribute('aria-label', 'New File or Folder');
@@ -123,6 +144,7 @@ export class ProjectExplorerModule implements IModule, ExplorerService {
     sections.textContent = '⋯';
     sections.addEventListener('click', () => this.openSectionsMenu(sections));
     toolbar.append(create, refresh, sections);
+    this.refreshToolbarState();
 
     // Contributed sections (Open Editors / Outline / Bookmarks) stack here, above
     // the file tree — their render paths never touch the tree container.
@@ -196,8 +218,16 @@ export class ProjectExplorerModule implements IModule, ExplorerService {
         btn.title = action.tooltip;
         btn.setAttribute('aria-label', action.tooltip);
         btn.textContent = action.icon;
+        const enabled = !action.commandId ||
+          (this.context.commands.has(action.commandId) && this.context.commands.isEnabled(action.commandId));
+        btn.disabled = !enabled;
+        btn.setAttribute('aria-disabled', String(!enabled));
         btn.addEventListener('click', (event) => {
           event.stopPropagation();
+          if (action.commandId &&
+              (!this.context.commands.has(action.commandId) || !this.context.commands.isEnabled(action.commandId))) {
+            return;
+          }
           action.run();
         });
         actions.appendChild(btn);
@@ -290,11 +320,32 @@ export class ProjectExplorerModule implements IModule, ExplorerService {
   private openNewMenu(anchor: HTMLElement): void {
     const rect = anchor.getBoundingClientRect();
     const dir = this.contextDirectory();
-    const entries: MenuEntry[] = NEW_ITEMS.map((def) => ({
-      label: def.label,
-      onClick: () => void this.context.commands.execute(newItemCommandId(def.id), dir ?? undefined),
-    }));
+    const entries: MenuEntry[] = NEW_ITEMS.map((def) => {
+      const id = newItemCommandId(def.id);
+      const enabled = this.context.commands.has(id) && this.context.commands.isEnabled(id);
+      return {
+        label: def.label,
+        disabled: !enabled,
+        onClick: () => {
+          if (this.context.commands.has(id) && this.context.commands.isEnabled(id)) {
+            void this.context.commands.execute(id, dir ?? undefined);
+          }
+        },
+      };
+    });
     this.context.layout.openFloatingMenu(rect.left, rect.bottom + 2, () => entries);
+  }
+
+  private refreshToolbarState(): void {
+    if (!this.createButton || !this.refreshButton) return;
+    const createId = newItemCommandId(NEW_ITEMS[0]?.id ?? 'file');
+    const canCreate = this.context.commands.has(createId) && this.context.commands.isEnabled(createId);
+    const canRefresh = this.context.commands.has(CommandIds.ExplorerRefresh) &&
+      this.context.commands.isEnabled(CommandIds.ExplorerRefresh);
+    this.createButton.disabled = !canCreate;
+    this.createButton.setAttribute('aria-disabled', String(!canCreate));
+    this.refreshButton.disabled = !canRefresh;
+    this.refreshButton.setAttribute('aria-disabled', String(!canRefresh));
   }
 
   private renderEmpty(): void {
@@ -307,15 +358,14 @@ export class ProjectExplorerModule implements IModule, ExplorerService {
     const button = document.createElement('button');
     button.className = 'znxstudio-btn';
     button.textContent = 'Open Folder';
-    button.addEventListener('click', () =>
-      void this.context.commands.execute(CommandIds.WorkspaceOpenFolder),
-    );
+    button.addEventListener('click', () => this.executeIfEnabled(CommandIds.WorkspaceOpenFolder));
 
     wrap.append(message, button);
     this.container.replaceChildren(wrap);
   }
 
   private async render(): Promise<void> {
+    this.scriptRows.length = 0;
     const generation = ++this.renderGeneration;
     this.folderHandles.clear();
     const folders = this.workspace.folders();
@@ -353,7 +403,7 @@ export class ProjectExplorerModule implements IModule, ExplorerService {
     const groups = this.categorize(entries, info);
 
     const scripts = info.project?.scripts;
-    if (scripts && Object.keys(scripts).length) body.appendChild(this.renderScripts(scripts));
+    if (scripts && Object.keys(scripts).length) body.appendChild(this.renderScripts(scripts, info.root));
     if (groups.source.length) body.appendChild(this.section('Source', this.tree(groups.source)));
     if (groups.folders.length) body.appendChild(this.section('Folders', this.tree(groups.folders)));
     if (groups.config.length) body.appendChild(this.section('Config', this.tree(groups.config)));
@@ -375,8 +425,7 @@ export class ProjectExplorerModule implements IModule, ExplorerService {
     button.className = 'znxstudio-btn';
     button.textContent = 'Remove from Workspace';
     button.addEventListener('click', () =>
-      void this.context.commands.execute(CommandIds.WorkspaceRemoveFolder, info.root),
-    );
+      this.executeIfEnabled(CommandIds.WorkspaceRemoveFolder, info.root));
 
     wrap.append(message, button);
     return wrap;
@@ -408,26 +457,36 @@ export class ProjectExplorerModule implements IModule, ExplorerService {
     remove.textContent = '✕';
     remove.addEventListener('click', (event) => {
       event.stopPropagation();
-      void this.context.commands.execute(CommandIds.WorkspaceRemoveFolder, info.root);
+      this.executeIfEnabled(CommandIds.WorkspaceRemoveFolder, info.root);
     });
 
-    header.append(twisty, icon, name, remove);
+    const disclosure = document.createElement('div');
+    disclosure.className = 'znxstudio-explorer-root-disclosure';
+    disclosure.tabIndex = 0;
+    disclosure.setAttribute('role', 'button');
+    disclosure.setAttribute('aria-expanded', 'true');
+    disclosure.setAttribute('aria-label', `${name.textContent ?? 'Workspace folder'} root`);
+    disclosure.append(twisty, icon, name);
+    header.append(disclosure, remove);
 
     const body = await this.renderFolderBody(info);
-    header.tabIndex = 0;
-    header.setAttribute('role', 'button');
-    header.setAttribute('aria-expanded', 'true');
-    const toggle = (): void => {
-      const collapsed = body.style.display === 'none';
-      body.style.display = collapsed ? '' : 'none';
-      twisty.textContent = collapsed ? '▾' : '▸';
-      header.setAttribute('aria-expanded', String(collapsed));
+    const setExpanded = (expanded: boolean): void => {
+      body.style.display = expanded ? '' : 'none';
+      twisty.textContent = expanded ? '▾' : '▸';
+      disclosure.setAttribute('aria-expanded', String(expanded));
     };
-    header.addEventListener('click', toggle);
-    header.addEventListener('keydown', (event) => {
-      if (event.target === header && (event.key === 'Enter' || event.key === ' ')) {
+    const toggle = (): void => setExpanded(disclosure.getAttribute('aria-expanded') !== 'true');
+    disclosure.addEventListener('click', toggle);
+    disclosure.addEventListener('keydown', (event) => {
+      if (event.key === 'Enter' || event.key === ' ') {
         event.preventDefault();
         toggle();
+      } else if (event.key === 'ArrowRight') {
+        event.preventDefault();
+        setExpanded(true);
+      } else if (event.key === 'ArrowLeft') {
+        event.preventDefault();
+        setExpanded(false);
       }
     });
 
@@ -474,7 +533,7 @@ export class ProjectExplorerModule implements IModule, ExplorerService {
     return section;
   }
 
-  private renderScripts(scripts: Record<string, string>): HTMLElement {
+  private renderScripts(scripts: Record<string, string>, root: string): HTMLElement {
     const list = document.createElement('ul');
     list.className = 'znxstudio-tree';
     for (const [name, command] of Object.entries(scripts)) {
@@ -486,7 +545,13 @@ export class ProjectExplorerModule implements IModule, ExplorerService {
       row.append(iconSpan('▶'), labelSpan(name));
       row.tabIndex = 0;
       row.setAttribute('role', 'button');
-      const run = (): void => void this.context.commands.execute(CommandIds.RunScript, name);
+      this.scriptRows.push(row);
+      const run = (): void => {
+        if (this.context.commands.has(CommandIds.RunScript) &&
+            this.context.commands.isEnabled(CommandIds.RunScript)) {
+          void this.context.commands.execute(CommandIds.RunScript, name, root);
+        }
+      };
       row.addEventListener('click', run);
       row.addEventListener('keydown', (event) => {
         if (event.key === 'Enter' || event.key === ' ') {
@@ -497,7 +562,24 @@ export class ProjectExplorerModule implements IModule, ExplorerService {
       item.appendChild(row);
       list.appendChild(item);
     }
+    this.refreshScriptRows();
     return this.section('Scripts', list);
+  }
+
+  private refreshScriptRows(): void {
+    const enabled = this.context.commands.has(CommandIds.RunScript) &&
+      this.context.commands.isEnabled(CommandIds.RunScript);
+    for (const row of this.scriptRows) {
+      row.classList.toggle('is-disabled', !enabled);
+      row.setAttribute('aria-disabled', String(!enabled));
+      row.tabIndex = enabled ? 0 : -1;
+    }
+  }
+
+  private executeIfEnabled(id: string, ...args: unknown[]): void {
+    if (this.context.commands.has(id) && this.context.commands.isEnabled(id)) {
+      void this.context.commands.execute(id, ...args);
+    }
   }
 
   // A file tree as an ARIA tree (WAI-ARIA tree pattern): the root <ul> is role="tree", nested child
@@ -613,6 +695,17 @@ export class ProjectExplorerModule implements IModule, ExplorerService {
     const activate = (): void => current?.querySelector<HTMLElement>('.znxstudio-tree-row')?.click();
     const expandedState = current?.getAttribute('aria-expanded');
 
+    if ((event.shiftKey && event.key === 'F10') || event.key === 'ContextMenu') {
+      const row = current?.querySelector<HTMLElement>('.znxstudio-tree-row');
+      const path = row?.dataset.path;
+      if (row && path) {
+        event.preventDefault();
+        const rect = row.getBoundingClientRect();
+        this.openContextMenu(path, row.dataset.type === 'directory', rect.left + 16, rect.bottom);
+      }
+      return;
+    }
+
     switch (event.key) {
       case 'ArrowDown': event.preventDefault(); focusAt(index + 1); break;
       case 'ArrowUp': event.preventDefault(); focusAt(index - 1); break;
@@ -653,22 +746,31 @@ export class ProjectExplorerModule implements IModule, ExplorerService {
   private openContextMenu(path: string, isDirectory: boolean, x: number, y: number): void {
     const dir = isDirectory ? path : dirName(path);
     this.contextDir = dir;
-    const run = (id: string, arg: string) => () => void this.context.commands.execute(id, arg);
-    const newSubmenu: MenuEntry[] = NEW_ITEMS.map((def) => ({
-      label: def.label,
-      onClick: run(newItemCommandId(def.id), dir),
-    }));
+    const commandItem = (label: string, id: string, arg: string): MenuEntry => {
+      const enabled = this.context.commands.has(id) && this.context.commands.isEnabled(id);
+      return {
+        label,
+        disabled: !enabled,
+        onClick: () => {
+          if (this.context.commands.has(id) && this.context.commands.isEnabled(id)) {
+            void this.context.commands.execute(id, arg);
+          }
+        },
+      };
+    };
+    const newSubmenu: MenuEntry[] = NEW_ITEMS.map((def) =>
+      commandItem(def.label, newItemCommandId(def.id), dir));
     const entries: MenuEntry[] = [
       { label: 'New', submenu: () => newSubmenu },
       { separator: true },
-      { label: 'Rename…', onClick: run(CommandIds.ExplorerRename, path) },
-      { label: 'Delete', onClick: run(CommandIds.ExplorerDelete, path) },
+      commandItem('Rename…', CommandIds.ExplorerRename, path),
+      commandItem('Delete', CommandIds.ExplorerDelete, path),
       { separator: true },
-      { label: 'Copy Path', onClick: run(CommandIds.ExplorerCopyPath, path) },
-      { label: 'Reveal in File Explorer', onClick: run(CommandIds.ExplorerRevealInOs, path) },
-      { label: 'Open in Integrated Terminal', onClick: run(CommandIds.ExplorerOpenInTerminal, dir) },
+      commandItem('Copy Path', CommandIds.ExplorerCopyPath, path),
+      commandItem('Reveal in File Explorer', CommandIds.ExplorerRevealInOs, path),
+      commandItem('Open in Integrated Terminal', CommandIds.ExplorerOpenInTerminal, dir),
       { separator: true },
-      { label: 'Refresh', onClick: run(CommandIds.ExplorerRefresh, dir) },
+      commandItem('Refresh', CommandIds.ExplorerRefresh, dir),
     ];
     this.context.layout.openFloatingMenu(x, y, () => entries);
   }
@@ -695,7 +797,15 @@ export class ProjectExplorerModule implements IModule, ExplorerService {
     const rows = [...this.container.querySelectorAll<HTMLElement>('.znxstudio-tree-row')];
     const target = rows.find((row) => row.dataset.path === path);
     if (target) {
-      target.classList.add('is-active');
+      this.highlight(path);
+      const item = target.closest<HTMLElement>('[role="treeitem"]');
+      if (item) {
+        for (const treeItem of this.container.querySelectorAll<HTMLElement>('[role="treeitem"]')) {
+          treeItem.tabIndex = -1;
+        }
+        item.tabIndex = 0;
+        item.focus({ preventScroll: true });
+      }
       target.scrollIntoView({ block: 'nearest' });
     }
   }

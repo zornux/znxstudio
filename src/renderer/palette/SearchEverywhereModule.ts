@@ -157,8 +157,20 @@ export class SearchEverywhereModule implements IModule {
     for (const command of this.commands.list()) {
       if (HIDDEN_COMMANDS.has(command.id)) continue;
       this.register(
-        { category: 'commands', id: command.id, label: command.title, detail: command.id, keywords: command.id },
-        () => void this.commands.execute(command.id),
+        {
+          category: 'commands',
+          id: command.id,
+          label: command.title,
+          detail: command.enabled ? command.id : `${command.id} · unavailable`,
+          keywords: command.id,
+        },
+        () => {
+          if (!this.commands.isEnabled(command.id)) {
+            this.context.layout.showToast(`“${command.title}” is not available in the current context.`, 'info');
+            return;
+          }
+          void this.commands.execute(command.id);
+        },
       );
     }
   }

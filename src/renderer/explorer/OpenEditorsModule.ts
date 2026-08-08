@@ -5,6 +5,7 @@ import {
   type OpenEditor,
 } from '../core/Contracts';
 import type { IModule, ModuleContext } from '../core/Module';
+import { CommandIds } from '../commands/CommandIds';
 
 /**
  * Open Editors (UX-6). The VS Code-style list of currently-open tabs, contributed
@@ -35,15 +36,16 @@ export class OpenEditorsModule implements IModule {
       order: 10,
       element: this.list,
       collapsed: true,
-      actions: [{ icon: '⨉', tooltip: 'Close All Editors', run: () => this.closeAll() }],
+      actions: [{
+        icon: '⨉',
+        tooltip: 'Close All Editors',
+        commandId: CommandIds.EditorCloseAll,
+        run: () => void context.commands.execute(CommandIds.EditorCloseAll),
+      }],
     });
 
     this.editor.onDidChangeEditors(() => this.render());
     this.render();
-  }
-
-  private closeAll(): void {
-    for (const open of this.editor?.openEditors() ?? []) this.editor?.closeEditor(open.uri);
   }
 
   private render(): void {
@@ -70,20 +72,28 @@ export class OpenEditorsModule implements IModule {
       (open.dirty ? ' is-dirty' : '');
     row.title = open.path;
 
+    const target = document.createElement('div');
+    target.className = 'znxstudio-open-editors-target';
+    target.tabIndex = 0;
+    target.setAttribute('role', 'button');
+    target.setAttribute('aria-current', open.active ? 'true' : 'false');
+    target.setAttribute('aria-label', `${open.name}${open.dirty ? ', unsaved changes' : ''}`);
+
     const icon = document.createElement('span');
     icon.className = 'znxstudio-icon';
     icon.textContent = open.pinned ? '📌' : '📄';
-    row.appendChild(icon);
+    target.appendChild(icon);
 
     const label = document.createElement('span');
     label.className = 'znxstudio-open-editors-name';
     label.textContent = open.name;
-    row.appendChild(label);
+    target.appendChild(label);
 
     const dirty = document.createElement('span');
     dirty.className = 'znxstudio-open-editors-dirty';
     dirty.textContent = '●';
-    row.appendChild(dirty);
+    dirty.setAttribute('aria-hidden', 'true');
+    target.appendChild(dirty);
 
     const close = document.createElement('button');
     close.type = 'button';
@@ -95,19 +105,15 @@ export class OpenEditorsModule implements IModule {
       event.stopPropagation();
       this.editor?.closeEditor(open.uri);
     });
-    row.appendChild(close);
-
-    row.tabIndex = 0;
-    row.setAttribute('role', 'button');
-    row.setAttribute('aria-current', open.active ? 'true' : 'false');
     const activate = (): void => this.editor?.activateEditor(open.uri);
-    row.addEventListener('click', activate);
-    row.addEventListener('keydown', (event) => {
-      if (event.target === row && (event.key === 'Enter' || event.key === ' ')) {
+    target.addEventListener('click', activate);
+    target.addEventListener('keydown', (event) => {
+      if (event.key === 'Enter' || event.key === ' ') {
         event.preventDefault();
         activate();
       }
     });
+    row.append(target, close);
     row.addEventListener('mousedown', (event) => {
       if (event.button === 1) {
         event.preventDefault();

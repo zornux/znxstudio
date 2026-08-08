@@ -1,4 +1,4 @@
-import { ServiceKeys, type WorkspaceService } from '../core/Contracts';
+import { ServiceKeys, type TrustService, type WorkspaceService } from '../core/Contracts';
 import { selfTestCoordinator } from '../core/SelfTestCoordinator';
 import type { IModule, ModuleContext } from '../core/Module';
 import { CommandIds } from '../commands/CommandIds';
@@ -35,6 +35,8 @@ export class SolutionExplorerModule implements IModule {
   private workspace!: WorkspaceService;
   private references: ProjectReferencesService | undefined;
   private container!: HTMLElement;
+  private readonly scriptRows: HTMLElement[] = [];
+  private readonly packageActionRows: HTMLElement[] = [];
 
   activate(context: ModuleContext): void {
     this.context = context;
@@ -55,6 +57,13 @@ export class SolutionExplorerModule implements IModule {
     });
 
     this.workspace.onDidChangeFolders(() => void this.render());
+    context.subscriptions.push(
+      context.commands.onDidChangeEnablement(() => this.refreshScriptRows()),
+    );
+    const trust = context.services.tryGet<TrustService>(ServiceKeys.Trust);
+    if (trust) {
+      context.subscriptions.push(trust.onDidChange(() => this.refreshPackageActions()));
+    }
     void this.render();
     void selfTestCoordinator.run('solution-explorer', () => this.maybeSelfTest());
   }
@@ -69,8 +78,9 @@ export class SolutionExplorerModule implements IModule {
     const add = document.createElement('button');
     add.className = 'znxstudio-icon-btn';
     add.title = 'Add Folder to Workspace';
+    add.setAttribute('aria-label', 'Add Folder to Workspace');
     add.textContent = '➕';
-    add.addEventListener('click', () => void this.context.commands.execute(CommandIds.WorkspaceAddFolder));
+    add.addEventListener('click', () => this.executeIfEnabled(CommandIds.WorkspaceAddFolder));
     toolbar.appendChild(add);
 
     shell.append(toolbar, this.container);
@@ -78,6 +88,8 @@ export class SolutionExplorerModule implements IModule {
   }
 
   private async render(): Promise<void> {
+    this.scriptRows.length = 0;
+    this.packageActionRows.length = 0;
     const folders = this.workspace.folders();
     if (folders.length === 0) {
       this.renderEmpty();
@@ -92,6 +104,7 @@ export class SolutionExplorerModule implements IModule {
       fragment.appendChild(this.renderProject(project, graph));
     }
     this.container.replaceChildren(fragment);
+    this.refreshPackageActions();
   }
 
   private renderEmpty(): void {
@@ -102,7 +115,7 @@ export class SolutionExplorerModule implements IModule {
     const button = document.createElement('button');
     button.className = 'znxstudio-btn';
     button.textContent = 'Open Folder';
-    button.addEventListener('click', () => void this.context.commands.execute(CommandIds.WorkspaceOpenFolder));
+    button.addEventListener('click', () => this.executeIfEnabled(CommandIds.WorkspaceOpenFolder));
     wrap.append(message, button);
     this.container.replaceChildren(wrap);
   }
@@ -124,6 +137,10 @@ export class SolutionExplorerModule implements IModule {
     const row = document.createElement('div');
     row.className = 'znxstudio-tree-row';
     row.title = project.root;
+    row.tabIndex = 0;
+    row.setAttribute('role', 'button');
+    row.setAttribute('aria-expanded', 'false');
+    row.setAttribute('aria-label', `${project.name}, ${project.isProject ? TYPE_LABEL[project.type] : 'folder'}`);
 
     const twisty = document.createElement('span');
     twisty.className = 'znxstudio-icon';
@@ -152,10 +169,23 @@ export class SolutionExplorerModule implements IModule {
 
     const details = this.renderProjectDetails(project, graph);
     details.style.display = 'none';
-    row.addEventListener('click', () => {
-      const collapsed = details.style.display === 'none';
-      details.style.display = collapsed ? '' : 'none';
-      twisty.textContent = collapsed ? '▾' : '▸';
+    const setExpanded = (expanded: boolean): void => {
+      details.style.display = expanded ? '' : 'none';
+      twisty.textContent = expanded ? '▾' : '▸';
+      row.setAttribute('aria-expanded', String(expanded));
+    };
+    row.addEventListener('click', () => setExpanded(row.getAttribute('aria-expanded') !== 'true'));
+    row.addEventListener('keydown', (event) => {
+      if (event.key === 'Enter' || event.key === ' ') {
+        event.preventDefault();
+        setExpanded(row.getAttribute('aria-expanded') !== 'true');
+      } else if (event.key === 'ArrowRight') {
+        event.preventDefault();
+        setExpanded(true);
+      } else if (event.key === 'ArrowLeft') {
+        event.preventDefault();
+        setExpanded(false);
+      }
     });
 
     item.append(row, details);
@@ -185,10 +215,7 @@ export class SolutionExplorerModule implements IModule {
     const restore = document.createElement('div');
     restore.className = 'znxstudio-solution-detail znxstudio-solution-action';
     restore.textContent = '⟳ Restore dependencies';
-    restore.addEventListener('click', (event) => {
-      event.stopPropagation();
-      void this.runPackage('restore', project.root, []);
-    });
+    this.makePackageAction(restore, () => void this.runPackage('restore', project.root, []));
     details.appendChild(restore);
 
     if (project.scripts.length) {
@@ -201,24 +228,62 @@ export class SolutionExplorerModule implements IModule {
         scriptRow.className = 'znxstudio-tree-row';
         scriptRow.innerHTML = `<span class="znxstudio-icon">▶</span>`;
         scriptRow.append(script);
-        scriptRow.addEventListener('click', (event) => {
+        scriptRow.tabIndex = 0;
+        scriptRow.setAttribute('role', 'button');
+        const run = (event: Event): void => {
           event.stopPropagation();
-          void this.context.commands.execute(CommandIds.RunScript, script);
+          if (this.context.commands.isEnabled(CommandIds.RunScript)) {
+            void this.context.commands.execute(CommandIds.RunScript, script, project.root);
+          }
+        };
+        scriptRow.addEventListener('click', run);
+        scriptRow.addEventListener('keydown', (event) => {
+          if (event.key === 'Enter' || event.key === ' ') {
+            event.preventDefault();
+            run(event);
+          }
         });
+        this.scriptRows.push(scriptRow);
         details.appendChild(scriptRow);
       }
+      this.refreshScriptRows();
     }
 
     const remove = document.createElement('div');
     remove.className = 'znxstudio-solution-detail znxstudio-solution-action';
     remove.textContent = 'Remove from workspace';
-    remove.addEventListener('click', (event) => {
+    remove.tabIndex = 0;
+    remove.setAttribute('role', 'button');
+    const removeProject = (event: Event): void => {
       event.stopPropagation();
-      void this.context.commands.execute(CommandIds.WorkspaceRemoveFolder, project.root);
+      this.executeIfEnabled(CommandIds.WorkspaceRemoveFolder, project.root);
+    };
+    remove.addEventListener('click', removeProject);
+    remove.addEventListener('keydown', (event) => {
+      if (event.key === 'Enter' || event.key === ' ') {
+        event.preventDefault();
+        removeProject(event);
+      }
     });
     details.appendChild(remove);
 
     return details;
+  }
+
+  private refreshScriptRows(): void {
+    const enabled = this.context.commands.has(CommandIds.RunScript) &&
+      this.context.commands.isEnabled(CommandIds.RunScript);
+    for (const row of this.scriptRows) {
+      row.classList.toggle('is-disabled', !enabled);
+      row.setAttribute('aria-disabled', String(!enabled));
+      row.tabIndex = enabled ? 0 : -1;
+    }
+  }
+
+  private executeIfEnabled(id: string, ...args: unknown[]): void {
+    if (this.context.commands.has(id) && this.context.commands.isEnabled(id)) {
+      void this.context.commands.execute(id, ...args);
+    }
   }
 
   /** One reference row: internal (→ another open project) or an external package, with a remove action. */
@@ -241,11 +306,13 @@ export class SolutionExplorerModule implements IModule {
     const remove = document.createElement('button');
     remove.className = 'znxstudio-icon-btn';
     remove.title = `Remove dependency ${dependency.name}`;
+    remove.setAttribute('aria-label', `Remove dependency ${dependency.name}`);
     remove.textContent = '✕';
     remove.addEventListener('click', (event) => {
       event.stopPropagation();
       void this.runPackage('remove', projectRoot, [dependency.name]);
     });
+    this.packageActionRows.push(remove);
 
     row.append(label, remove);
     return row;
@@ -259,8 +326,7 @@ export class SolutionExplorerModule implements IModule {
     const link = document.createElement('span');
     link.className = 'znxstudio-solution-action';
     link.textContent = '+ Add dependency';
-    link.addEventListener('click', (event) => {
-      event.stopPropagation();
+    this.makePackageAction(link, () => {
       const form = document.createElement('div');
       form.className = 'znxstudio-solution-addform';
       const name = document.createElement('input');
@@ -278,7 +344,8 @@ export class SolutionExplorerModule implements IModule {
         const spec = version.value.trim() ? `${packageName}@${version.value.trim()}` : packageName;
         void this.runPackage('add', root, [spec]);
       };
-      submit.addEventListener('click', run);
+      this.makePackageAction(submit, run);
+      this.refreshPackageActions();
       name.addEventListener('keydown', (keyEvent) => {
         if (keyEvent.key === 'Enter') run();
       });
@@ -293,6 +360,8 @@ export class SolutionExplorerModule implements IModule {
 
   /** Run a `zornux` package op, report the outcome, and refresh the view. */
   private async runPackage(command: 'add' | 'remove' | 'restore', root: string, args: string[]): Promise<void> {
+    const trust = this.context.services.tryGet<TrustService>(ServiceKeys.Trust);
+    if (trust && !trust.requireTrust('Manage project dependencies')) return;
     const info = await window.znxstudio.compiler.info();
     if (!info.available) {
       this.context.layout.showToast('Zornux compiler not available — cannot manage packages.', 'error');
@@ -306,6 +375,33 @@ export class SolutionExplorerModule implements IModule {
       this.context.layout.showToast(detail, 'error');
     }
     void this.render(); // re-reads manifests → refreshed reference graph
+  }
+
+  private makePackageAction(element: HTMLElement, action: () => void): void {
+    element.tabIndex = 0;
+    element.setAttribute('role', 'button');
+    const activate = (event: Event): void => {
+      event.stopPropagation();
+      if (element.getAttribute('aria-disabled') !== 'true') action();
+    };
+    element.addEventListener('click', activate);
+    element.addEventListener('keydown', (event) => {
+      if (event.key === 'Enter' || event.key === ' ') {
+        event.preventDefault();
+        activate(event);
+      }
+    });
+    this.packageActionRows.push(element);
+  }
+
+  private refreshPackageActions(): void {
+    const enabled = this.context.services.tryGet<TrustService>(ServiceKeys.Trust)?.isTrusted() ?? true;
+    for (const action of this.packageActionRows) {
+      action.classList.toggle('is-disabled', !enabled);
+      action.setAttribute('aria-disabled', String(!enabled));
+      action.tabIndex = enabled ? 0 : -1;
+      if (action instanceof HTMLButtonElement) action.disabled = !enabled;
+    }
   }
 
   /* ----- optional headless self-test (ZNXSTUDIO_SELFTEST=1) ----- */

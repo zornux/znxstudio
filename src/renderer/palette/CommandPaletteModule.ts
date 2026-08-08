@@ -180,9 +180,7 @@ export class CommandPaletteModule implements IModule {
   private run(entry: Entry): void {
     this.hide();
     if (!entry.enabled) {
-      // Disabled by an enablement rule (e.g. trust-gated execution in Restricted Mode). Explain rather
-      // than dispatch into a late IPC failure.
-      this.layout.showToast(`"${entry.title}" is disabled in Restricted Mode. Trust this workspace to enable it.`, 'error');
+      this.layout.showToast(`“${entry.title}” is not available in the current context.`, 'info');
       return;
     }
     void this.commands.execute(entry.id);

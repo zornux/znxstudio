@@ -44,12 +44,18 @@ export class RunBuildModule implements IModule {
     context.commands.register(CommandIds.RunStart, () => this.run(), 'Zornux: Run Project');
     context.commands.register(CommandIds.BuildStart, () => this.build(), 'Zornux: Build Project');
     context.commands.register(CommandIds.BuildRebuild, () => this.rebuild(), 'Zornux: Rebuild Project');
-    context.commands.register(CommandIds.RunScript, (name?: string) => this.runScript(name), 'Zornux: Run Script');
+    context.commands.register(
+      CommandIds.RunScript,
+      (name?: string, root?: string) => this.runScript(name, root),
+      'Zornux: Run Script',
+    );
     const workspace = context.services.get<WorkspaceService>(ServiceKeys.Workspace);
     context.subscriptions.push(
       context.commands.addEnablementRule((id) => {
         const info = workspace.currentWorkspace();
-        if (id === CommandIds.RunScript) return Boolean(info && Object.keys(info.project?.scripts ?? {}).length > 0);
+        if (id === CommandIds.RunScript) {
+          return workspace.folders().some((folder) => Object.keys(folder.project?.scripts ?? {}).length > 0);
+        }
         if (id === CommandIds.RunStart || id === CommandIds.BuildStart || id === CommandIds.BuildRebuild) {
           return info !== null;
         }
@@ -57,7 +63,7 @@ export class RunBuildModule implements IModule {
       }),
       context.commands.onDidChangeEnablement(() => this.refreshRunDebugActions()),
     );
-    workspace.onDidChangeWorkspace(() => context.commands.notifyEnablementChanged());
+    workspace.onDidChangeFolders(() => context.commands.notifyEnablementChanged());
 
     const status = this.status();
     status?.setItem('run.action', {
@@ -158,7 +164,7 @@ export class RunBuildModule implements IModule {
   }
 
   private async build(): Promise<void> {
-    const info = this.workspaceInfo();
+    const info = this.workspaceInfoForActiveFile();
     if (!info) {
       this.context.layout.showToast('Open a folder to build.', 'error');
       return;
@@ -175,7 +181,7 @@ export class RunBuildModule implements IModule {
     }
     // Fall back to a manifest script for generic projects.
     if (info.project?.scripts?.build) {
-      await this.runScript('build');
+      await this.runScript('build', info.root);
       return;
     }
     this.context.layout.showToast(
@@ -257,7 +263,7 @@ export class RunBuildModule implements IModule {
 
   /* ----- Run ----- */
   private async run(): Promise<void> {
-    const info = this.workspaceInfo();
+    const info = this.workspaceInfoForActiveFile();
     if (!info) {
       this.context.layout.showToast('Open a folder to run.', 'error');
       return;
@@ -277,7 +283,7 @@ export class RunBuildModule implements IModule {
       return;
     }
     if (info.project?.scripts?.run) {
-      await this.runScript('run');
+      await this.runScript('run', info.root);
       return;
     }
     this.context.layout.showToast(
@@ -287,17 +293,24 @@ export class RunBuildModule implements IModule {
   }
 
   /* ----- generic manifest script (fallback + palette "Run Script") ----- */
-  private async runScript(name?: string): Promise<void> {
-    const info = this.workspaceInfo();
+  private async runScript(name?: string, root?: string): Promise<void> {
+    let info = this.workspaceInfo(root);
     if (!info) {
       this.context.layout.showToast('Open a folder to run tasks.', 'error');
       return;
     }
-    const scripts = info.project?.scripts ?? {};
     if (!name) {
-      const choices = Object.entries(scripts)
-        .filter((entry): entry is [string, string] => Boolean(entry[0].trim() && entry[1].trim()))
-        .sort(([left], [right]) => left.localeCompare(right));
+      const workspace = this.context.services.tryGet<WorkspaceService>(ServiceKeys.Workspace);
+      const choices = (workspace?.folders() ?? []).flatMap((folder) =>
+        Object.entries(folder.project?.scripts ?? {})
+          .filter((entry): entry is [string, string] => Boolean(entry[0].trim() && entry[1].trim()))
+          .map(([scriptName, scriptCommand]) => ({ folder, scriptName, scriptCommand })),
+      ).sort((left, right) => left.scriptName.localeCompare(right.scriptName));
+      const duplicateNames = new Set(
+        choices
+          .filter((choice, index) => choices.findIndex((candidate) => candidate.scriptName === choice.scriptName) !== index)
+          .map((choice) => choice.scriptName),
+      );
       if (choices.length === 0) {
         this.context.layout.showToast('No project scripts are defined.', 'info');
         return;
@@ -307,17 +320,22 @@ export class RunBuildModule implements IModule {
         this.context.layout.showToast('The script picker is not available.', 'error');
         return;
       }
-      name = await quickPick.pick(
-        choices.map(([scriptName, scriptCommand]) => ({
-          label: scriptName,
+      const selected = await quickPick.pick(
+        choices.map(({ folder, scriptName, scriptCommand }) => ({
+          label: duplicateNames.has(scriptName)
+            ? `${scriptName} — ${folder.project?.name ?? folder.root.split(/[\\/]/).pop() ?? 'workspace'}`
+            : scriptName,
           description: scriptCommand,
-          value: scriptName,
+          value: { name: scriptName, root: folder.root },
         })),
         { placeholder: 'Select a project script to run' },
       );
-      if (!name) return;
+      if (!selected) return;
+      name = selected.name;
+      info = this.workspaceInfo(selected.root);
+      if (!info) return;
     }
-    const command = scripts[name];
+    const command = info.project?.scripts?.[name];
     if (!command) {
       this.context.layout.showToast(`No "${name}" script defined for this project.`, 'error');
       return;
@@ -342,7 +360,10 @@ export class RunBuildModule implements IModule {
   private zornuxEntry(info: WorkspaceInfo): string | null {
     const editor = this.context.services.tryGet<EditorService>(ServiceKeys.Editor);
     const active = editor?.currentFile();
-    if (active && active.toLowerCase().endsWith('.zx')) return active;
+    const workspace = this.context.services.tryGet<WorkspaceService>(ServiceKeys.Workspace);
+    if (active && active.toLowerCase().endsWith('.zx') && workspace?.folderContaining(active)?.root === info.root) {
+      return active;
+    }
     const targetsZornux =
       info.detectedType === 'zornux-api' || info.detectedType === 'zornux-zoijs-fullstack';
     if (targetsZornux) return `${info.root.replace(/[\\/]+$/, '')}/src/main.zx`;
@@ -355,8 +376,16 @@ export class RunBuildModule implements IModule {
     return typeof value === 'string' && value.trim() ? value.trim() : null;
   }
 
-  private workspaceInfo(): WorkspaceInfo | null {
-    return this.context.services.tryGet<WorkspaceService>(ServiceKeys.Workspace)?.currentWorkspace() ?? null;
+  private workspaceInfo(root?: string): WorkspaceInfo | null {
+    const workspace = this.context.services.tryGet<WorkspaceService>(ServiceKeys.Workspace);
+    if (root) return workspace?.folders().find((folder) => folder.root === root) ?? null;
+    return workspace?.currentWorkspace() ?? null;
+  }
+
+  private workspaceInfoForActiveFile(): WorkspaceInfo | null {
+    const workspace = this.context.services.tryGet<WorkspaceService>(ServiceKeys.Workspace);
+    const active = this.context.services.tryGet<EditorService>(ServiceKeys.Editor)?.currentFile();
+    return (active ? workspace?.folderContaining(active) : null) ?? workspace?.currentWorkspace() ?? null;
   }
 
   private engine(): DiagnosticSink | undefined {

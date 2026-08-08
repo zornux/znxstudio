@@ -168,6 +168,18 @@ export class DebugModule implements IModule, DebuggerService {
     context.subscriptions.push(
       context.commands.addEnablementRule((id) => this.debugCommandEnabled(id)),
     );
+    const workspace = context.services.tryGet<WorkspaceService>(ServiceKeys.Workspace);
+    if (workspace) {
+      context.subscriptions.push(
+        workspace.onDidChangeFolders(() => context.commands.notifyEnablementChanged()),
+      );
+    }
+    const editorService = context.services.tryGet<EditorService>(ServiceKeys.Editor);
+    if (editorService) {
+      context.subscriptions.push(
+        editorService.onDidChangeActiveFile(() => context.commands.notifyEnablementChanged()),
+      );
+    }
 
     this.registerKeybindings();
 
@@ -238,7 +250,8 @@ export class DebugModule implements IModule, DebuggerService {
 
   private debugCommandEnabled(id: string): boolean | undefined {
     const inactive = this.currentState === 'idle' || this.currentState === 'terminated' || this.currentState === 'error';
-    if (id === CommandIds.DebugStart || id === CommandIds.DebugAttach) return inactive;
+    if (id === CommandIds.DebugStart) return inactive && this.resolveEntry(this.workspaceInfoForActiveFile()) !== null;
+    if (id === CommandIds.DebugAttach) return inactive;
     if (id === CommandIds.DebugStop) return this.currentState === 'starting' || this.currentState === 'running' || this.currentState === 'stopped';
     if (id === CommandIds.DebugPause) return this.currentState === 'running';
     if (
@@ -257,7 +270,7 @@ export class DebugModule implements IModule, DebuggerService {
       this.context.layout.showToast('A debug session is already running.', 'info');
       return;
     }
-    const info = this.workspaceInfo();
+    const info = this.workspaceInfoForActiveFile();
     const program = this.resolveEntry(info);
     if (!program) {
       this.context.layout.showToast('Open a .zx file (or add src/main.zx) to debug.', 'error');
@@ -308,9 +321,10 @@ export class DebugModule implements IModule, DebuggerService {
       this.context.layout.showToast('Set "zornux.debug.remotePort" to attach to a remote adapter.', 'error');
       return;
     }
-    const program = this.resolveEntry(this.workspaceInfo()) ?? '';
+    const info = this.workspaceInfoForActiveFile();
+    const program = this.resolveEntry(info) ?? '';
     await this.beginSession(
-      { program, connection: { host, port }, workspaceRoot: this.workspaceInfo()?.root ?? null },
+      { program, connection: { host, port }, workspaceRoot: info?.root ?? null },
       `attaching to ${host}:${port}`,
     );
   }
@@ -1012,7 +1026,10 @@ export class DebugModule implements IModule, DebuggerService {
   private resolveEntry(info: WorkspaceInfo | null): string | null {
     const editor = this.context.services.tryGet<EditorService>(ServiceKeys.Editor);
     const active = editor?.currentFile();
-    if (active && active.toLowerCase().endsWith('.zx')) return active;
+    const workspace = this.context.services.tryGet<WorkspaceService>(ServiceKeys.Workspace);
+    if (active && active.toLowerCase().endsWith('.zx') && workspace?.folderContaining(active)?.root === info?.root) {
+      return active;
+    }
     if (!info) return null;
     const targetsZornux =
       info.detectedType === 'zornux-api' || info.detectedType === 'zornux-zoijs-fullstack';
@@ -1021,6 +1038,12 @@ export class DebugModule implements IModule, DebuggerService {
 
   private workspaceInfo(): WorkspaceInfo | null {
     return this.context.services.tryGet<WorkspaceService>(ServiceKeys.Workspace)?.currentWorkspace() ?? null;
+  }
+
+  private workspaceInfoForActiveFile(): WorkspaceInfo | null {
+    const workspace = this.context.services.tryGet<WorkspaceService>(ServiceKeys.Workspace);
+    const active = this.context.services.tryGet<EditorService>(ServiceKeys.Editor)?.currentFile();
+    return (active ? workspace?.folderContaining(active) : null) ?? this.workspaceInfo();
   }
 
   /**

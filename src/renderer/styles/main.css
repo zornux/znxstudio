@@ -635,6 +635,18 @@ button {
   user-select: none;
   max-width: 220px;
 }
+.znxstudio-editor-tab-target {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex: 1;
+  min-width: 0;
+  align-self: stretch;
+}
+.znxstudio-editor-tab-target:focus-visible {
+  outline: 1px solid var(--z-accent);
+  outline-offset: -1px;
+}
 .znxstudio-editor-tab:hover {
   background: var(--z-hover);
 }
@@ -690,6 +702,13 @@ button {
   visibility: hidden;
 }
 .znxstudio-editor-tab-close:hover {
+  background: var(--z-hover);
+  color: var(--z-fg);
+}
+.znxstudio-editor-tab-close:focus-visible {
+  visibility: visible;
+  outline: 1px solid var(--z-accent);
+  outline-offset: 0;
   background: var(--z-hover);
   color: var(--z-fg);
 }
@@ -1244,6 +1263,10 @@ body.is-resizing {
   color: var(--z-fg-muted);
   font-size: 13px;
 }
+.znxstudio-outline [role='treeitem']:focus-visible > .znxstudio-tree-row {
+  outline: 1px solid var(--z-accent);
+  outline-offset: -1px;
+}
 
 /* ---- Output ---- */
 .znxstudio-output {
@@ -1635,6 +1658,19 @@ body.is-resizing {
   align-items: center;
   gap: 6px;
 }
+.znxstudio-open-editors-target {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex: 1;
+  min-width: 0;
+  align-self: stretch;
+  cursor: pointer;
+}
+.znxstudio-open-editors-target:focus-visible {
+  outline: 1px solid var(--z-accent);
+  outline-offset: -1px;
+}
 .znxstudio-open-editors-row.is-preview .znxstudio-open-editors-name {
   font-style: italic;
 }
@@ -1711,16 +1747,24 @@ body.is-resizing {
   text-transform: uppercase;
   letter-spacing: 0.5px;
   color: var(--z-fg-muted);
-  cursor: pointer;
   user-select: none;
+}
+.znxstudio-explorer-root-disclosure {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  min-width: 0;
+  flex: 1;
+  align-self: stretch;
+  cursor: pointer;
+}
+.znxstudio-explorer-root-disclosure:focus-visible {
+  outline: 1px solid var(--z-accent);
+  outline-offset: -1px;
 }
 .znxstudio-explorer-root-header:hover {
   color: var(--z-fg);
   background: var(--z-hover);
-}
-.znxstudio-explorer-root-header:focus-visible {
-  outline: 1px solid var(--z-accent);
-  outline-offset: -1px;
 }
 .znxstudio-explorer-root-name {
   flex: 1;

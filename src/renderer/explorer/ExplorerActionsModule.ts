@@ -39,6 +39,33 @@ export class ExplorerActionsModule implements IModule {
   activate(context: ModuleContext): void {
     this.context = context;
 
+    const explorerCommands = new Set<string>([
+      ...NEW_ITEMS.map((def) => newItemCommandId(def.id)),
+      CommandIds.ExplorerRename,
+      CommandIds.ExplorerDelete,
+      CommandIds.ExplorerCopyPath,
+      CommandIds.ExplorerRevealInOs,
+      CommandIds.ExplorerOpenInTerminal,
+      CommandIds.ExplorerRefresh,
+    ]);
+    context.subscriptions.push(
+      context.commands.addEnablementRule((id) => {
+        if (!explorerCommands.has(id)) return undefined;
+        if (!this.hasWorkspaceTarget()) return false;
+        if (id === CommandIds.ExplorerOpenInTerminal) {
+          return context.services.tryGet<TrustService>(ServiceKeys.Trust)?.isTrusted() ?? true;
+        }
+        return true;
+      }),
+    );
+
+    const workspace = context.services.tryGet<WorkspaceService>(ServiceKeys.Workspace);
+    if (workspace) {
+      context.subscriptions.push(
+        workspace.onDidChangeFolders(() => context.commands.notifyEnablementChanged()),
+      );
+    }
+
     // One "New <Type>" command per catalog entry — all appear in the palette
     // (operating on the current Explorer folder) and in the context menu.
     for (const def of NEW_ITEMS) {
@@ -75,6 +102,11 @@ export class ExplorerActionsModule implements IModule {
     if (dir) return dir;
     const workspace = this.context.services.tryGet<WorkspaceService>(ServiceKeys.Workspace);
     return workspace?.currentFolder() ?? null;
+  }
+
+  private hasWorkspaceTarget(): boolean {
+    const workspace = this.context.services.tryGet<WorkspaceService>(ServiceKeys.Workspace);
+    return Boolean(workspace?.folders().length && this.targetDir());
   }
 
   /** Detect the project's script extension: `.ts` when a tsconfig.json is present, else `.js`. */

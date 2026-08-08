@@ -177,6 +177,11 @@ export class KeybindingsModule implements IModule, KeybindingService {
       this.context.layout.showToast(`No command "${result.command}" for these keys.`, 'error');
       return;
     }
+    if (!this.context.commands.isEnabled(result.command)) {
+      const title = this.context.commands.list().find((command) => command.id === result.command)?.title ?? result.command;
+      this.context.layout.showToast(`“${title}” is not available in the current context.`, 'info');
+      return;
+    }
     void this.context.commands.execute(result.command);
   }
 

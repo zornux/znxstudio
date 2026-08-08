@@ -172,7 +172,7 @@ export interface ExplorerSection {
   order: number;
   element: HTMLElement;
   /** Small header buttons (refresh, clear, …). */
-  actions?: { icon: string; tooltip: string; run: () => void }[];
+  actions?: { icon: string; tooltip: string; run: () => void; commandId?: string }[];
   /** Initial collapsed state (a persisted user choice overrides it). */
   collapsed?: boolean;
 }

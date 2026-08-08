@@ -56,7 +56,12 @@ export class BookmarksModule implements IModule {
         order: 30,
         element: this.explorerHost,
         collapsed: true,
-        actions: [{ icon: '⨉', tooltip: 'Clear All Bookmarks', run: () => this.clearAll() }],
+        actions: [{
+          icon: '⨉',
+          tooltip: 'Clear All Bookmarks',
+          commandId: CommandIds.BookmarkClearAll,
+          run: () => void this.context.commands.execute(CommandIds.BookmarkClearAll),
+        }],
       });
     }
 
@@ -68,6 +73,7 @@ export class BookmarksModule implements IModule {
     context.subscriptions.push(
       context.commands.addEnablementRule((id) => {
         const uri = this.editor.currentUri();
+        if (id === CommandIds.BookmarkToggle) return Boolean(uri && this.editor.cursorPosition());
         if (id === CommandIds.BookmarkNext || id === CommandIds.BookmarkPrevious) {
           return Boolean(uri && this.model.lines(uri).length > 0);
         }
@@ -166,10 +172,15 @@ export class BookmarksModule implements IModule {
       }
       const row = document.createElement('div');
       row.className = 'znxstudio-tree-row znxstudio-bookmarks-row';
-      row.innerHTML = '<span class="znxstudio-icon">🔖</span>';
+      const icon = document.createElement('span');
+      icon.className = 'znxstudio-icon';
+      icon.setAttribute('aria-hidden', 'true');
+      icon.textContent = '🔖';
+      row.appendChild(icon);
       row.appendChild(document.createTextNode(`Line ${bookmark.line + 1}`));
       row.tabIndex = 0;
       row.setAttribute('role', 'button');
+      row.setAttribute('aria-label', `${this.basename(bookmark.uri)}, line ${bookmark.line + 1}`);
       const reveal = (): void => void this.editor.revealLocation(bookmark.uri, bookmark.line, 0);
       row.addEventListener('click', reveal);
       row.addEventListener('keydown', (event) => {

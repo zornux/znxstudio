@@ -34,11 +34,21 @@ export class CoverageModule implements IModule {
 
     context.commands.register(CommandIds.CoverageShow, () => this.context.layout.showPanelView('coverage'), 'Test: Show Coverage');
     context.commands.register(CommandIds.CoverageCompute, () => void this.compute(), 'Test: Compute Coverage');
+    context.subscriptions.push(
+      context.commands.addEnablementRule((id) =>
+        id === CommandIds.CoverageCompute
+          ? this.workspace.folders().length > 0 && !this.computing
+          : undefined),
+    );
 
-    this.workspace.onDidChangeWorkspace(() => {
-      this.report = null;
-      this.render();
-    });
+    context.subscriptions.push(
+      this.workspace.onDidChangeFolders(() => {
+        this.report = null;
+        this.updateStatus();
+        this.context.commands.notifyEnablementChanged();
+        this.render();
+      }),
+    );
 
     this.render();
     void selfTestCoordinator.run('coverage', () => this.maybeSelfTest());
@@ -46,28 +56,56 @@ export class CoverageModule implements IModule {
 
   private async compute(): Promise<void> {
     if (this.computing) return;
-    const root = this.workspace.currentFolder();
-    if (!root) {
+    const roots = this.workspace.folders().map((folder) => folder.root);
+    if (roots.length === 0) {
       this.report = null;
       this.render();
       return;
     }
     this.computing = true;
+    this.context.commands.notifyEnablementChanged();
     this.render();
 
-    const paths = (await window.znxstudio.search.files(root)).filter((p) => p.toLowerCase().endsWith('.zx')).slice(0, MAX_FILES);
-    const files: { file: string; text: string }[] = [];
-    for (const path of paths) {
-      try {
-        files.push({ file: path, text: await window.znxstudio.fs.readFile(path) });
-      } catch {
-        /* skip unreadable */
+    try {
+      const discovered = new Set<string>();
+      const failures: string[] = [];
+      let successfulRoots = 0;
+      for (const root of roots) {
+        try {
+          for (const path of await window.znxstudio.search.files(root)) {
+            if (path.toLowerCase().endsWith('.zx')) discovered.add(path);
+            if (discovered.size >= MAX_FILES) break;
+          }
+          successfulRoots += 1;
+        } catch (error) {
+          failures.push(`${root}: ${(error as Error).message}`);
+        }
+        if (discovered.size >= MAX_FILES) break;
       }
+      if (successfulRoots === 0) throw new Error(failures.join('; ') || 'No workspace folder could be searched.');
+      if (failures.length > 0) {
+        this.context.layout.showToast(
+          `Coverage skipped ${failures.length} workspace folder${failures.length === 1 ? '' : 's'}.`,
+          'error',
+        );
+      }
+      const files: { file: string; text: string }[] = [];
+      for (const path of discovered) {
+        try {
+          files.push({ file: path, text: await window.znxstudio.fs.readFile(path) });
+        } catch {
+          /* skip unreadable */
+        }
+      }
+      this.report = analyzeCoverage(files);
+      this.updateStatus();
+    } catch (error) {
+      this.context.layout.showToast(`Coverage computation failed: ${(error as Error).message}`, 'error');
+    } finally {
+      this.computing = false;
+      this.context.commands.notifyEnablementChanged();
+      this.render();
     }
-    this.report = analyzeCoverage(files);
-    this.computing = false;
-    this.render();
-    this.updateStatus();
   }
 
   private updateStatus(): void {
@@ -93,8 +131,12 @@ export class CoverageModule implements IModule {
     const compute = document.createElement('button');
     compute.className = 'znxstudio-btn-small';
     compute.textContent = this.computing ? 'Computing…' : '⟳ Compute Coverage';
-    compute.disabled = this.computing;
-    compute.addEventListener('click', () => void this.compute());
+    compute.disabled = !this.context.commands.isEnabled(CommandIds.CoverageCompute);
+    compute.addEventListener('click', () => {
+      if (this.context.commands.isEnabled(CommandIds.CoverageCompute)) {
+        void this.context.commands.execute(CommandIds.CoverageCompute);
+      }
+    });
     toolbar.appendChild(compute);
     this.panel.appendChild(toolbar);
 

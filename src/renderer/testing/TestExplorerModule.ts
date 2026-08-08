@@ -3,6 +3,7 @@ import {
   type CompilerService,
   type EditorService,
   type StatusService,
+  type TrustService,
   type WorkspaceService,
 } from '../core/Contracts';
 import { selfTestCoordinator } from '../core/SelfTestCoordinator';
@@ -69,6 +70,7 @@ export class TestExplorerModule implements IModule {
   private runAllButton!: HTMLButtonElement;
   private refreshButton!: HTMLButtonElement;
   private discovering = false;
+  private discoveryQueued = false;
   private runningAll = false;
 
   activate(context: ModuleContext): void {
@@ -89,14 +91,26 @@ export class TestExplorerModule implements IModule {
       context.commands.addEnablementRule((id) => {
         if (id === CommandIds.TestRunAll) return this.files.length > 0 && !this.discovering && !this.runningAll;
         if (id === CommandIds.TestRefresh) {
-          return this.workspace.currentFolder() !== null && !this.discovering && !this.runningAll;
+          return this.workspace.folders().length > 0 && !this.discovering && !this.runningAll;
         }
         return undefined;
       }),
     );
+    const trust = context.services.tryGet<TrustService>(ServiceKeys.Trust);
+    if (trust) {
+      context.subscriptions.push(trust.onDidChange(() => {
+        this.updateControls();
+        this.render();
+      }));
+    }
     context.layout.addActivityItem({ id: 'testing', label: 'Testing', icon: '◇', onSelect: () => this.reveal() });
 
-    this.workspace.onDidChangeWorkspace(() => void this.discover());
+    context.subscriptions.push(
+      this.workspace.onDidChangeFolders(() => {
+        if (this.discovering) this.discoveryQueued = true;
+        else void this.discover();
+      }),
+    );
     void this.discover();
     void selfTestCoordinator.run('testexplorer', () => this.maybeSelfTest());
   }
@@ -115,13 +129,21 @@ export class TestExplorerModule implements IModule {
     this.runAllButton = document.createElement('button');
     this.runAllButton.className = 'znxstudio-btn-small znxstudio-tests-run-all';
     this.runAllButton.textContent = '▶ Run All';
-    this.runAllButton.addEventListener('click', () => void this.runAll());
+    this.runAllButton.addEventListener('click', () => {
+      if (this.context.commands.isEnabled(CommandIds.TestRunAll)) {
+        void this.context.commands.execute(CommandIds.TestRunAll);
+      }
+    });
     this.refreshButton = document.createElement('button');
     this.refreshButton.className = 'znxstudio-btn-small znxstudio-tests-icon-button';
     this.refreshButton.textContent = '⟳';
     this.refreshButton.title = 'Refresh test discovery';
     this.refreshButton.setAttribute('aria-label', 'Refresh test discovery');
-    this.refreshButton.addEventListener('click', () => void this.discover());
+    this.refreshButton.addEventListener('click', () => {
+      if (this.context.commands.isEnabled(CommandIds.TestRefresh)) {
+        void this.context.commands.execute(CommandIds.TestRefresh);
+      }
+    });
     toolbar.append(this.runAllButton, this.refreshButton);
 
     // Runner options (Phase 9B): engine · fail-fast · filter.
@@ -202,8 +224,8 @@ export class TestExplorerModule implements IModule {
     if (this.discovering) return;
     this.discovering = true;
     this.updateControls();
-    const root = this.workspace.currentFolder();
-    if (!root) {
+    const roots = this.workspace.folders().map((folder) => folder.root);
+    if (roots.length === 0) {
       this.files = [];
       this.discovering = false;
       this.updateControls();
@@ -212,22 +234,40 @@ export class TestExplorerModule implements IModule {
       return;
     }
     try {
-      const result = await window.znxstudio.search.text({ root, query: '^test\\s+"', isRegex: true });
+      const discoveredFiles = new Set<string>();
+      const failures: string[] = [];
+      let successfulRoots = 0;
+      for (const root of roots) {
+        try {
+          const result = await window.znxstudio.search.text({ root, query: '^test\\s+"', isRegex: true });
+          successfulRoots += 1;
+          for (const hit of result.files) discoveredFiles.add(hit.file);
+        } catch (error) {
+          failures.push(`${this.basename(root)}: ${(error as Error).message}`);
+        }
+      }
+      if (successfulRoots === 0) throw new Error(failures.join('; ') || 'No workspace folder could be searched.');
+      if (failures.length > 0) {
+        this.context.layout.showToast(
+          `Test discovery skipped ${failures.length} workspace folder${failures.length === 1 ? '' : 's'}: ${failures.join('; ')}`,
+          'error',
+        );
+      }
       const previous = new Map(this.files.map((f) => [f.file, f]));
       const files: UiFile[] = [];
-      for (const hit of result.files) {
+      for (const filePath of discoveredFiles) {
         let text: string;
         try {
-          text = await window.znxstudio.fs.readFile(hit.file);
+          text = await window.znxstudio.fs.readFile(filePath);
         } catch {
           continue;
         }
         const blocks = parseTestBlocks(text);
         if (blocks.length === 0) continue;
-        const prior = previous.get(hit.file);
+        const prior = previous.get(filePath);
         const classification = classifyTestFile(text);
         files.push({
-          file: hit.file,
+          file: filePath,
           expanded: prior?.expanded ?? false,
           running: false,
           kind: classification.kind,
@@ -247,11 +287,17 @@ export class TestExplorerModule implements IModule {
       this.updateControls();
       this.render();
       this.updateStatus();
+      if (this.discoveryQueued) {
+        this.discoveryQueued = false;
+        void this.discover();
+      }
     }
   }
 
   private async runAll(): Promise<void> {
     if (this.runningAll) return;
+    const trust = this.context.services.tryGet<TrustService>(ServiceKeys.Trust);
+    if (trust && !trust.requireTrust('Run tests')) return;
     if (this.files.length === 0) {
       this.context.layout.showToast('No tests were discovered to run.', 'info');
       return;
@@ -273,6 +319,8 @@ export class TestExplorerModule implements IModule {
 
   private async runFile(file: UiFile, singleTest?: string): Promise<void> {
     if (file.running) return;
+    const trust = this.context.services.tryGet<TrustService>(ServiceKeys.Trust);
+    if (trust && !trust.requireTrust('Run tests')) return;
     const compilerPath = await this.compilerPath();
     if (!compilerPath) {
       this.context.layout.showToast('Zornux compiler not available.', 'error');
@@ -442,10 +490,10 @@ export class TestExplorerModule implements IModule {
     run.textContent = '▶';
     run.title = 'Run this file';
     run.setAttribute('aria-label', `Run all tests in ${this.basename(file.file)}`);
-    run.disabled = file.running || this.runningAll;
+    run.disabled = !this.canRunFile(file);
     run.addEventListener('click', (event) => {
       event.stopPropagation();
-      void this.runFile(file);
+      if (this.canRunFile(file)) void this.runFile(file);
     });
     header.append(caret, name, kind, summary, run);
     const toggle = (): void => {
@@ -489,10 +537,10 @@ export class TestExplorerModule implements IModule {
     run.textContent = '▶';
     run.title = 'Run this test';
     run.setAttribute('aria-label', `Run test ${test.name}`);
-    run.disabled = file.running || this.runningAll;
+    run.disabled = !this.canRunFile(file);
     run.addEventListener('click', (event) => {
       event.stopPropagation();
-      void this.runFile(file, test.name);
+      if (this.canRunFile(file)) void this.runFile(file, test.name);
     });
     row.append(icon, name, meta, run);
     const open = (): void => void this.open(file.file, test.line);
@@ -512,6 +560,11 @@ export class TestExplorerModule implements IModule {
       row.appendChild(message);
     }
     return row;
+  }
+
+  private canRunFile(file: UiFile): boolean {
+    const trusted = this.context.services.tryGet<TrustService>(ServiceKeys.Trust)?.isTrusted() ?? true;
+    return trusted && !this.discovering && !this.runningAll && !file.running;
   }
 
   private async open(file: string, line: number): Promise<void> {

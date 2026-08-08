@@ -1,4 +1,11 @@
-import { ServiceKeys, type EditorService, type SettingsService, type StatusService, type WorkspaceService } from '../core/Contracts';
+import {
+  ServiceKeys,
+  type EditorService,
+  type QuickPickService,
+  type SettingsService,
+  type StatusService,
+  type WorkspaceService,
+} from '../core/Contracts';
 import { Emitter } from '../core/Emitter';
 import { selfTestCoordinator } from '../core/SelfTestCoordinator';
 import type { IModule, ModuleContext } from '../core/Module';
@@ -52,12 +59,18 @@ export class WorkspaceModule implements IModule, WorkspaceService {
     );
     context.commands.register(
       CommandIds.WorkspaceRemoveFolder,
-      (root?: string) => {
-        if (root) this.removeFolder(root);
-      },
+      (root?: string) => void this.removeFolderCommand(root),
       'Workspace: Remove Folder',
     );
     context.commands.register(CommandIds.WorkspaceRefresh, () => this.refresh(), 'Workspace: Refresh Explorer');
+    context.subscriptions.push(
+      context.commands.addEnablementRule((id) => {
+        if (id === CommandIds.WorkspaceRemoveFolder || id === CommandIds.WorkspaceRefresh) {
+          return this.folderSet.list().length > 0;
+        }
+        return undefined;
+      }),
+    );
     this.publishStatus();
     void selfTestCoordinator.run('workspace', () => this.maybeSelfTest());
   }
@@ -81,8 +94,15 @@ export class WorkspaceModule implements IModule, WorkspaceService {
   async openFolder(path?: string): Promise<void> {
     const target = path ?? (await window.znxstudio.dialog.openFolder());
     if (!target) return;
+    let loaded: WorkspaceInfo;
+    try {
+      loaded = await window.znxstudio.workspace.load(target);
+    } catch (error) {
+      this.showLoadError('open', target, error);
+      return;
+    }
     const previous = this.currentFolder();
-    this.folderSet.set([await window.znxstudio.workspace.load(target)]);
+    this.folderSet.set([loaded]);
     this.recordRecent(target);
     this.emit(previous);
     // A project is now open — dismiss the welcome/start overlay so the IDE reflects it.
@@ -105,8 +125,15 @@ export class WorkspaceModule implements IModule, WorkspaceService {
   async addFolder(path?: string): Promise<void> {
     const target = path ?? (await window.znxstudio.dialog.openFolder());
     if (!target) return;
+    let loaded: WorkspaceInfo;
+    try {
+      loaded = await window.znxstudio.workspace.load(target);
+    } catch (error) {
+      this.showLoadError('add', target, error);
+      return;
+    }
     const previous = this.currentFolder();
-    this.folderSet.add(await window.znxstudio.workspace.load(target));
+    this.folderSet.add(loaded);
     this.emit(previous);
   }
 
@@ -115,14 +142,51 @@ export class WorkspaceModule implements IModule, WorkspaceService {
     if (this.folderSet.remove(root)) this.emit(previous);
   }
 
+  private async removeFolderCommand(explicitRoot?: string): Promise<void> {
+    if (explicitRoot) {
+      this.removeFolder(explicitRoot);
+      return;
+    }
+    const folders = this.folderSet.list();
+    if (folders.length === 0) return;
+    if (folders.length === 1) {
+      this.removeFolder(folders[0].root);
+      return;
+    }
+    const picker = this.context.services.tryGet<QuickPickService>(ServiceKeys.QuickPick);
+    const selected = await picker?.pick(
+      folders.map((folder) => ({
+        label: folder.project?.name ?? baseName(folder.root),
+        description: folder.root,
+        value: folder.root,
+      })),
+      { placeholder: 'Select a folder to remove from the workspace' },
+    );
+    if (selected) this.removeFolder(selected);
+  }
+
   async refresh(): Promise<void> {
     const roots = this.folderSet.list().map((folder) => folder.root);
     if (roots.length === 0) return;
-    const reloaded = await Promise.all(roots.map((root) => window.znxstudio.workspace.load(root)));
+    let reloaded: WorkspaceInfo[];
+    try {
+      reloaded = await Promise.all(roots.map((root) => window.znxstudio.workspace.load(root)));
+    } catch (error) {
+      this.context.layout.showToast(`Could not refresh the workspace: ${errorMessage(error)}`, 'error');
+      return;
+    }
     this.folderSet.set(reloaded);
     // A refresh reloads content even when the primary root is unchanged, so force
     // the single-root change event.
     this.emit(this.currentFolder(), true);
+  }
+
+  private showLoadError(action: 'open' | 'add', target: string, error: unknown): void {
+    const verb = action === 'open' ? 'open' : 'add';
+    this.context.layout.showToast(
+      `Could not ${verb} ${baseName(target)}: ${errorMessage(error)}`,
+      'error',
+    );
   }
 
   /**
@@ -135,6 +199,7 @@ export class WorkspaceModule implements IModule, WorkspaceService {
     this.foldersEmitter.fire(this.folderSet.list());
     const primary = this.folderSet.primary();
     if (force || (primary?.root ?? null) !== previousPrimaryRoot) this.changeEmitter.fire(primary);
+    this.context.commands.notifyEnablementChanged();
     this.publishStatus();
   }
 
@@ -208,4 +273,8 @@ export class WorkspaceModule implements IModule, WorkspaceService {
 
 function baseName(path: string): string {
   return path.split(/[\\/]/).filter(Boolean).pop() ?? path;
+}
+
+function errorMessage(error: unknown): string {
+  return error instanceof Error && error.message ? error.message : String(error);
 }

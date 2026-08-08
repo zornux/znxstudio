@@ -2,6 +2,7 @@ import {
   ServiceKeys,
   type CompilerService,
   type StatusService,
+  type TrustService,
   type WorkspaceService,
 } from '../core/Contracts';
 import { selfTestCoordinator } from '../core/SelfTestCoordinator';
@@ -34,6 +35,7 @@ export class ContinuousTestModule implements IModule {
   private running = false;
   private testFiles: string[] = [];
   private debounce: ReturnType<typeof setTimeout> | null = null;
+  private discoveryGeneration = 0;
 
   activate(context: ModuleContext): void {
     this.context = context;
@@ -46,8 +48,27 @@ export class ContinuousTestModule implements IModule {
     context.layout.addPanelView({ id: 'continuous', title: 'Continuous', element: this.panel });
     context.commands.register(CommandIds.ContinuousShow, () => this.context.layout.showPanelView('continuous'), 'Test: Show Continuous Testing');
     context.commands.register(CommandIds.ContinuousToggle, () => void this.toggle(), 'Test: Toggle Continuous Testing');
+    context.subscriptions.push(
+      context.commands.addEnablementRule((id) => {
+        if (id !== CommandIds.ContinuousToggle) return undefined;
+        const trusted = context.services.tryGet<TrustService>(ServiceKeys.Trust)?.isTrusted() ?? true;
+        return this.watching || (trusted && this.workspace.folders().length > 0);
+      }),
+      this.documents.onDidSave((doc) => this.onSave(doc.path)),
+      this.workspace.onDidChangeFolders(() => {
+        if (this.workspace.folders().length === 0) this.stopWatching();
+        else if (this.watching) void this.discover();
+        context.commands.notifyEnablementChanged();
+      }),
+    );
 
-    this.documents.onDidSave((doc) => this.onSave(doc.path));
+    const trust = context.services.tryGet<TrustService>(ServiceKeys.Trust);
+    if (trust) {
+      context.subscriptions.push(trust.onDidChange(() => {
+        if (!trust.isTrusted()) this.stopWatching();
+        context.commands.notifyEnablementChanged();
+      }));
+    }
 
     this.render();
     this.updateStatus();
@@ -55,21 +76,47 @@ export class ContinuousTestModule implements IModule {
   }
 
   private async toggle(): Promise<void> {
-    this.watching = !this.watching;
-    if (this.watching) await this.discover();
+    if (this.watching) {
+      this.stopWatching();
+      return;
+    }
+    const trust = this.context.services.tryGet<TrustService>(ServiceKeys.Trust);
+    if (trust && !trust.requireTrust('Continuous testing')) return;
+    if (this.workspace.folders().length === 0) return;
+    this.watching = true;
+    await this.discover();
     this.render();
     this.updateStatus();
     if (this.watching) this.context.layout.showToast('Continuous testing on — tests re-run on save.', 'info');
   }
 
   private async discover(): Promise<void> {
-    const root = this.workspace.currentFolder();
-    if (!root) {
+    const generation = ++this.discoveryGeneration;
+    const roots = this.workspace.folders().map((folder) => folder.root);
+    if (roots.length === 0) {
       this.testFiles = [];
       return;
     }
-    const result = await window.znxstudio.search.text({ root, query: '^test\\s+"', isRegex: true });
-    this.testFiles = result.files.map((f) => f.file).sort();
+    const files = new Set<string>();
+    for (const root of roots) {
+      try {
+        const result = await window.znxstudio.search.text({ root, query: '^test\\s+"', isRegex: true });
+        for (const file of result.files) files.add(file.file);
+      } catch (error) {
+        this.context.layout.showToast(`Continuous test discovery failed in ${this.basename(root)}: ${(error as Error).message}`, 'error');
+      }
+    }
+    if (generation === this.discoveryGeneration) this.testFiles = [...files].sort();
+  }
+
+  private stopWatching(): void {
+    this.watching = false;
+    this.discoveryGeneration += 1;
+    if (this.debounce) clearTimeout(this.debounce);
+    this.debounce = null;
+    this.context.commands.notifyEnablementChanged();
+    this.render();
+    this.updateStatus();
   }
 
   private onSave(path: string): void {
@@ -79,7 +126,7 @@ export class ContinuousTestModule implements IModule {
   }
 
   private async runFor(savedPath: string): Promise<void> {
-    if (this.running) return;
+    if (!this.watching || this.running) return;
     const compiler = this.context.services.tryGet<CompilerService>(ServiceKeys.Compiler);
     const info = compiler ? await compiler.info() : null;
     if (!info?.available || !info.path) return;
@@ -88,18 +135,32 @@ export class ContinuousTestModule implements IModule {
     let targets: string[];
     try {
       const text = await window.znxstudio.fs.readFile(savedPath);
-      targets = parseTestBlocks(text).length > 0 ? [savedPath] : [...this.testFiles];
+      const owner = this.workspace.folderContaining(savedPath);
+      if (!owner) return;
+      targets = parseTestBlocks(text).length > 0
+        ? [savedPath]
+        : this.testFiles.filter((file) => this.workspace.folderContaining(file)?.root === owner?.root);
     } catch {
-      targets = [...this.testFiles];
+      const owner = this.workspace.folderContaining(savedPath);
+      if (!owner) return;
+      targets = this.testFiles.filter((file) => this.workspace.folderContaining(file)?.root === owner?.root);
     }
     if (targets.length === 0) return;
 
     this.running = true;
     this.render();
-    for (const file of targets) await this.runFile(info.path, file);
-    this.running = false;
-    this.render();
-    this.updateStatus();
+    try {
+      for (const file of targets) {
+        if (!this.watching) break;
+        await this.runFile(info.path, file);
+      }
+    } catch (error) {
+      this.context.layout.showToast(`Continuous test run failed: ${(error as Error).message}`, 'error');
+    } finally {
+      this.running = false;
+      this.render();
+      this.updateStatus();
+    }
 
     const latest = this.history.latest();
     if (latest && !latest.ok) this.context.layout.showToast(`Tests failing in ${this.basename(latest.file)} (${latest.failed}✗).`, 'error');
@@ -141,7 +202,12 @@ export class ContinuousTestModule implements IModule {
     const toggle = document.createElement('button');
     toggle.className = 'znxstudio-btn-small';
     toggle.textContent = this.watching ? '⏸ Stop watching' : '▶ Watch';
-    toggle.addEventListener('click', () => void this.toggle());
+    toggle.disabled = !this.context.commands.isEnabled(CommandIds.ContinuousToggle);
+    toggle.addEventListener('click', () => {
+      if (this.context.commands.isEnabled(CommandIds.ContinuousToggle)) {
+        void this.context.commands.execute(CommandIds.ContinuousToggle);
+      }
+    });
     const state = document.createElement('span');
     state.className = 'znxstudio-continuous-state';
     state.textContent = this.watching

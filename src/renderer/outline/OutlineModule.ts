@@ -158,15 +158,23 @@ export class OutlineModule implements IModule {
     }
   }
 
-  private renderTree(symbols: DocumentSymbol[]): HTMLElement {
+  private renderTree(symbols: DocumentSymbol[], isRoot = true): HTMLElement {
     const list = document.createElement('ul');
     list.className = 'znxstudio-tree';
+    list.setAttribute('role', isRoot ? 'tree' : 'group');
     for (const symbol of symbols) list.appendChild(this.renderNode(symbol));
+    if (isRoot) {
+      const first = list.querySelector<HTMLElement>('[role="treeitem"]');
+      if (first) first.tabIndex = 0;
+      list.addEventListener('keydown', (event) => this.onTreeKey(list, event));
+    }
     return list;
   }
 
   private renderNode(symbol: DocumentSymbol): HTMLElement {
     const item = document.createElement('li');
+    item.setAttribute('role', 'treeitem');
+    item.tabIndex = -1;
     const row = document.createElement('div');
     row.className = 'znxstudio-tree-row';
     row.title = `${symbol.kind} ${symbol.name}`;
@@ -177,24 +185,53 @@ export class OutlineModule implements IModule {
     const label = document.createElement('span');
     label.textContent = symbol.name;
     row.append(icon, label);
-    row.tabIndex = 0;
-    row.setAttribute('role', 'button');
     const reveal = (): void => {
       const editor = this.context.services.tryGet<EditorService>(ServiceKeys.Editor);
       editor?.revealPosition(symbol.selectionRange.start.line, symbol.selectionRange.start.character);
     };
-    row.addEventListener('click', reveal);
-    row.addEventListener('keydown', (event) => {
-      if (event.key === 'Enter' || event.key === ' ') {
-        event.preventDefault();
-        reveal();
-      }
+    row.addEventListener('click', () => {
+      const tree = item.closest<HTMLElement>('[role="tree"]');
+      for (const node of tree?.querySelectorAll<HTMLElement>('[role="treeitem"]') ?? []) node.tabIndex = -1;
+      item.tabIndex = 0;
+      item.focus({ preventScroll: true });
+      reveal();
     });
     item.appendChild(row);
 
     if (symbol.children?.length) {
-      item.appendChild(this.renderTree(symbol.children));
+      item.setAttribute('aria-expanded', 'true');
+      item.appendChild(this.renderTree(symbol.children, false));
     }
     return item;
+  }
+
+  private onTreeKey(root: HTMLElement, event: KeyboardEvent): void {
+    const items = [...root.querySelectorAll<HTMLElement>('[role="treeitem"]')]
+      .filter((item) => item.offsetParent !== null);
+    const current = document.activeElement as HTMLElement | null;
+    const index = current ? items.indexOf(current) : -1;
+    const focus = (target: HTMLElement | null | undefined): void => {
+      if (!target) return;
+      for (const item of items) item.tabIndex = -1;
+      target.tabIndex = 0;
+      target.focus();
+    };
+    const parent = current?.parentElement?.closest<HTMLElement>('[role="treeitem"]');
+    const child = current?.querySelector<HTMLElement>(':scope > [role="group"] > [role="treeitem"]');
+
+    switch (event.key) {
+      case 'ArrowDown': event.preventDefault(); focus(items[index + 1]); break;
+      case 'ArrowUp': event.preventDefault(); focus(items[index - 1]); break;
+      case 'Home': event.preventDefault(); focus(items[0]); break;
+      case 'End': event.preventDefault(); focus(items[items.length - 1]); break;
+      case 'ArrowRight': event.preventDefault(); focus(child); break;
+      case 'ArrowLeft': event.preventDefault(); focus(parent); break;
+      case 'Enter':
+      case ' ':
+        event.preventDefault();
+        current?.querySelector<HTMLElement>(':scope > .znxstudio-tree-row')?.click();
+        break;
+      default: break;
+    }
   }
 }

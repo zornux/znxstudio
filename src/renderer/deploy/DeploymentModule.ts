@@ -39,6 +39,7 @@ export class DeploymentModule implements IModule, DeploymentService {
   private profileList: DeploymentProfile[] = [];
   private activeId = '';
   private readonly registeredActions: DeployAction[] = [];
+  private readonly actionButtons = new Map<string, HTMLButtonElement>();
   private readonly changeEmitter = new Emitter<void>();
   readonly onDidChange = this.changeEmitter.event;
 
@@ -49,6 +50,9 @@ export class DeploymentModule implements IModule, DeploymentService {
 
     this.load();
     context.services.register(ServiceKeys.Deployment, this);
+    context.subscriptions.push(
+      context.commands.onDidChangeEnablement(() => this.refreshActionButtons()),
+    );
 
     this.view = document.createElement('div');
     this.view.className = 'znxstudio-deploy';
@@ -168,6 +172,7 @@ export class DeploymentModule implements IModule, DeploymentService {
 
   private render(): void {
     if (!this.view) return;
+    this.actionButtons.clear();
     this.view.replaceChildren();
 
     const context = this.context();
@@ -239,9 +244,28 @@ export class DeploymentModule implements IModule, DeploymentService {
         const button = document.createElement('button');
         button.className = 'znxstudio-btn-small znxstudio-deploy-action';
         button.textContent = action.label;
-        button.addEventListener('click', () => void this.moduleContext.commands.execute(action.command));
+        button.addEventListener('click', () => {
+          if (
+            this.moduleContext.commands.has(action.command) &&
+            this.moduleContext.commands.isEnabled(action.command)
+          ) {
+            void this.moduleContext.commands.execute(action.command);
+          }
+        });
+        this.actionButtons.set(action.id, button);
         this.view.appendChild(button);
       }
+    }
+    this.refreshActionButtons();
+  }
+
+  private refreshActionButtons(): void {
+    for (const action of this.registeredActions) {
+      const button = this.actionButtons.get(action.id);
+      if (!button) continue;
+      button.disabled =
+        !this.moduleContext.commands.has(action.command) ||
+        !this.moduleContext.commands.isEnabled(action.command);
     }
   }
 

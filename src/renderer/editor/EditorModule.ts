@@ -11,6 +11,7 @@ import {
 } from '../core/Contracts';
 import { Emitter } from '../core/Emitter';
 import type { IModule, ModuleContext } from '../core/Module';
+import type { MenuEntry } from '../core/LayoutManager';
 import { CommandIds } from '../commands/CommandIds';
 import { t } from '../i18n';
 import { LanguageServiceKeys } from '../language/api';
@@ -74,11 +75,11 @@ export class EditorModule implements IModule, EditorService {
   readonly id = 'znxstudio.editor';
   readonly displayName = 'Editor Engine';
 
+  private context!: ModuleContext;
   private editor!: monaco.editor.IStandaloneCodeEditor;
   private overlay!: HTMLElement;
   private tabsBar!: HTMLElement;
   private tabsState: TabsState = EMPTY_TABS;
-  private contextMenu: HTMLElement | null = null;
   private breadcrumbs!: HTMLElement;
   private documents!: DocumentManager;
   private settings: SettingsService | undefined;
@@ -102,6 +103,7 @@ export class EditorModule implements IModule, EditorService {
   readonly onDidChangeEditors = this.editorsEmitter.event;
 
   activate(context: ModuleContext): void {
+    this.context = context;
     this.documents = context.services.get<DocumentManager>(LanguageServiceKeys.Documents);
 
     const area = context.layout.editorArea;
@@ -118,6 +120,8 @@ export class EditorModule implements IModule, EditorService {
     `;
 
     this.tabsBar = area.querySelector<HTMLElement>('[data-role="tabs"]')!;
+    this.tabsBar.setAttribute('role', 'tablist');
+    this.tabsBar.setAttribute('aria-label', 'Open editors');
     this.breadcrumbs = area.querySelector<HTMLElement>('[data-role="breadcrumbs"]')!;
     this.overlay = area.querySelector<HTMLElement>('[data-role="overlay"]')!;
     this.wireOverlayDismiss();
@@ -144,16 +148,6 @@ export class EditorModule implements IModule, EditorService {
       scrollBeyondLastLine: false,
       glyphMargin: true, // reserve the breakpoint gutter
     });
-
-    // Dismiss the tab context menu on any outside click / Escape.
-    window.addEventListener('click', () => this.closeContextMenu(), true);
-    window.addEventListener(
-      'keydown',
-      (event) => {
-        if (event.key === 'Escape') this.closeContextMenu();
-      },
-      true,
-    );
 
     this.renderTabs();
 
@@ -197,7 +191,9 @@ export class EditorModule implements IModule, EditorService {
       button.title = action.label;
       button.setAttribute('aria-label', action.label);
       button.addEventListener('click', () => {
-        if (context.commands.has(action.command)) void context.commands.execute(action.command);
+        if (context.commands.has(action.command) && context.commands.isEnabled(action.command)) {
+          void context.commands.execute(action.command);
+        }
       });
       host.appendChild(button);
       gated.push({ button, command: action.command });
@@ -211,15 +207,20 @@ export class EditorModule implements IModule, EditorService {
     more.setAttribute('aria-haspopup', 'menu');
     more.addEventListener('click', () => {
       const rect = more.getBoundingClientRect();
-      context.layout.openFloatingMenu(rect.right - 210, rect.bottom + 2, () => [
-        {
-          label: t('action.stop'),
-          disabled: !context.commands.isEnabled(CommandIds.DebugStop),
-          onClick: () => void context.commands.execute(CommandIds.DebugStop),
+      const commandItem = (label: string, command: string) => ({
+        label,
+        disabled: !context.commands.has(command) || !context.commands.isEnabled(command),
+        onClick: () => {
+          if (context.commands.has(command) && context.commands.isEnabled(command)) {
+            void context.commands.execute(command);
+          }
         },
+      });
+      context.layout.openFloatingMenu(rect.right - 210, rect.bottom + 2, () => [
+        commandItem(t('action.stop'), CommandIds.DebugStop),
         { separator: true },
-        { label: t('action.build'), onClick: () => void context.commands.execute(CommandIds.BuildStart) },
-        { label: t('action.rebuild'), onClick: () => void context.commands.execute(CommandIds.BuildRebuild) },
+        commandItem(t('action.build'), CommandIds.BuildStart),
+        commandItem(t('action.rebuild'), CommandIds.BuildRebuild),
       ]);
     });
     host.appendChild(more);
@@ -277,6 +278,11 @@ export class EditorModule implements IModule, EditorService {
     context.subscriptions.push(
       context.commands.addEnablementRule((id) => {
         if (id === CommandIds.FileSaveAll) return this.tabsState.tabs.some((tab) => tab.dirty);
+        if (id === CommandIds.EditorCloseAll) return this.tabsState.tabs.some((tab) => !tab.pinned);
+        if (id === CommandIds.EditorCloseOthers) {
+          return Boolean(this.tabsState.activeUri &&
+            this.tabsState.tabs.some((tab) => tab.uri !== this.tabsState.activeUri && !tab.pinned));
+        }
         if (id === CommandIds.MultiCursorClear) return this.active !== null && this.getSelections().length > 1;
         return ACTIVE_EDITOR_COMMANDS.has(id) ? this.active !== null : undefined;
       }),
@@ -647,23 +653,35 @@ export class EditorModule implements IModule, EditorService {
    * Prompts Save / Don't Save / Cancel when the document has unsaved edits so a
    * close can never silently discard work.
    */
-  private async confirmAndClose(uri: string): Promise<void> {
+  private async confirmAndClose(uri: string, restoreTabFocus = false): Promise<void> {
     const tab = this.tabsState.tabs.find((t) => t.uri === uri);
     if (tab?.dirty && !(await this.promptSaveBeforeClose([{ uri, name: tab.name }]))) return;
     this.closeTabByUri(uri);
+    if (restoreTabFocus) this.focusActiveTabOrEditor();
   }
 
   /**
    * User-initiated close of a SET of tabs (Close Others / Close All). Prompts
    * once for all dirty members, then closes and disposes them.
    */
-  private async confirmCloseSet(next: TabsState): Promise<void> {
+  private async confirmCloseSet(next: TabsState, restoreTabFocus = false): Promise<void> {
     const keep = new Set(next.tabs.map((t) => t.uri));
     const closing = this.tabsState.tabs.filter((t) => !keep.has(t.uri));
     const dirty = closing.filter((t) => t.dirty).map((t) => ({ uri: t.uri, name: t.name }));
     if (dirty.length > 0 && !(await this.promptSaveBeforeClose(dirty))) return;
     this.applyTabs(next);
     for (const t of closing) this.documents.close(t.uri); // dispose the closed models
+    if (restoreTabFocus) this.focusActiveTabOrEditor();
+  }
+
+  private focusActiveTabOrEditor(): void {
+    const activeUri = this.tabsState.activeUri;
+    const tab = activeUri
+      ? [...this.tabsBar.querySelectorAll<HTMLElement>('[role="tab"]')]
+          .find((candidate) => candidate.dataset.uri === activeUri)
+      : undefined;
+    if (tab) tab.focus();
+    else this.editor.focus();
   }
 
   /**
@@ -823,37 +841,53 @@ export class EditorModule implements IModule, EditorService {
     el.dataset.uri = tab.uri;
     el.title = tab.path;
 
+    const target = document.createElement('div');
+    target.className = 'znxstudio-editor-tab-target';
+    target.dataset.uri = tab.uri;
+    target.tabIndex = active ? 0 : -1;
+    target.setAttribute('role', 'tab');
+    target.setAttribute('aria-selected', String(active));
+    target.setAttribute(
+      'aria-label',
+      `${tab.name}${tab.dirty ? ', unsaved changes' : ''}${tab.pinned ? ', pinned' : ''}`,
+    );
+
     if (tab.pinned) {
       const pin = document.createElement('span');
       pin.className = 'znxstudio-editor-tab-pin';
       pin.textContent = '📌';
-      el.appendChild(pin);
+      pin.setAttribute('aria-hidden', 'true');
+      target.appendChild(pin);
     }
 
     const label = document.createElement('span');
     label.className = 'znxstudio-editor-tab-label';
     label.textContent = tab.name;
-    el.appendChild(label);
+    target.appendChild(label);
 
     const dirty = document.createElement('span');
     dirty.className = 'znxstudio-editor-tab-dirty';
     dirty.textContent = '●';
-    el.appendChild(dirty);
+    dirty.setAttribute('aria-hidden', 'true');
+    target.appendChild(dirty);
 
     const close = document.createElement('button');
     close.type = 'button';
     close.className = 'znxstudio-editor-tab-close';
     close.textContent = '×';
     close.title = 'Close';
+    close.tabIndex = active ? 0 : -1;
+    close.setAttribute('aria-label', `Close ${tab.name}`);
     close.addEventListener('click', (event) => {
       event.stopPropagation();
-      void this.confirmAndClose(tab.uri);
+      void this.confirmAndClose(tab.uri, true);
     });
-    el.appendChild(close);
+    el.append(target, close);
 
-    el.addEventListener('click', () => this.activateTab(tab.uri));
+    target.addEventListener('click', () => this.activateTab(tab.uri));
+    target.addEventListener('keydown', (event) => this.onTabKey(event, tab));
     // Double-click promotes a preview tab to permanent (VS Code muscle memory).
-    el.addEventListener('dblclick', () => {
+    target.addEventListener('dblclick', () => {
       this.tabsState = makePermanent(this.tabsState, tab.uri);
       this.renderTabs();
     });
@@ -861,49 +895,87 @@ export class EditorModule implements IModule, EditorService {
     el.addEventListener('mousedown', (event) => {
       if (event.button === 1) {
         event.preventDefault();
-        void this.confirmAndClose(tab.uri);
+        void this.confirmAndClose(tab.uri, true);
       }
     });
-    el.addEventListener('contextmenu', (event) => {
+    target.addEventListener('contextmenu', (event) => {
       event.preventDefault();
       this.openTabContextMenu(tab, event.clientX, event.clientY);
     });
     return el;
   }
 
-  private openTabContextMenu(tab: EditorTab, x: number, y: number): void {
-    this.closeContextMenu();
-    const menu = document.createElement('div');
-    menu.className = 'znxstudio-menu znxstudio-tab-menu';
-    menu.style.left = `${x}px`;
-    menu.style.top = `${y}px`;
-
-    const add = (label: string, run: () => void) => {
-      const item = document.createElement('button');
-      item.type = 'button';
-      item.className = 'znxstudio-menu-item';
-      item.textContent = label;
-      item.addEventListener('click', (event) => {
-        event.stopPropagation();
-        this.closeContextMenu();
-        run();
-      });
-      menu.appendChild(item);
-    };
-
-    add('Close', () => void this.confirmAndClose(tab.uri));
-    add('Close Others', () => void this.confirmCloseSet(closeOthers(this.tabsState, tab.uri)));
-    add('Close All', () => void this.confirmCloseSet(closeAll(this.tabsState)));
-    add(tab.pinned ? 'Unpin' : 'Pin', () => this.applyTabs(togglePin(this.tabsState, tab.uri)));
-    if (tab.preview) add('Keep Open', () => { this.tabsState = makePermanent(this.tabsState, tab.uri); this.renderTabs(); });
-
-    document.body.appendChild(menu);
-    this.contextMenu = menu;
+  private onTabKey(event: KeyboardEvent, tab: EditorTab): void {
+    if ((event.shiftKey && event.key === 'F10') || event.key === 'ContextMenu') {
+      event.preventDefault();
+      const rect = event.currentTarget instanceof HTMLElement
+        ? event.currentTarget.getBoundingClientRect()
+        : this.tabsBar.getBoundingClientRect();
+      this.openTabContextMenu(tab, rect.left + 16, rect.bottom);
+      return;
+    }
+    const tabs = [...this.tabsBar.querySelectorAll<HTMLElement>('[role="tab"]')];
+    const current = event.currentTarget as HTMLElement;
+    const index = tabs.indexOf(current);
+    let target: HTMLElement | undefined;
+    if (event.key === 'ArrowRight') target = tabs[(index + 1) % tabs.length];
+    else if (event.key === 'ArrowLeft') target = tabs[(index - 1 + tabs.length) % tabs.length];
+    else if (event.key === 'Home') target = tabs[0];
+    else if (event.key === 'End') target = tabs[tabs.length - 1];
+    else if (event.key === 'Enter' || event.key === ' ') target = current;
+    if (!target) return;
+    event.preventDefault();
+    const uri = target.dataset.uri;
+    if (!uri) return;
+    this.activateTab(uri);
+    this.tabsBar.querySelector<HTMLElement>(`[role="tab"][data-uri="${CSS.escape(uri)}"]`)?.focus();
   }
 
-  private closeContextMenu(): void {
-    this.contextMenu?.remove();
-    this.contextMenu = null;
+  private openTabContextMenu(tab: EditorTab, x: number, y: number): void {
+    const entries = (): MenuEntry[] => {
+      const current = this.tabsState.tabs.find((candidate) => candidate.uri === tab.uri);
+      if (!current) return [];
+      const canCloseOthers = this.tabsState.tabs.some((candidate) =>
+        candidate.uri !== current.uri && !candidate.pinned);
+      const canCloseAll = this.tabsState.tabs.some((candidate) => !candidate.pinned);
+      const items: MenuEntry[] = [
+        { label: 'Close', onClick: () => void this.confirmAndClose(current.uri, true) },
+        {
+          label: 'Close Others',
+          disabled: !canCloseOthers,
+          onClick: () => {
+            if (this.tabsState.tabs.some((candidate) => candidate.uri !== current.uri && !candidate.pinned)) {
+              void this.confirmCloseSet(closeOthers(this.tabsState, current.uri), true);
+            }
+          },
+        },
+        {
+          label: 'Close All',
+          disabled: !canCloseAll,
+          onClick: () => {
+            if (this.tabsState.tabs.some((candidate) => !candidate.pinned)) {
+              void this.confirmCloseSet(closeAll(this.tabsState), true);
+            }
+          },
+        },
+        { separator: true },
+        {
+          label: current.pinned ? 'Unpin' : 'Pin',
+          onClick: () => this.applyTabs(togglePin(this.tabsState, current.uri)),
+        },
+      ];
+      if (current.preview) {
+        items.push({
+          label: 'Keep Open',
+          onClick: () => {
+            this.tabsState = makePermanent(this.tabsState, current.uri);
+            this.renderTabs();
+          },
+        });
+      }
+      return items;
+    };
+    this.context.layout.openFloatingMenu(x, y, entries);
   }
 
   /* ----- live settings sync ----- */
