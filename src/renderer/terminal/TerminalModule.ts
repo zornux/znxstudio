@@ -276,24 +276,19 @@ export class TerminalModule implements IModule {
    * Resolves immediately once a root is known; a short timeout keeps a no-folder startup from
    * stalling (the terminal then opens in the shell's default dir).
    */
-  private async ensureWorkspaceReady(timeoutMs = 1500): Promise<void> {
-    if (!this.workspace) this.workspace = this.context.services.tryGet<WorkspaceService>(ServiceKeys.Workspace);
-    const ws = this.workspace;
-    if (!ws || ws.currentFolder()) return;
-    await new Promise<void>((resolve) => {
-      let settled = false;
-      const finish = (): void => {
-        if (settled) return;
-        settled = true;
-        clearTimeout(timer);
-        sub.dispose();
-        resolve();
-      };
-      const timer = setTimeout(finish, timeoutMs);
-      const sub = ws.onDidChangeWorkspace(() => {
-        if (ws.currentFolder()) finish();
-      });
-    });
+  private async ensureWorkspaceReady(timeoutMs = 2500): Promise<void> {
+    // The Workspace SERVICE itself registers during startup — often AFTER this module
+    // activates and runs init() — so we can't just wait on its change event (there'd be
+    // nothing to subscribe to yet). Poll for the service to appear and then resolve a
+    // primary root. Resolves the instant a root is known; the timeout keeps a no-folder
+    // startup from stalling (the terminal then opens in the shell's default dir).
+    const deadline = Date.now() + timeoutMs;
+    for (;;) {
+      if (!this.workspace) this.workspace = this.context.services.tryGet<WorkspaceService>(ServiceKeys.Workspace);
+      if (this.workspace?.currentFolder()) return;
+      if (Date.now() >= deadline) return;
+      await new Promise((resolve) => setTimeout(resolve, 40));
+    }
   }
 
   private async spawnPane(group: TerminalGroup, shellId?: string, cwd?: string): Promise<void> {
