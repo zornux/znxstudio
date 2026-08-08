@@ -51,6 +51,12 @@ export class SearchModule implements IModule {
   private isRegex = false;
   private readonly excluded = new Set<string>();
   private lastPreview: ReplaceFileResult[] = [];
+  private lastPreviewKey = '';
+  private replaceVisible = false;
+  private replaceRow?: HTMLElement;
+  private replaceToggle?: HTMLButtonElement;
+  private searchTimer: ReturnType<typeof setTimeout> | undefined;
+  private searchGeneration = 0;
 
   activate(context: ModuleContext): void {
     this.context = context;
@@ -65,6 +71,7 @@ export class SearchModule implements IModule {
       icon: '⌕',
       onSelect: () => this.reveal(),
     });
+    context.subscriptions.push({ dispose: () => clearTimeout(this.searchTimer) });
 
     void selfTestCoordinator.run('search', () => this.maybeSelfTest());
   }
@@ -79,11 +86,32 @@ export class SearchModule implements IModule {
     const shell = document.createElement('div');
     shell.className = 'znxstudio-search';
 
-    const input = this.searchField('Search…', this.input?.value ?? '');
+    const input = this.searchField('Search…', this.input?.value ?? '', () => this.scheduleRun());
     this.input = input;
 
-    const replace = this.searchField('Replace… (leave blank to search only)', this.replaceInput?.value ?? '');
+    const searchRow = document.createElement('div');
+    searchRow.className = 'znxstudio-search-input-row';
+    this.replaceToggle = document.createElement('button');
+    this.replaceToggle.className = 'znxstudio-search-disclosure';
+    this.replaceToggle.title = 'Toggle Replace';
+    this.replaceToggle.setAttribute('aria-label', 'Toggle Replace');
+    this.replaceToggle.setAttribute('aria-expanded', String(this.replaceVisible));
+    this.replaceToggle.textContent = this.replaceVisible ? '▾' : '▸';
+    this.replaceToggle.addEventListener('click', () => {
+      this.replaceVisible = !this.replaceVisible;
+      this.syncReplaceUi();
+      if (this.replaceVisible) this.replaceInput?.focus();
+      this.scheduleRun(true);
+    });
+    searchRow.append(this.replaceToggle, input);
+
+    const replace = this.searchField('Replace…', this.replaceInput?.value ?? '', () => this.scheduleRun());
     this.replaceInput = replace;
+    this.replaceRow = document.createElement('div');
+    this.replaceRow.className = 'znxstudio-search-input-row znxstudio-search-replace-row';
+    const replaceIndent = document.createElement('span');
+    replaceIndent.className = 'znxstudio-search-input-indent';
+    this.replaceRow.append(replaceIndent, replace);
 
     const options = document.createElement('div');
     options.className = 'znxstudio-search-options';
@@ -100,7 +128,8 @@ export class SearchModule implements IModule {
       this.modeButton('Symbols', 'symbols'),
     );
 
-    shell.append(input, replace, options, modes, this.results);
+    shell.append(searchRow, this.replaceRow, options, modes, this.results);
+    this.syncReplaceUi();
     return shell;
   }
 
@@ -109,10 +138,11 @@ export class SearchModule implements IModule {
    * rows, then scrolls) rather than a fixed single line, so long queries and multi-line
    * regex stay fully visible. Enter runs the search; Shift+Enter inserts a newline.
    */
-  private searchField(placeholder: string, value: string): HTMLTextAreaElement {
+  private searchField(placeholder: string, value: string, onInput: () => void): HTMLTextAreaElement {
     const field = document.createElement('textarea');
     field.className = 'znxstudio-input znxstudio-search-field';
     field.placeholder = placeholder;
+    field.setAttribute('aria-label', placeholder.replace('…', ''));
     field.rows = 1;
     field.value = value;
     field.spellcheck = false;
@@ -122,7 +152,10 @@ export class SearchModule implements IModule {
         void this.run();
       }
     });
-    field.addEventListener('input', () => autosize(field));
+    field.addEventListener('input', () => {
+      autosize(field);
+      onInput();
+    });
     // Fit the restored value once the field is attached to the DOM.
     queueMicrotask(() => autosize(field));
     return field;
@@ -137,8 +170,11 @@ export class SearchModule implements IModule {
     button.addEventListener('click', () => {
       set(!get());
       button.classList.toggle('is-on', get());
+      button.setAttribute('aria-pressed', String(get()));
       void this.run();
     });
+    button.setAttribute('aria-label', title);
+    button.setAttribute('aria-pressed', String(get()));
     return button;
   }
 
@@ -147,15 +183,42 @@ export class SearchModule implements IModule {
     button.className = 'znxstudio-search-mode';
     button.textContent = label;
     button.classList.toggle('is-active', this.mode === mode);
+    button.setAttribute('aria-pressed', String(this.mode === mode));
     button.addEventListener('click', () => {
       this.mode = mode;
-      for (const el of button.parentElement?.children ?? []) el.classList.toggle('is-active', el === button);
+      for (const el of button.parentElement?.children ?? []) {
+        el.classList.toggle('is-active', el === button);
+        el.setAttribute('aria-pressed', String(el === button));
+      }
+      this.syncReplaceUi();
       void this.run();
     });
     return button;
   }
 
+  private syncReplaceUi(): void {
+    const enabled = this.mode === 'text';
+    if (this.replaceToggle) {
+      this.replaceToggle.hidden = !enabled;
+      this.replaceToggle.setAttribute('aria-expanded', String(this.replaceVisible && enabled));
+      this.replaceToggle.textContent = this.replaceVisible && enabled ? '▾' : '▸';
+    }
+    if (this.replaceRow) this.replaceRow.hidden = !enabled || !this.replaceVisible;
+  }
+
+  private scheduleRun(immediate = false): void {
+    clearTimeout(this.searchTimer);
+    if (!(this.input?.value.trim())) {
+      this.searchGeneration += 1;
+      this.results.replaceChildren();
+      return;
+    }
+    this.searchTimer = setTimeout(() => void this.run(), immediate ? 0 : 250);
+  }
+
   private async run(): Promise<void> {
+    clearTimeout(this.searchTimer);
+    const generation = ++this.searchGeneration;
     const query = this.input?.value.trim() ?? '';
     const root = this.workspace.currentFolder();
     if (!root) {
@@ -172,24 +235,43 @@ export class SearchModule implements IModule {
     try {
       if (this.mode === 'symbols') {
         const result = await window.znxstudio.search.symbols({ root, query });
+        if (generation !== this.searchGeneration) return;
         this.renderSymbols(result.symbols, result.truncated);
         return;
       }
 
       const opts = { caseSensitive: this.caseSensitive, wholeWord: this.wholeWord, isRegex: this.isRegex };
+      if (!buildSearchRegex(query, opts)) {
+        this.renderMessage('Invalid regular expression.');
+        return;
+      }
       const replacement = this.replaceInput?.value ?? '';
-      if (replacement) {
+      if (this.replaceVisible) {
         const preview = await window.znxstudio.search.previewReplace({ root, query, replacement, ...opts });
+        if (generation !== this.searchGeneration) return;
         this.lastPreview = preview.files;
+        this.lastPreviewKey = this.previewKey(query, replacement, opts);
         this.renderReplacePreview(preview.files, preview.totalMatches, preview.truncated);
       } else {
         const result = await window.znxstudio.search.text({ root, query, ...opts });
+        if (generation !== this.searchGeneration) return;
+        this.lastPreview = [];
+        this.lastPreviewKey = '';
         this.renderText(result.files, result.totalMatches, result.truncated);
       }
     } catch (error) {
+      if (generation !== this.searchGeneration) return;
       // Never leave the panel stuck on "Searching…" or drop an unhandled rejection.
       this.renderMessage(`Search failed: ${(error as Error).message}`);
     }
+  }
+
+  private previewKey(
+    query: string,
+    replacement: string,
+    options: { caseSensitive: boolean; wholeWord: boolean; isRegex: boolean },
+  ): string {
+    return JSON.stringify([query, replacement, options.caseSensitive, options.wholeWord, options.isRegex]);
   }
 
   /* ----- rendering ----- */
@@ -236,7 +318,7 @@ export class SearchModule implements IModule {
     body.className = 'znxstudio-search-linetext';
     this.highlight(body, text, ranges);
     row.append(num, body);
-    row.addEventListener('click', () => void this.open(file, line, ranges[0]?.[0] ?? 0));
+    this.makeNavigable(row, () => void this.open(file, line, ranges[0]?.[0] ?? 0));
     return row;
   }
 
@@ -269,7 +351,8 @@ export class SearchModule implements IModule {
     summary.textContent = `${total} match${total === 1 ? '' : 'es'} in ${files.length} file${files.length === 1 ? '' : 's'}${truncated ? ' (truncated)' : ''}`;
     const apply = document.createElement('button');
     apply.className = 'znxstudio-btn primary znxstudio-btn-small';
-    apply.textContent = 'Replace All';
+    apply.textContent = 'Replace Selected';
+    apply.title = truncated ? 'Replace the selected files shown in this truncated preview' : 'Replace in selected files';
     apply.addEventListener('click', () => void this.applyReplaceAll());
     bar.append(summary, apply);
     fragment.appendChild(bar);
@@ -283,6 +366,7 @@ export class SearchModule implements IModule {
       const check = document.createElement('input');
       check.type = 'checkbox';
       check.checked = !this.excluded.has(file.file);
+      check.setAttribute('aria-label', `Include ${this.basename(file.file)} in replacement`);
       check.addEventListener('change', () => {
         if (check.checked) this.excluded.delete(file.file);
         else this.excluded.add(file.file);
@@ -303,7 +387,7 @@ export class SearchModule implements IModule {
         oldText.className = 'znxstudio-search-linetext';
         this.highlight(oldText, match.text, match.ranges, 'del');
         oldLine.appendChild(oldText);
-        oldLine.addEventListener('click', () => void this.open(file.file, match.line, match.ranges[0]?.[0] ?? 0));
+        this.makeNavigable(oldLine, () => void this.open(file.file, match.line, match.ranges[0]?.[0] ?? 0));
 
         const newLine = document.createElement('div');
         newLine.className = 'znxstudio-search-match znxstudio-search-new';
@@ -335,6 +419,11 @@ export class SearchModule implements IModule {
     if (!root || !query) return;
 
     const opts = { caseSensitive: this.caseSensitive, wholeWord: this.wholeWord, isRegex: this.isRegex };
+    if (this.lastPreviewKey !== this.previewKey(query, replacement, opts)) {
+      this.context.layout.showToast('Search options changed — wait for the replacement preview to refresh.', 'info');
+      this.scheduleRun(true);
+      return;
+    }
     const regex = buildSearchRegex(query, opts);
     if (!regex) {
       this.context.layout.showToast('Invalid search pattern.', 'error');
@@ -351,30 +440,33 @@ export class SearchModule implements IModule {
     const documents = this.context.services.tryGet<DocumentManager>(LanguageServiceKeys.Documents);
     const expanded = expandReplacement(replacement, this.isRegex);
     const closed: string[] = [];
-    let openEdited = 0;
+    const openModels: monaco.editor.ITextModel[] = [];
 
     for (const path of targets) {
       const uri = monaco.Uri.file(path).toString();
       const managed = documents?.getManaged(uri);
       if (managed) {
-        if (this.editModel(managed.model, query, opts, expanded)) openEdited += 1;
+        openModels.push(managed.model);
       } else {
         closed.push(path);
       }
     }
 
-    let filesChanged = openEdited;
-    let replacements = 0;
+    let filesChanged = 0;
     if (closed.length) {
       try {
         const result = await window.znxstudio.search.applyReplace({ root, query, replacement, ...opts, files: closed });
         filesChanged += result.filesChanged;
-        replacements += result.replacements;
       } catch (error) {
         this.context.layout.showToast(`Replace failed: ${(error as Error).message}`, 'error');
         return;
       }
     }
+    let openEdited = 0;
+    for (const model of openModels) {
+      if (this.editModel(model, query, opts, expanded)) openEdited += 1;
+    }
+    filesChanged += openEdited;
 
     this.context.layout.showToast(
       `Replaced in ${filesChanged} file${filesChanged === 1 ? '' : 's'}${openEdited ? ` (${openEdited} open editor${openEdited === 1 ? '' : 's'})` : ''}.`,
@@ -424,7 +516,7 @@ export class SearchModule implements IModule {
       location.textContent = `${this.basename(symbol.file)}:${symbol.line + 1}`;
       row.append(icon, name, location);
       row.title = `${symbol.kind} · ${symbol.file}`;
-      row.addEventListener('click', () => void this.open(symbol.file, symbol.line, symbol.col));
+      this.makeNavigable(row, () => void this.open(symbol.file, symbol.line, symbol.col));
       fragment.appendChild(row);
     }
     this.results.replaceChildren(fragment);
@@ -435,6 +527,18 @@ export class SearchModule implements IModule {
     if (!editor) return;
     await editor.openFile(file);
     editor.revealPosition(line, col);
+  }
+
+  private makeNavigable(element: HTMLElement, action: () => void): void {
+    element.tabIndex = 0;
+    element.setAttribute('role', 'button');
+    element.addEventListener('click', action);
+    element.addEventListener('keydown', (event) => {
+      if (event.key === 'Enter' || event.key === ' ') {
+        event.preventDefault();
+        action();
+      }
+    });
   }
 
   private basename(path: string): string {

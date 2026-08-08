@@ -2196,15 +2196,39 @@ body.is-resizing {
   display: flex;
   flex-direction: column;
   height: 100%;
-  padding: 8px;
-  gap: 6px;
+  min-height: 0;
+  padding: 8px 7px 0;
+  gap: 7px;
+  background: var(--z-bg-sidebar, var(--z-bg-panel));
 }
+.znxstudio-search-input-row {
+  display: grid;
+  grid-template-columns: 22px minmax(0, 1fr);
+  align-items: start;
+  gap: 3px;
+}
+.znxstudio-search-disclosure {
+  width: 22px;
+  height: 27px;
+  padding: 0;
+  border: 0;
+  border-radius: 3px;
+  background: transparent;
+  color: var(--z-fg-muted);
+  cursor: pointer;
+}
+.znxstudio-search-disclosure:hover { background: var(--z-hover, var(--z-bg-elevated)); color: var(--z-fg); }
+.znxstudio-search-input-indent { width: 22px; }
 /* VS Code-style search/replace fields: grow with content (no fixed height), wrap long
    patterns, and never show a manual resize grip. Height is driven by JS (autosize). */
 .znxstudio-search-field {
+  width: 100%;
+  box-sizing: border-box;
   resize: none;
   overflow-y: hidden;
-  min-height: 22px;
+  min-height: 28px;
+  padding: 5px 8px;
+  border-radius: 4px;
   line-height: 1.4;
   white-space: pre-wrap;
   word-break: break-word;
@@ -2216,12 +2240,18 @@ body.is-resizing {
   display: flex;
   gap: 4px;
 }
+.znxstudio-search-options { padding-left: 25px; }
+.znxstudio-search-modes {
+  padding: 0 0 5px 25px;
+  border-bottom: 1px solid var(--z-border);
+}
 .znxstudio-search-toggle,
 .znxstudio-search-mode {
   font-size: 11px;
-  padding: 2px 6px;
+  min-height: 25px;
+  padding: 2px 7px;
   border: 1px solid var(--z-border);
-  border-radius: 3px;
+  border-radius: 4px;
   background: transparent;
   color: var(--z-fg-muted);
   cursor: pointer;
@@ -2232,25 +2262,48 @@ body.is-resizing {
   color: var(--z-accent-fg, #fff);
   border-color: var(--z-accent, #4a9eff);
 }
+.znxstudio-search-toggle:focus-visible,
+.znxstudio-search-mode:focus-visible,
+.znxstudio-search-disclosure:focus-visible,
+.znxstudio-search-match:focus-visible,
+.znxstudio-search-symbol:focus-visible {
+  outline: 1px solid var(--z-accent);
+  outline-offset: -1px;
+}
 .znxstudio-search-results {
   flex: 1;
+  min-height: 0;
   overflow-y: auto;
+  margin-inline: -7px;
+  padding: 0 6px 8px;
+  scroll-behavior: smooth;
 }
 .znxstudio-search-status {
-  padding: 4px 2px;
+  padding: 7px 5px;
   font-size: 11px;
   color: var(--z-fg-muted);
 }
+.znxstudio-search-file {
+  margin-bottom: 4px;
+  overflow: hidden;
+  border-radius: 5px;
+}
 .znxstudio-search-file-header {
+  min-height: 27px;
+  padding-inline: 7px;
   font-weight: 600;
-  font-size: 11px;
+  font-size: 11.5px;
+  background: color-mix(in srgb, var(--z-fg) 2.5%, transparent);
 }
 .znxstudio-search-match {
   display: flex;
   gap: 8px;
-  padding: 1px 4px 1px 16px;
-  font-family: var(--z-mono, monospace);
-  font-size: 11px;
+  min-height: 25px;
+  align-items: baseline;
+  padding: 3px 6px 3px 14px;
+  border-radius: 3px;
+  font-family: var(--znxstudio-font-mono, monospace);
+  font-size: 11.5px;
   cursor: pointer;
   white-space: pre;
   overflow: hidden;
@@ -2262,14 +2315,16 @@ body.is-resizing {
   color: var(--z-fg-muted);
   min-width: 2.5em;
   text-align: right;
+  font-variant-numeric: tabular-nums;
 }
 .znxstudio-search-linetext {
   overflow: hidden;
   text-overflow: ellipsis;
 }
 .znxstudio-search-match mark {
-  background: var(--z-accent, #4a9eff);
-  color: var(--z-accent-fg, #fff);
+  background: color-mix(in srgb, var(--z-accent, #4a9eff) 38%, transparent);
+  color: var(--z-fg);
+  box-shadow: inset 0 -1px var(--z-accent, #4a9eff);
   border-radius: 2px;
 }
 .znxstudio-search-symbol {
@@ -2277,6 +2332,9 @@ body.is-resizing {
   align-items: center;
   gap: 6px;
   cursor: pointer;
+  min-height: 29px;
+  padding-inline: 7px;
+  border-radius: 4px;
 }
 .znxstudio-search-symbol-name {
   flex: 1;
@@ -2284,32 +2342,43 @@ body.is-resizing {
 .znxstudio-search-symbol-loc {
   font-size: 10px;
   color: var(--z-fg-muted);
-  font-family: var(--z-mono, monospace);
+  font-family: var(--znxstudio-font-mono, monospace);
 }
 .znxstudio-search-replacebar {
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: 8px;
-  padding: 2px;
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  padding: 5px;
+  border-bottom: 1px solid var(--z-border);
+  background: var(--z-bg-sidebar, var(--z-bg-panel));
 }
 .znxstudio-search-file-header input[type='checkbox'] {
   margin-right: 6px;
 }
 .znxstudio-search-replace-block {
-  padding: 1px 0;
+  padding: 2px 0 4px;
+  border-bottom: 1px solid color-mix(in srgb, var(--z-border) 65%, transparent);
 }
 .znxstudio-search-old .znxstudio-search-linetext {
   color: var(--z-fg-muted);
 }
 .znxstudio-search-old del {
-  background: var(--z-error, #f85149);
-  color: #fff;
+  background: color-mix(in srgb, var(--z-error, #f85149) 28%, transparent);
+  color: var(--z-fg);
+  box-shadow: inset 0 -1px var(--z-error, #f85149);
   text-decoration: none;
   border-radius: 2px;
 }
 .znxstudio-search-new .znxstudio-search-linetext {
   color: var(--z-ok, #3fb950);
+}
+@media (max-width: 320px) {
+  .znxstudio-search-replacebar { align-items: stretch; flex-direction: column; }
+  .znxstudio-search-replacebar button { align-self: flex-end; }
 }
 
 /* ---- Live Preview (Phase 6G) ---- */
