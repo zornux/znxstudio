@@ -1,10 +1,16 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 48" role="img" aria-label="ZnxStudio">
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 236 236" role="img" aria-label="ZnxStudio">
   <defs>
-    <linearGradient id="p-zor" x1="0" y1="0" x2="1" y2="1">
-      <stop offset="0" stop-color="#ff7a59" />
-      <stop offset="1" stop-color="#ff9e73" />
+    <linearGradient id="zbi" x1="0" y1="0" x2="0.85" y2="0.7">
+      <stop offset="0" stop-color="#20cbff"/>
+      <stop offset=".5" stop-color="#2278ff"/>
+      <stop offset="1" stop-color="#1f52e6"/>
     </linearGradient>
   </defs>
-  <rect width="48" height="48" rx="11" fill="url(#p-zor)" />
-  <path fill="#2b1206" d="M24 12 L34 30 L24 25 L14 30 Z" />
+  <rect width="236" height="236" rx="52" fill="#14161d"/>
+  <polygon points="80,118 96,118 52,186 36,186" fill="#3a4a72"/>
+  <polygon points="120,150 200,148 180,186 100,188" fill="#3a4a72"/>
+  <polygon points="120,150 200,148 197,154 122,156" fill="#2ea8ff" opacity=".85"/>
+  <polygon points="54,52 182,48 112,140 86,140 130,90 82,94" fill="url(#zbi)"/>
+  <polygon points="82,94 130,90 130,95 82,99" fill="#1ec9ff" opacity=".5"/>
+  <polygon points="54,52 182,48 180,53 56,57" fill="#fff" opacity=".18"/>
 </svg>
