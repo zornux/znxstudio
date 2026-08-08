@@ -41,9 +41,12 @@ export class InputBoxModule implements IModule, InputBoxService {
   prompt(options: InputBoxOptions): Promise<string | null> {
     this.cancelActive?.();
     return new Promise((resolve) => {
-      const restoreFocus = captureFocus();
       let settled = false;
       let cancelThis: () => void;
+      cancelThis = () => settle(null);
+      this.cancelActive = cancelThis;
+      this.releaseOverlay = claimOverlay(this, cancelThis);
+      const restoreFocus = captureFocus();
       const settle = (value: string | null): void => {
         if (settled) return;
         settled = true;
@@ -59,10 +62,6 @@ export class InputBoxModule implements IModule, InputBoxService {
         restoreFocus();
         resolve(value);
       };
-      cancelThis = () => settle(null);
-      this.cancelActive = cancelThis;
-      this.releaseOverlay = claimOverlay(this, cancelThis);
-
       const panel = document.createElement('div');
       panel.className = 'znxstudio-inputbox-panel';
       markDialog(panel, options.title);
@@ -146,9 +145,12 @@ export class InputBoxModule implements IModule, InputBoxService {
   confirm(options: ConfirmOptions): Promise<boolean> {
     this.cancelActive?.();
     return new Promise((resolve) => {
-      const restoreFocus = captureFocus();
       let settled = false;
       let cancelThis: () => void;
+      cancelThis = () => settle(false);
+      this.cancelActive = cancelThis;
+      this.releaseOverlay = claimOverlay(this, cancelThis);
+      const restoreFocus = captureFocus();
       const settle = (value: boolean): void => {
         if (settled) return;
         settled = true;
@@ -164,10 +166,6 @@ export class InputBoxModule implements IModule, InputBoxService {
         restoreFocus();
         resolve(value);
       };
-      cancelThis = () => settle(false);
-      this.cancelActive = cancelThis;
-      this.releaseOverlay = claimOverlay(this, cancelThis);
-
       const panel = document.createElement('div');
       panel.className = 'znxstudio-inputbox-panel';
       markDialog(panel, options.title);

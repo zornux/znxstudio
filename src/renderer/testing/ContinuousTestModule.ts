@@ -205,7 +205,7 @@ export class ContinuousTestModule implements IModule {
     toggle.disabled = !this.context.commands.isEnabled(CommandIds.ContinuousToggle);
     toggle.addEventListener('click', () => {
       if (this.context.commands.isEnabled(CommandIds.ContinuousToggle)) {
-        void this.context.commands.execute(CommandIds.ContinuousToggle);
+        this.context.commands.executeFromUi(CommandIds.ContinuousToggle);
       }
     });
     const state = document.createElement('span');

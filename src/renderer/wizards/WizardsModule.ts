@@ -333,7 +333,7 @@ export class WizardsModule implements IModule {
   private close(): void {
     this.wizard = undefined;
     this.container = undefined;
-    void this.context.commands.execute(CommandIds.ViewWelcome);
+    this.context.commands.executeFromUi(CommandIds.ViewWelcome);
   }
 
   /* ----- small DOM helpers ----- */

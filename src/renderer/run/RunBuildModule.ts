@@ -128,7 +128,7 @@ export class RunBuildModule implements IModule {
       this.runDebugButtons.set(action.command, button);
       button.addEventListener('click', () => {
         if (this.context.commands.has(action.command) && this.context.commands.isEnabled(action.command)) {
-          void this.context.commands.execute(action.command);
+          this.context.commands.executeFromUi(action.command);
         }
       });
       view.appendChild(button);

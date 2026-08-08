@@ -975,7 +975,7 @@ export class DebugModule implements IModule, DebuggerService {
 
   private renderControls(header: HTMLElement): void {
     const add = (label: string, command: string, title: string) => {
-      const btn = this.button(label, () => void this.context.commands.execute(command));
+      const btn = this.button(label, () => this.context.commands.executeFromUi(command));
       btn.title = title;
       btn.setAttribute('aria-label', title);
       btn.toggleAttribute('disabled', !this.context.commands.isEnabled(command));

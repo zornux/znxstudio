@@ -61,7 +61,7 @@ export class BookmarksModule implements IModule {
           icon: '⨉',
           tooltip: 'Clear All Bookmarks',
           commandId: CommandIds.BookmarkClearAll,
-          run: () => void this.context.commands.execute(CommandIds.BookmarkClearAll),
+          run: () => this.context.commands.executeFromUi(CommandIds.BookmarkClearAll),
         }],
       });
     }

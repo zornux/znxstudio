@@ -1,41 +1,26 @@
 /**
- * Lightweight, dependency-free file iconography. Emoji glyphs keep the explorer
- * icon-typed without shipping an icon font. Language modules can extend this map
- * later through the extension system.
+ * Lightweight monochrome file iconography using short, stable glyphs from the
+ * workbench icon font stack instead of platform-dependent color emoji.
  */
 const ICON_BY_EXTENSION: Record<string, string> = {
-  ts: '🟦',
-  tsx: '🟦',
-  js: '🟨',
-  jsx: '🟨',
-  json: '🟧',
-  md: '📘',
-  css: '🎨',
-  scss: '🎨',
-  html: '🌐',
-  zx: '⚡',
-  zornux: '⚡',
-  zoijs: '🟪',
-  png: '🖼',
-  jpg: '🖼',
-  jpeg: '🖼',
-  svg: '🖼',
-  gitignore: '🚫',
+  ts: 'TS', tsx: 'TX', js: 'JS', jsx: 'JX', json: '{}', md: 'M↓',
+  css: '#', scss: 'S#', html: '<>', zx: 'Z', zornux: 'Z', zoijs: 'Zo',
+  png: '▣', jpg: '▣', jpeg: '▣', svg: '◇', gitignore: '⊘',
 };
 
 const ICON_BY_NAME: Record<string, string> = {
-  'znxstudio.project.json': '⚡',
-  'package.json': '📦',
-  'readme.md': '📖',
+  'znxstudio.project.json': 'Z',
+  'package.json': 'P',
+  'readme.md': 'R',
 };
 
 export function fileIcon(name: string): string {
   const byName = ICON_BY_NAME[name.toLowerCase()];
   if (byName) return byName;
   const extension = name.split('.').pop()?.toLowerCase() ?? '';
-  return ICON_BY_EXTENSION[extension] ?? '📄';
+  return ICON_BY_EXTENSION[extension] ?? '□';
 }
 
 export function folderIcon(): string {
-  return '📁';
+  return '▧';
 }

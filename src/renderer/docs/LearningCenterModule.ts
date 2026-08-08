@@ -328,7 +328,7 @@ export class LearningCenterModule implements IModule, LearningService {
   }
 
   private openTutorial(tutorial: Tutorial): void {
-    void this.moduleContext.commands.execute(CommandIds.TutorialOpen, tutorial.id);
+    this.moduleContext.commands.executeFromUi(CommandIds.TutorialOpen, undefined, tutorial.id);
   }
 
   private render(): void {

@@ -40,7 +40,7 @@ export class OpenEditorsModule implements IModule {
         icon: '⨉',
         tooltip: 'Close All Editors',
         commandId: CommandIds.EditorCloseAll,
-        run: () => void context.commands.execute(CommandIds.EditorCloseAll),
+        run: () => context.commands.executeFromUi(CommandIds.EditorCloseAll),
       }],
     });
 

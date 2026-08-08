@@ -85,7 +85,7 @@ export class RemoteEnvModule implements IModule {
     this.generateButton = gen;
     gen.addEventListener('click', () => {
       if (this.context.commands.isEnabled(CommandIds.DevContainerGen)) {
-        void this.context.commands.execute(CommandIds.DevContainerGen);
+        this.context.commands.executeFromUi(CommandIds.DevContainerGen);
       }
     });
     const refresh = document.createElement('button');

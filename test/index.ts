@@ -134,6 +134,8 @@ import './shells.test';
 import './terminalsplit.test';
 import './newitem.test';
 import './commandenablement.test';
+import './serialtaskqueue.test';
+import './overlaycoordinator.test';
 import './statuspolicy.test';
 import './workspaces.test';
 import './a11y.test';

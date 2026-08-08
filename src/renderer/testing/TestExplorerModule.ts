@@ -131,7 +131,7 @@ export class TestExplorerModule implements IModule {
     this.runAllButton.textContent = '▶ Run All';
     this.runAllButton.addEventListener('click', () => {
       if (this.context.commands.isEnabled(CommandIds.TestRunAll)) {
-        void this.context.commands.execute(CommandIds.TestRunAll);
+        this.context.commands.executeFromUi(CommandIds.TestRunAll);
       }
     });
     this.refreshButton = document.createElement('button');
@@ -141,7 +141,7 @@ export class TestExplorerModule implements IModule {
     this.refreshButton.setAttribute('aria-label', 'Refresh test discovery');
     this.refreshButton.addEventListener('click', () => {
       if (this.context.commands.isEnabled(CommandIds.TestRefresh)) {
-        void this.context.commands.execute(CommandIds.TestRefresh);
+        this.context.commands.executeFromUi(CommandIds.TestRefresh);
       }
     });
     toolbar.append(this.runAllButton, this.refreshButton);

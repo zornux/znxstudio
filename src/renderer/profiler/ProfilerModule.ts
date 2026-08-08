@@ -124,7 +124,7 @@ export class ProfilerModule implements IModule {
     bar.className = 'znxstudio-profiler-toolbar';
     bar.append(
       this.button('↻ Refresh', () => void this.refresh()),
-      this.button('Reset', () => void this.context.commands.execute(CommandIds.ProfilerReset)),
+      this.button('Reset', () => this.context.commands.executeFromUi(CommandIds.ProfilerReset)),
     );
     return bar;
   }

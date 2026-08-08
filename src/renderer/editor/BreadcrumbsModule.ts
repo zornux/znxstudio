@@ -5,27 +5,13 @@ import { CommandIds } from '../commands/CommandIds';
 import { LanguageServiceKeys, type DocumentSymbol } from '../language/api';
 import type { DocumentManager, ManagedDocument } from '../language/DocumentManager';
 import type { LanguageRegistry } from '../language/LanguageRegistry';
+import { SYMBOL_ICON } from '../ui/symbolIcons';
 import {
   breadcrumbFilePath,
   symbolTrailAt,
   symbolsAtDepth,
   type BreadcrumbSegment,
 } from './breadcrumbs';
-
-const KIND_ICON: Record<string, string> = {
-  function: '🔧',
-  class: '🏛',
-  struct: '🧱',
-  record: '🧱',
-  interface: '📐',
-  type: '📐',
-  variable: '📦',
-  constant: '🔒',
-  module: '📥',
-  service: '🌐',
-  policy: '🛡',
-  configuration: '⚙',
-};
 
 /** Built-in Monaco folding actions surfaced as ZnxStudio commands. */
 const FOLD_ACTIONS = {
@@ -55,6 +41,7 @@ export class BreadcrumbsModule implements IModule {
   private symbolsCache: { uri: string; version: number; symbols: DocumentSymbol[] } | null = null;
   private refreshTimer: ReturnType<typeof setTimeout> | null = null;
   private closeDropdown: (() => void) | undefined;
+  private refreshSequence = 0;
 
   activate(context: ModuleContext): void {
     this.editor = context.services.get<EditorService>(ServiceKeys.Editor);
@@ -89,6 +76,7 @@ export class BreadcrumbsModule implements IModule {
   }
 
   private async refresh(): Promise<void> {
+    const sequence = ++this.refreshSequence;
     const active = this.documents.getActive();
     if (!active) {
       this.host.replaceChildren();
@@ -96,8 +84,15 @@ export class BreadcrumbsModule implements IModule {
       return;
     }
 
+    const activeVersion = active.document.version;
     const fileSegments = breadcrumbFilePath(this.workspace.currentFolder(), active.path);
     const symbols = await this.symbolsFor(active);
+    const current = this.documents.getActive();
+    if (
+      sequence !== this.refreshSequence ||
+      current?.uri !== active.uri ||
+      current.document.version !== activeVersion
+    ) return;
     const selection = this.editor.getSelections()[0];
     const position = selection
       ? { line: selection.startLine, character: selection.startCharacter }
@@ -152,7 +147,7 @@ export class BreadcrumbsModule implements IModule {
       const crumb = document.createElement('button');
       crumb.type = 'button';
       crumb.className = 'znxstudio-crumb znxstudio-crumb--symbol';
-      crumb.innerHTML = `<span class="znxstudio-crumb-icon">${KIND_ICON[segment.kind] ?? '•'}</span>`;
+      crumb.innerHTML = `<span class="znxstudio-crumb-icon">${SYMBOL_ICON[segment.kind] ?? '•'}</span>`;
       crumb.appendChild(document.createTextNode(segment.name));
       crumb.title = `${segment.kind} ${segment.name}`;
       crumb.addEventListener('click', (event) => {
@@ -195,7 +190,7 @@ export class BreadcrumbsModule implements IModule {
       item.type = 'button';
       item.className = 'znxstudio-crumb-menu-item';
       item.setAttribute('role', 'menuitem');
-      item.innerHTML = `<span class="znxstudio-crumb-icon">${KIND_ICON[sibling.kind] ?? '•'}</span>`;
+      item.innerHTML = `<span class="znxstudio-crumb-icon">${SYMBOL_ICON[sibling.kind] ?? '•'}</span>`;
       item.appendChild(document.createTextNode(sibling.name));
       item.addEventListener('click', (event) => {
         event.stopPropagation();

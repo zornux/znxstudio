@@ -353,20 +353,21 @@ export class EditorModule implements IModule, EditorService {
         })
         .map((tab) => tab.uri),
     );
-    if (affected.size === 0) return { commit: () => undefined, cancel: () => undefined };
     const dirty = this.tabsState.tabs
       .filter((tab) => affected.has(tab.uri) && tab.dirty)
       .map((tab) => ({ uri: tab.uri, name: tab.name }));
     if (dirty.length > 0 && !(await this.promptSaveBeforeClose(dirty))) return null;
 
     this.pathMutationActive = true;
-    this.editor.updateOptions({ readOnly: true });
+    const activeAffected = Boolean(this.tabsState.activeUri && affected.has(this.tabsState.activeUri));
+    const previousReadOnly = this.editor.getRawOptions().readOnly;
+    if (activeAffected) this.editor.updateOptions({ readOnly: true });
     let settled = false;
     const release = (): void => {
       if (settled) return;
       settled = true;
       this.pathMutationActive = false;
-      this.editor.updateOptions({ readOnly: false });
+      if (activeAffected) this.editor.updateOptions({ readOnly: previousReadOnly });
     };
     return {
       cancel: release,
@@ -776,7 +777,9 @@ export class EditorModule implements IModule, EditorService {
     if (choice === 'cancel') return false;
     if (choice === 'save') {
       try {
-        for (const d of dirty) await this.documents.save(d.uri);
+        for (const d of dirty) {
+          if (!(await this.saveWithConflictResolution(d.uri))) return false;
+        }
       } catch {
         // The centralized save-error notification explains the failure. Keep
         // the tab/window open so unsaved data cannot be discarded afterward.
@@ -887,7 +890,44 @@ export class EditorModule implements IModule, EditorService {
         /* best-effort — never block a save on formatting */
       }
     }
-    await this.documents.saveActive();
+    const uri = this.tabsState.activeUri;
+    if (uri) await this.saveWithConflictResolution(uri);
+  }
+
+  /** Save, then offer safe recovery when the backing file changed or vanished. */
+  private async saveWithConflictResolution(uri: string): Promise<boolean> {
+    try {
+      await this.documents.save(uri);
+      return true;
+    } catch (error) {
+      const document = this.documents.getManaged(uri);
+      if (!document?.externalConflict) throw error;
+      const name = this.tabsState.tabs.find((tab) => tab.uri === uri)?.name ?? document.path;
+      const choice = await showModal({
+        title: `${name} changed outside ZnxStudio`,
+        body: 'Your editor content is preserved. Reload the version on disk, or overwrite the file with your current editor content.',
+        buttons: [
+          { label: 'Overwrite', value: 'overwrite', primary: true },
+          { label: 'Reload from Disk', value: 'reload' },
+          { label: 'Cancel', value: 'cancel' },
+        ],
+        dismissValue: 'cancel',
+      });
+      if (choice === 'cancel') return false;
+      if (choice === 'reload') {
+        try {
+          await this.documents.revert(uri);
+          return true;
+        } catch (reloadError) {
+          const detail = reloadError instanceof Error ? reloadError.message : String(reloadError);
+          this.context.layout.showToast(`Could not reload ${name}: ${detail}`, 'error');
+          return false;
+        }
+      }
+      await this.documents.save(uri, { overwriteExternal: true });
+      this.context.layout.showToast(`${name} was overwritten with your editor content.`, 'info');
+      return true;
+    }
   }
 
   private async checkExternalChanges(): Promise<void> {

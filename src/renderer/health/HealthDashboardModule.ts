@@ -71,13 +71,13 @@ export class HealthDashboardModule implements IModule {
     copy.className = 'znxstudio-btn-small';
     copy.textContent = '📋 Copy report';
     copy.title = 'Copy a Markdown diagnostics report. Home paths and secrets are redacted.';
-    copy.addEventListener('click', () => void this.moduleContext.commands.execute(CommandIds.HealthCopyReport));
+    copy.addEventListener('click', () => this.moduleContext.commands.executeFromUi(CommandIds.HealthCopyReport));
     toolbar.appendChild(copy);
 
     const reset = document.createElement('button');
     reset.className = 'znxstudio-btn-small';
     reset.textContent = 'Reset metrics';
-    reset.addEventListener('click', () => void this.moduleContext.commands.execute(CommandIds.TelemetryReset));
+    reset.addEventListener('click', () => this.moduleContext.commands.executeFromUi(CommandIds.TelemetryReset));
     toolbar.appendChild(reset);
     this.view.appendChild(toolbar);
 

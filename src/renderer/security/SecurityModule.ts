@@ -285,7 +285,7 @@ export class SecurityModule implements IModule, SecurityService {
     const box = document.createElement('input');
     box.type = 'checkbox';
     box.checked = settings?.get<boolean>('zornux.lsp.security', false) ?? false;
-    box.addEventListener('change', () => void this.moduleContext.commands.execute(CommandIds.LspToggleSecurity));
+    box.addEventListener('change', () => this.moduleContext.commands.executeFromUi(CommandIds.LspToggleSecurity));
     const text = document.createElement('span');
     text.textContent = 'Live diagnostics as you type';
     label.append(box, text);

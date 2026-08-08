@@ -253,7 +253,7 @@ export class SolutionExplorerModule implements IModule {
         const run = (event: Event): void => {
           event.stopPropagation();
           if (this.context.commands.isEnabled(CommandIds.RunScript)) {
-            void this.context.commands.execute(CommandIds.RunScript, script, project.root);
+            this.context.commands.executeFromUi(CommandIds.RunScript, undefined, script, project.root);
           }
         };
         scriptRow.addEventListener('click', run);
@@ -302,7 +302,7 @@ export class SolutionExplorerModule implements IModule {
 
   private executeIfEnabled(id: string, ...args: unknown[]): void {
     if (this.context.commands.has(id) && this.context.commands.isEnabled(id)) {
-      void this.context.commands.execute(id, ...args);
+      this.context.commands.executeFromUi(id, undefined, ...args);
     }
   }
 

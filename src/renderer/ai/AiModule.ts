@@ -216,6 +216,7 @@ export class AiModule implements IModule, AiService {
       readCurrent: () => this.config(),
       onChange: (key, value) => this.settings.set(`ai.${key}`, value),
       onProbe: () => this.probe(),
+      onError: (message) => this.context.layout.showToast(message, 'error'),
     });
     editor.showView(view);
   }

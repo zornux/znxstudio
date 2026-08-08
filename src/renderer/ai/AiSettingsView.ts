@@ -17,6 +17,7 @@ export interface AiSettingsProps {
   onChange: (key: string, value: string | number) => void;
   /** Run a connection probe against the current config. */
   onProbe: () => Promise<AiCompletionResult>;
+  onError?: (message: string) => void;
 }
 
 /**
@@ -179,7 +180,10 @@ export function renderAiSettings(props: AiSettingsProps): HTMLElement {
       link.textContent = 'Where do I get a key? ↗';
       link.addEventListener('click', (event) => {
         event.preventDefault();
-        void window.znxstudio.shell.openExternal(desc.docsUrl!);
+        void window.znxstudio.shell.openExternal(desc.docsUrl!).catch((error) => {
+          const detail = error instanceof Error ? error.message : String(error);
+          props.onError?.(`Could not open the provider documentation: ${detail}`);
+        });
       });
       foot.appendChild(link);
     }

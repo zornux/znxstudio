@@ -48,6 +48,15 @@ describe('command enablement (trust-gated UI)', () => {
     expect(message).toContain('disabled');
   });
 
+  test('executeFromUi contains rejection and reports it to the UI callback', async () => {
+    const registry = new CommandRegistry();
+    registry.register('broken', () => { throw new Error('boom'); });
+    let detail = '';
+    registry.executeFromUi('broken', (error) => { detail = (error as Error).message; });
+    await new Promise<void>((resolve) => setTimeout(resolve, 0));
+    expect(detail).toBe('boom');
+  });
+
   test('onDidChangeEnablement notifies subscribers until disposed', () => {
     const registry = new CommandRegistry();
     let count = 0;

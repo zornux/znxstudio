@@ -368,7 +368,7 @@ export class SourceControlModule implements IModule, SourceControlService {
       gh.className = 'znxstudio-btn-small';
       gh.textContent = '⧉ GitHub';
       gh.title = `Open ${this.gitHubRepo.owner}/${this.gitHubRepo.repo} on GitHub`;
-      gh.addEventListener('click', () => void window.znxstudio.shell.openExternal(repoUrl(this.gitHubRepo!)));
+      gh.addEventListener('click', () => this.openExternal(repoUrl(this.gitHubRepo!)));
       header.appendChild(gh);
     }
     this.view.appendChild(header);
@@ -378,7 +378,7 @@ export class SourceControlModule implements IModule, SourceControlService {
       const createPr = document.createElement('button');
       createPr.className = 'znxstudio-btn-small znxstudio-scm-pr';
       createPr.textContent = `⇅ Create Pull Request (${this.currentBranch} → ${this.defaultBase})`;
-      createPr.addEventListener('click', () => void window.znxstudio.shell.openExternal(prUrl));
+      createPr.addEventListener('click', () => this.openExternal(prUrl));
       this.view.appendChild(createPr);
     }
 
@@ -687,7 +687,14 @@ export class SourceControlModule implements IModule, SourceControlService {
     }
     const line = (this.editor?.cursorPosition()?.line ?? 0) + 1;
     const ref = this.currentBranch ?? 'HEAD';
-    void window.znxstudio.shell.openExternal(blobUrl(this.gitHubRepo, ref, rel, line));
+    this.openExternal(blobUrl(this.gitHubRepo, ref, rel, line));
+  }
+
+  private openExternal(url: string): void {
+    void window.znxstudio.shell.openExternal(url).catch((error) => {
+      const detail = error instanceof Error ? error.message : String(error);
+      this.context.layout.showToast(`Could not open the link: ${detail}`, 'error');
+    });
   }
 
   private relativeToRepo(file: string): string | null {

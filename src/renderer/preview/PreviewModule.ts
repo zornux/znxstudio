@@ -119,7 +119,12 @@ export class PreviewModule implements IModule {
     address.textContent = this.url ?? '';
     const reload = this.iconButton('⟳', 'Reload', () => this.reload());
     const open = this.iconButton('↗', 'Open in browser', () => {
-      if (this.url) void window.znxstudio.shell.openExternal(this.url);
+      if (this.url) {
+        void window.znxstudio.shell.openExternal(this.url).catch((error) => {
+          const detail = error instanceof Error ? error.message : String(error);
+          this.context.layout.showToast(`Could not open the preview: ${detail}`, 'error');
+        });
+      }
     });
     const stop = this.iconButton('⏹', 'Stop preview', () => void this.stop());
     toolbar.append(reload, open, stop, address);

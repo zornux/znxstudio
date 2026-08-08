@@ -39,7 +39,6 @@ let dismissActiveModal: (() => void) | undefined;
 export function showModal(options: ModalOptions): Promise<string> {
   dismissActiveModal?.();
   const dismissValue = options.dismissValue ?? 'cancel';
-  const previouslyFocused = document.activeElement as HTMLElement | null;
   const id = `znxstudio-modal-${seq++}`;
 
   const backdrop = document.createElement('div');
@@ -84,6 +83,7 @@ export function showModal(options: ModalOptions): Promise<string> {
     dismissThis = () => close(dismissValue);
     dismissActiveModal = dismissThis;
     releaseOverlay = claimOverlay(backdrop, dismissThis);
+    const previouslyFocused = document.activeElement as HTMLElement | null;
 
     for (const spec of options.buttons) {
       const btn = document.createElement('button');

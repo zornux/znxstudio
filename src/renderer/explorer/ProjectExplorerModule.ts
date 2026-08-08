@@ -127,7 +127,7 @@ export class ProjectExplorerModule implements IModule, ExplorerService {
     refresh.addEventListener('click', () => {
       if (this.context.commands.has(CommandIds.ExplorerRefresh) &&
           this.context.commands.isEnabled(CommandIds.ExplorerRefresh)) {
-        void this.context.commands.execute(CommandIds.ExplorerRefresh);
+        this.context.commands.executeFromUi(CommandIds.ExplorerRefresh);
       }
     });
     const create = document.createElement('button');
@@ -328,7 +328,7 @@ export class ProjectExplorerModule implements IModule, ExplorerService {
         disabled: !enabled,
         onClick: () => {
           if (this.context.commands.has(id) && this.context.commands.isEnabled(id)) {
-            void this.context.commands.execute(id, dir ?? undefined);
+            this.context.commands.executeFromUi(id, undefined, dir ?? undefined);
           }
         },
       };
@@ -549,7 +549,7 @@ export class ProjectExplorerModule implements IModule, ExplorerService {
       const run = (): void => {
         if (this.context.commands.has(CommandIds.RunScript) &&
             this.context.commands.isEnabled(CommandIds.RunScript)) {
-          void this.context.commands.execute(CommandIds.RunScript, name, root);
+          this.context.commands.executeFromUi(CommandIds.RunScript, undefined, name, root);
         }
       };
       row.addEventListener('click', run);
@@ -578,7 +578,7 @@ export class ProjectExplorerModule implements IModule, ExplorerService {
 
   private executeIfEnabled(id: string, ...args: unknown[]): void {
     if (this.context.commands.has(id) && this.context.commands.isEnabled(id)) {
-      void this.context.commands.execute(id, ...args);
+      this.context.commands.executeFromUi(id, undefined, ...args);
     }
   }
 
@@ -753,7 +753,7 @@ export class ProjectExplorerModule implements IModule, ExplorerService {
         disabled: !enabled,
         onClick: () => {
           if (this.context.commands.has(id) && this.context.commands.isEnabled(id)) {
-            void this.context.commands.execute(id, arg);
+            this.context.commands.executeFromUi(id, undefined, arg);
           }
         },
       };

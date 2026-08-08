@@ -317,7 +317,7 @@ export class PackageManagerModule implements IModule {
       const button = document.createElement('button');
       button.className = 'znxstudio-btn';
       button.textContent = 'Open Folder';
-      button.addEventListener('click', () => void this.context.commands.execute(CommandIds.WorkspaceOpenFolder));
+      button.addEventListener('click', () => this.context.commands.executeFromUi(CommandIds.WorkspaceOpenFolder));
       empty.append(message, button);
       this.container.replaceChildren(empty);
       return;

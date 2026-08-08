@@ -58,7 +58,7 @@ export class StatusBarModule implements IModule, StatusService {
     element.onclick = item.command
       ? () => {
           if (this.commands.has(item.command!) && this.commands.isEnabled(item.command!)) {
-            void this.commands.execute(item.command!);
+            this.commands.executeFromUi(item.command!);
           }
         }
       : null;

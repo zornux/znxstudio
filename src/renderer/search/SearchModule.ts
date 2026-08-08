@@ -8,6 +8,7 @@ import type { DocumentManager } from '../language/DocumentManager';
 import { buildSearchRegex } from '../../shared/textSearch';
 import { expandReplacement, replaceAll } from '../../shared/textReplace';
 import type { ReplaceFileResult, SearchFileResult, SearchSymbolHit } from '../../shared/types';
+import { SYMBOL_ICON } from '../ui/symbolIcons';
 
 /** Grow a search textarea to fit its content, up to a few rows, then scroll. */
 const SEARCH_FIELD_MAX_HEIGHT = 120;
@@ -17,18 +18,6 @@ function autosize(field: HTMLTextAreaElement): void {
   field.style.height = `${next}px`;
   field.style.overflowY = field.scrollHeight > SEARCH_FIELD_MAX_HEIGHT ? 'auto' : 'hidden';
 }
-
-const KIND_ICON: Record<string, string> = {
-  function: '🔧',
-  class: '🏛',
-  record: '🧱',
-  type: '📐',
-  module: '📥',
-  policy: '🛡',
-  service: '🌐',
-  configuration: '⚙',
-  variable: '📦',
-};
 
 /**
  * Find in Files / Symbols (Phase 7A). A sidebar search view backed by the
@@ -507,7 +496,7 @@ export class SearchModule implements IModule {
       row.className = 'znxstudio-tree-row znxstudio-search-symbol';
       const icon = document.createElement('span');
       icon.className = 'znxstudio-icon';
-      icon.textContent = KIND_ICON[symbol.kind] ?? '•';
+      icon.textContent = SYMBOL_ICON[symbol.kind] ?? '•';
       const name = document.createElement('span');
       name.className = 'znxstudio-search-symbol-name';
       name.textContent = symbol.name;

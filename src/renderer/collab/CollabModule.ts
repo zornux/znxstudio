@@ -401,8 +401,13 @@ export class CollabModule implements IModule, CollabService {
       this.view.appendChild(link);
       this.view.appendChild(
         button('📋 Copy invite', () => {
-          void navigator.clipboard.writeText(invite);
-          this.moduleContext.layout.showToast('Invite copied. It grants write access.', 'info');
+          void navigator.clipboard.writeText(invite).then(
+            () => this.moduleContext.layout.showToast('Invite copied. It grants write access.', 'info'),
+            (error) => {
+              const detail = error instanceof Error ? error.message : String(error);
+              this.moduleContext.layout.showToast(`Could not copy the invite: ${detail}`, 'error');
+            },
+          );
         }),
       );
       if (this.manifest) this.view.appendChild(note(`Sharing ${this.manifest.entries.length} file(s) from ${session.root}.`, 'znxstudio-collab-note'));

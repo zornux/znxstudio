@@ -147,7 +147,7 @@ export class CoverageModule implements IModule {
     compute.disabled = !this.context.commands.isEnabled(CommandIds.CoverageCompute);
     compute.addEventListener('click', () => {
       if (this.context.commands.isEnabled(CommandIds.CoverageCompute)) {
-        void this.context.commands.execute(CommandIds.CoverageCompute);
+        this.context.commands.executeFromUi(CommandIds.CoverageCompute);
       }
     });
     toolbar.appendChild(compute);

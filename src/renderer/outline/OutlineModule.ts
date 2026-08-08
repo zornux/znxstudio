@@ -4,16 +4,7 @@ import type { IModule, ModuleContext } from '../core/Module';
 import { LanguageServiceKeys, type DocumentSymbol } from '../language/api';
 import type { DocumentManager } from '../language/DocumentManager';
 import type { LanguageRegistry } from '../language/LanguageRegistry';
-
-const KIND_ICON: Record<string, string> = {
-  function: '🔧',
-  class: '🏛',
-  struct: '🧱',
-  interface: '📐',
-  variable: '📦',
-  constant: '🔒',
-  module: '📥',
-};
+import { SYMBOL_ICON } from '../ui/symbolIcons';
 
 /**
  * Outline panel. Shows the document symbols for the active document by asking
@@ -181,7 +172,7 @@ export class OutlineModule implements IModule {
     const icon = document.createElement('span');
     icon.className = 'znxstudio-icon';
     icon.setAttribute('aria-hidden', 'true');
-    icon.textContent = KIND_ICON[symbol.kind] ?? '•';
+    icon.textContent = SYMBOL_ICON[symbol.kind] ?? '•';
     const label = document.createElement('span');
     label.textContent = symbol.name;
     row.append(icon, label);

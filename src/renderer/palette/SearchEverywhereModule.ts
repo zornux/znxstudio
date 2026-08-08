@@ -172,8 +172,7 @@ export class SearchEverywhereModule implements IModule {
     this.addCommands(sequence);
     this.addSettings(sequence);
     this.addViews(sequence);
-    await this.addFiles(sequence);
-    await this.addSymbols(sequence);
+    await Promise.all([this.addFiles(sequence), this.addSymbols(sequence)]);
   }
 
   private register(candidate: SearchCandidate, run: () => void | Promise<void>, sequence: number): void {
@@ -197,7 +196,10 @@ export class SearchEverywhereModule implements IModule {
             this.context.layout.showToast(`“${command.title}” is not available in the current context.`, 'info');
             return;
           }
-          void this.commands.execute(command.id);
+          this.commands.executeFromUi(command.id, (error) => {
+            const detail = error instanceof Error ? error.message : String(error);
+            this.context.layout.showToast(`Command failed: ${detail}`, 'error');
+          });
         },
         sequence,
       );

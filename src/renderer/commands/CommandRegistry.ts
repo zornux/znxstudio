@@ -60,6 +60,14 @@ export class CommandRegistry {
     }
   }
 
+  /** Fire-and-forget execution for click/keyboard handlers; never leaks a rejected promise. */
+  executeFromUi(id: string, onError?: (error: unknown) => void, ...args: unknown[]): void {
+    void this.execute(id, ...args).catch((error) => {
+      if (onError) onError(error);
+      else console.error(`Command failed: ${id}`, error);
+    });
+  }
+
   private notifyCompletion(completion: CommandCompletion): void {
     for (const observer of this.completionObservers) {
       // A misbehaving telemetry observer must never break the command that ran.

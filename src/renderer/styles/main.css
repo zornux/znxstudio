@@ -7635,6 +7635,8 @@ button.znxstudio-solution-action:focus-visible {
 .znxstudio-editor-action,
 .znxstudio-activity-item,
 .znxstudio-panel-actions button,
+.znxstudio-icon,
+.znxstudio-icon-btn,
 .znxstudio-crumb-icon {
   font-family: var(--z-font-icons);
   font-variant-emoji: text;

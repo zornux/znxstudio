@@ -291,7 +291,7 @@ export class DeploymentModule implements IModule, DeploymentService {
             this.moduleContext.commands.has(action.command) &&
             this.moduleContext.commands.isEnabled(action.command)
           ) {
-            void this.moduleContext.commands.execute(action.command);
+            this.moduleContext.commands.executeFromUi(action.command);
           }
         });
         this.actionButtons.set(action.id, button);

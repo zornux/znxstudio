@@ -8,3 +8,10 @@ export function claimOverlay(owner: object, dismiss: () => void): () => void {
     if (active?.owner === owner) active = null;
   };
 }
+
+/** Test/lifecycle seam: dismiss any overlay still registered by a disposed shell. */
+export function dismissActiveOverlay(): void {
+  const current = active;
+  active = null;
+  current?.dismiss();
+}

@@ -2,6 +2,7 @@ import * as monaco from 'monaco-editor';
 import { Emitter } from '../core/Emitter';
 import type { DocumentStore, TextDocument } from './api';
 import type { AutosaveMode } from '../editor/unsavedGuard';
+import { SerialTaskQueue } from './SerialTaskQueue';
 
 /** TextDocument adapter over a Monaco model — keeps services Monaco-free. */
 class ModelTextDocument implements TextDocument {
@@ -50,6 +51,8 @@ export class DocumentManager implements DocumentStore {
   private autosaveMode: AutosaveMode = 'off';
   private autosaveDelay = 1000;
   private readonly autosaveTimers = new Map<string, ReturnType<typeof setTimeout>>();
+  /** Per-document tails keep filesystem writes in edit order. */
+  private readonly saveQueue = new SerialTaskQueue();
 
   private readonly openEmitter = new Emitter<ManagedDocument>();
   private readonly changeEmitter = new Emitter<ManagedDocument>();
@@ -130,16 +133,28 @@ export class DocumentManager implements DocumentStore {
   }
 
   /* ----- Save / autosave ----- */
-  async save(uri: string): Promise<void> {
+  save(uri: string, options: { overwriteExternal?: boolean } = {}): Promise<void> {
+    return this.saveQueue.enqueue(uri, () => this.performSave(uri, options));
+  }
+
+  private async performSave(uri: string, options: { overwriteExternal?: boolean }): Promise<void> {
     const managed = this.docs.get(uri);
     if (!managed) return;
     const version = managed.model.getVersionId();
     const content = managed.model.getValue();
     try {
-      const diskContent = await window.znxstudio.fs.readFile(managed.path);
-      if (diskContent !== managed.diskContent) {
-        managed.externalConflict = true;
-        throw new Error('The file changed on disk. Revert or review the external version before saving.');
+      if (!options.overwriteExternal) {
+        let diskContent: string;
+        try {
+          diskContent = await window.znxstudio.fs.readFile(managed.path);
+        } catch {
+          managed.externalConflict = true;
+          throw new Error('The file was removed from disk. Restore it or choose Overwrite to recreate it.');
+        }
+        if (diskContent !== managed.diskContent) {
+          managed.externalConflict = true;
+          throw new Error('The file changed on disk. Review it or choose Overwrite to keep your changes.');
+        }
       }
       await window.znxstudio.fs.writeFile(managed.path, content);
       managed.diskContent = content;
@@ -183,6 +198,12 @@ export class DocumentManager implements DocumentStore {
       } catch {
         if (!managed.externalConflict) result.missing.push(managed.path);
         managed.externalConflict = true;
+        // The in-memory buffer may now be the only copy. Treat it as unsaved so
+        // tab/window close guards cannot discard it silently.
+        if (!managed.dirty) {
+          managed.dirty = true;
+          this.changeEmitter.fire(managed);
+        }
         continue;
       }
       if (content === managed.diskContent) continue;
@@ -235,6 +256,7 @@ export class DocumentManager implements DocumentStore {
     const timer = this.autosaveTimers.get(uri);
     if (timer) clearTimeout(timer);
     this.autosaveTimers.delete(uri);
+    this.saveQueue.forget(uri);
     managed.model.dispose();
     this.docs.delete(uri);
     if (this.active === uri) {

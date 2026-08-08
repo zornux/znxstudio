@@ -183,7 +183,10 @@ export class KeybindingsModule implements IModule, KeybindingService {
       this.context.layout.showToast(`“${title}” is not available in the current context.`, 'info');
       return;
     }
-    void this.context.commands.execute(result.command);
+    this.context.commands.executeFromUi(result.command, (error) => {
+      const detail = error instanceof Error ? error.message : String(error);
+      this.context.layout.showToast(`Command failed: ${detail}`, 'error');
+    });
   }
 
   private clearPending(): void {
