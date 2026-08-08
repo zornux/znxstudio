@@ -62,6 +62,19 @@ describe('unsavedGuard — session snapshot', () => {
     expect(parsed.activePath).toBe('/x');
   });
 
+  test('parseSession removes empty and duplicate paths and rejects a missing active tab', () => {
+    const parsed = parseSession({
+      tabs: [
+        { path: '  /x  ', pinned: true },
+        { path: '/x', pinned: false },
+        { path: '   ', pinned: true },
+      ],
+      activePath: '/missing',
+    });
+    expect(parsed.tabs).toEqual([{ path: '/x', pinned: true }]);
+    expect(parsed.activePath).toBeNull();
+  });
+
   test('restorableSession drops files that no longer exist', () => {
     const snap = serializeSession([editor({ path: '/gone.zx', active: true }), editor({ path: '/here.zx' })]);
     const exists = (p: string) => p === '/here.zx';

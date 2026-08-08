@@ -3,6 +3,7 @@ import {
   type AiService,
   type CursorSelection,
   type EditorService,
+  type InputBoxService,
 } from '../core/Contracts';
 import { selfTestCoordinator } from '../core/SelfTestCoordinator';
 import type { IModule, ModuleContext } from '../core/Module';
@@ -33,6 +34,7 @@ export class RefactorModule implements IModule {
   private ai!: AiService;
   private editor!: EditorService;
   private overlay: HTMLElement | undefined;
+  private generating = false;
 
   activate(context: ModuleContext): void {
     this.context = context;
@@ -44,6 +46,10 @@ export class RefactorModule implements IModule {
   }
 
   private begin(): void {
+    if (this.generating) {
+      this.context.layout.showToast('A refactor is already being generated.', 'info');
+      return;
+    }
     if (!this.ai.isEnabled()) {
       this.context.layout.showToast('AI is off — configure a provider to refactor.', 'info');
       return;
@@ -54,11 +60,16 @@ export class RefactorModule implements IModule {
       return;
     }
     const selections = this.editor.getSelections();
-    this.showActionPicker(code, selections);
+    this.showActionPicker(code, selections, this.editor.currentUri(), this.editor.activeText() ?? '');
   }
 
   /* ----- step 1: choose a transform ----- */
-  private showActionPicker(code: string, selections: CursorSelection[]): void {
+  private showActionPicker(
+    code: string,
+    selections: CursorSelection[],
+    sourceUri: string | null,
+    sourceText: string,
+  ): void {
     const { overlay, box } = this.makeModal('Refactor selection');
 
     const list = document.createElement('ul');
@@ -71,7 +82,7 @@ export class RefactorModule implements IModule {
       item.innerHTML = `<strong>${action.label}</strong><span>${action.description}</span>`;
       const choose = (): void => {
         this.close();
-        void this.runAction(action, code, selections);
+        void this.runAction(action, code, selections, sourceUri, sourceText);
       };
       item.addEventListener('click', choose);
       item.addEventListener('keydown', (event) => {
@@ -91,11 +102,23 @@ export class RefactorModule implements IModule {
     action: RefactorAction,
     code: string,
     selections: CursorSelection[],
+    sourceUri: string | null,
+    sourceText: string,
   ): Promise<void> {
     let custom = '';
     if (action.custom) {
-      custom = window.prompt('Describe the refactor:') ?? '';
+      custom = await this.context.services.tryGet<InputBoxService>(ServiceKeys.InputBox)?.prompt({
+        title: 'Custom Refactor',
+        label: 'Describe the refactor',
+        placeholder: 'e.g. Extract validation into a helper',
+        submitLabel: 'Generate',
+        validate: (value) => value.trim() ? null : 'Enter a refactoring instruction.',
+      }) ?? '';
       if (!custom.trim()) return;
+    }
+    if (!this.sourceIsCurrent(sourceUri, sourceText)) {
+      this.context.layout.showToast('The source file changed before refactoring started. Select the code again.', 'info');
+      return;
     }
 
     const progress = this.makeModal(`${action.label}…`);
@@ -107,8 +130,17 @@ export class RefactorModule implements IModule {
 
     const fileName = this.baseName(this.editor.currentFile());
     const { system, messages } = buildRefactorMessages(action, code, fileName, custom);
-    const result = await this.ai.complete(messages, { system, temperature: 0 });
-    this.close();
+    this.generating = true;
+    let result;
+    try {
+      result = await this.ai.complete(messages, { system, temperature: 0 });
+    } catch (error) {
+      this.context.layout.showToast(`Refactor failed: ${(error as Error).message}`, 'error');
+      return;
+    } finally {
+      this.generating = false;
+      this.close();
+    }
 
     if (!result.ok) {
       this.context.layout.showToast(`Refactor failed: ${result.error ?? 'unknown error'}`, 'error');
@@ -119,7 +151,11 @@ export class RefactorModule implements IModule {
       this.context.layout.showToast('The model returned no change.', 'info');
       return;
     }
-    this.showDiff(action, code, rewritten, selections);
+    if (!this.sourceIsCurrent(sourceUri, sourceText)) {
+      this.context.layout.showToast('The source file changed while the refactor was generated. Run the command again.', 'info');
+      return;
+    }
+    this.showDiff(action, code, rewritten, selections, sourceUri, sourceText);
   }
 
   /* ----- step 2: preview the diff, then apply ----- */
@@ -128,6 +164,8 @@ export class RefactorModule implements IModule {
     before: string,
     after: string,
     selections: CursorSelection[],
+    sourceUri: string | null,
+    sourceText: string,
   ): void {
     const diff = diffLines(before, after);
     const stats = diffStats(diff);
@@ -147,6 +185,11 @@ export class RefactorModule implements IModule {
     apply.className = 'znxstudio-btn primary';
     apply.textContent = 'Apply';
     apply.addEventListener('click', () => {
+      if (!this.sourceIsCurrent(sourceUri, sourceText)) {
+        this.close();
+        this.context.layout.showToast('The source file changed after the preview was created. Generate the refactor again.', 'info');
+        return;
+      }
       this.applyRewrite(after, selections);
       this.close();
       this.context.layout.showToast(`Applied "${action.label}".`, 'success');
@@ -185,6 +228,10 @@ export class RefactorModule implements IModule {
     // then insert — a single undo step through the editor's normal edit path.
     if (selections.length) this.editor.setSelections(selections);
     this.editor.insertText(after);
+  }
+
+  private sourceIsCurrent(uri: string | null, text: string): boolean {
+    return this.editor.currentUri() === uri && this.editor.activeText() === text;
   }
 
   /* ----- modal plumbing (mirrors Quick Open's overlay) ----- */

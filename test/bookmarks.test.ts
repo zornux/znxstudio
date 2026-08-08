@@ -93,6 +93,17 @@ describe('NavHistory', () => {
     expect(history.size()).toBe(3);
     expect(history.current()?.line).toBe(80);
   });
+
+  test('discardCurrent removes an unreachable target and retains a neighbor', () => {
+    const history = new NavHistory();
+    history.push({ uri: 'a', line: 0, character: 0 });
+    history.push({ uri: 'missing', line: 20, character: 0 });
+    history.push({ uri: 'b', line: 40, character: 0 });
+    history.back();
+    expect(history.discardCurrent()?.uri).toBe('b');
+    expect(history.size()).toBe(2);
+    expect(history.back()?.uri).toBe('a');
+  });
 });
 
 describe('isSignificantJump', () => {

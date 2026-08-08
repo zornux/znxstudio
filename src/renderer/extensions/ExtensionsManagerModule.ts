@@ -2,6 +2,7 @@ import {
   ServiceKeys,
   type ExtensionInfo,
   type ExtensionService,
+  type InputBoxService,
   type MarketplaceService,
   type RemoteInstalled,
 } from '../core/Contracts';
@@ -47,6 +48,8 @@ export class ExtensionsManagerModule implements IModule {
   private searchInput?: HTMLInputElement;
   private clearSearch?: HTMLButtonElement;
   private listEl?: HTMLElement;
+  /** Action keys currently in flight, used to prevent duplicate lifecycle requests. */
+  private readonly pending = new Set<string>();
 
   activate(context: ModuleContext): void {
     this.context = context;
@@ -240,20 +243,20 @@ export class ExtensionsManagerModule implements IModule {
     actions.className = 'znxstudio-extmgr-actions';
     const toggle = document.createElement('button');
     toggle.className = 'znxstudio-btn-small';
-    toggle.textContent = info.enabled ? 'Disable' : 'Enable';
+    const toggleKey = `extension:${info.id}`;
+    toggle.disabled = this.pending.has(toggleKey);
+    toggle.textContent = toggle.disabled ? 'Updating…' : info.enabled ? 'Disable' : 'Enable';
     toggle.addEventListener('click', () => {
-      this.marketplace.setRemoteEnabled(info.id, !info.enabled).catch((error: unknown) =>
-        this.context.layout.showToast(`Could not update extension: ${(error as Error).message}`, 'error'),
-      );
+      void this.runAction(toggleKey, () => this.marketplace.setRemoteEnabled(info.id, !info.enabled), 'Extension setting updated.');
     });
     const uninstall = document.createElement('button');
     uninstall.className = 'znxstudio-btn-small';
     uninstall.classList.add('is-danger');
-    uninstall.textContent = 'Uninstall';
+    const uninstallKey = `extension:${info.id}`;
+    uninstall.disabled = this.pending.has(uninstallKey);
+    uninstall.textContent = uninstall.disabled ? 'Uninstalling…' : 'Uninstall';
     uninstall.addEventListener('click', () => {
-      this.marketplace.uninstall(info.id).catch((error: unknown) =>
-        this.context.layout.showToast(`Uninstall failed: ${(error as Error).message}`, 'error'),
-      );
+      void this.confirmUninstall(info.id, info.name);
     });
     actions.append(toggle, uninstall);
     row.appendChild(actions);
@@ -322,20 +325,28 @@ export class ExtensionsManagerModule implements IModule {
     if (info.state !== 'incompatible') {
       const toggle = document.createElement('button');
       toggle.className = 'znxstudio-btn-small';
+      const toggleKey = `extension:${info.id}`;
+      toggle.disabled = this.pending.has(toggleKey);
       if (info.state === 'active') {
-        toggle.textContent = 'Disable';
-        toggle.addEventListener('click', () => void this.extensions.deactivate(info.id));
+        toggle.textContent = toggle.disabled ? 'Disabling…' : 'Disable';
+        toggle.addEventListener('click', () => void this.runAction(toggleKey, () => this.extensions.deactivate(info.id), 'Extension disabled.'));
       } else {
-        toggle.textContent = 'Enable';
-        toggle.addEventListener('click', () => void this.extensions.activate(info.id));
+        toggle.textContent = toggle.disabled ? 'Enabling…' : 'Enable';
+        toggle.addEventListener('click', () => void this.runAction(toggleKey, async () => {
+          if (!await this.extensions.activate(info.id)) throw new Error('The extension could not be activated.');
+        }, 'Extension enabled.'));
       }
       actions.appendChild(toggle);
     }
     if (info.state === 'active' || info.state === 'failed') {
       const reload = document.createElement('button');
       reload.className = 'znxstudio-btn-small';
-      reload.textContent = 'Reload';
-      reload.addEventListener('click', () => void this.extensions.reload(info.id));
+      const reloadKey = `extension:${info.id}`;
+      reload.disabled = this.pending.has(reloadKey);
+      reload.textContent = reload.disabled ? 'Reloading…' : 'Reload';
+      reload.addEventListener('click', () => void this.runAction(reloadKey, async () => {
+        if (!await this.extensions.reload(info.id)) throw new Error('The extension could not be reloaded.');
+      }, 'Extension reloaded.'));
       actions.appendChild(reload);
     }
     const catalogEntry = this.marketplace.catalog().find((e) => e.id === info.id);
@@ -343,8 +354,10 @@ export class ExtensionsManagerModule implements IModule {
       const uninstall = document.createElement('button');
       uninstall.className = 'znxstudio-btn-small';
       uninstall.classList.add('is-danger');
-      uninstall.textContent = 'Uninstall';
-      uninstall.addEventListener('click', () => void this.marketplace.uninstall(info.id));
+      const uninstallKey = `extension:${info.id}`;
+      uninstall.disabled = this.pending.has(uninstallKey);
+      uninstall.textContent = uninstall.disabled ? 'Uninstalling…' : 'Uninstall';
+      uninstall.addEventListener('click', () => void this.confirmUninstall(info.id, info.name));
       actions.appendChild(uninstall);
     }
     row.appendChild(actions);
@@ -400,15 +413,13 @@ export class ExtensionsManagerModule implements IModule {
     // Remote entries carry no engine range in the card; compatibility is validated at install.
     const compatible = entry.remote ? true : isInstallable(entry);
     if (compatible) {
-      install.textContent = 'Install';
+      const installKey = `extension:${entry.id}`;
+      install.disabled = this.pending.has(installKey);
+      install.textContent = install.disabled ? 'Installing…' : 'Install';
       install.addEventListener('click', () => {
-        install.disabled = true;
-        install.textContent = 'Installing…';
-        this.marketplace.install(entry).catch((error: unknown) => {
-          this.context.layout.showToast(`Install failed: ${(error as Error).message}`, 'error');
-          install.disabled = false;
-          install.textContent = 'Install';
-        });
+        void this.runAction(installKey, async () => {
+          if (!await this.marketplace.install(entry)) throw new Error('The extension could not be installed.');
+        }, `${entry.name} installed.`);
       });
     } else {
       install.textContent = 'Incompatible';
@@ -417,6 +428,35 @@ export class ExtensionsManagerModule implements IModule {
     actions.appendChild(install);
     row.appendChild(actions);
     return row;
+  }
+
+  private async confirmUninstall(id: string, name: string): Promise<void> {
+    const key = `extension:${id}`;
+    if (this.pending.has(key)) return;
+    const input = this.context.services.get<InputBoxService>(ServiceKeys.InputBox);
+    const confirmed = await input.confirm({
+      title: `Uninstall ${name}?`,
+      message: 'This removes the extension and disables all of its contributions.',
+      confirmLabel: 'Uninstall',
+      danger: true,
+    });
+    if (!confirmed) return;
+    await this.runAction(key, () => this.marketplace.uninstall(id), `${name} uninstalled.`);
+  }
+
+  private async runAction(key: string, action: () => Promise<unknown>, successMessage: string): Promise<void> {
+    if (this.pending.has(key)) return;
+    this.pending.add(key);
+    this.renderList();
+    try {
+      await action();
+      this.context.layout.showToast(successMessage, 'success');
+    } catch (error) {
+      this.context.layout.showToast(`Extension operation failed: ${(error as Error).message}`, 'error');
+    } finally {
+      this.pending.delete(key);
+      this.renderList();
+    }
   }
 
   /* ----- optional headless self-test (ZNXSTUDIO_SELFTEST=1) ----- */

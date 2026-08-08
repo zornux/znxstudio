@@ -1,6 +1,7 @@
 import {
   ServiceKeys,
   type EditorService,
+  type InputBoxService,
   type QuickPickService,
   type SettingsService,
   type StatusService,
@@ -38,6 +39,8 @@ export class WorkspaceModule implements IModule, WorkspaceService {
 
   private context!: ModuleContext;
   private readonly folderSet = new WorkspaceFolderSet();
+  private mutationSequence = 0;
+  private mutating = false;
 
   private readonly changeEmitter = new Emitter<WorkspaceInfo | null>();
   private readonly foldersEmitter = new Emitter<WorkspaceInfo[]>();
@@ -59,14 +62,15 @@ export class WorkspaceModule implements IModule, WorkspaceService {
     );
     context.commands.register(
       CommandIds.WorkspaceRemoveFolder,
-      (root?: string) => void this.removeFolderCommand(root),
+      (root?: string) => this.removeFolderCommand(root),
       'Workspace: Remove Folder',
     );
     context.commands.register(CommandIds.WorkspaceRefresh, () => this.refresh(), 'Workspace: Refresh Explorer');
     context.subscriptions.push(
       context.commands.addEnablementRule((id) => {
+        if (id === CommandIds.WorkspaceOpenFolder || id === CommandIds.WorkspaceAddFolder) return !this.mutating;
         if (id === CommandIds.WorkspaceRemoveFolder || id === CommandIds.WorkspaceRefresh) {
-          return this.folderSet.list().length > 0;
+          return !this.mutating && this.folderSet.list().length > 0;
         }
         return undefined;
       }),
@@ -92,18 +96,24 @@ export class WorkspaceModule implements IModule, WorkspaceService {
   }
 
   async openFolder(path?: string): Promise<void> {
-    const target = path ?? (await window.znxstudio.dialog.openFolder());
+    const target = await this.resolveFolder(path, 'open');
     if (!target) return;
+    if (this.mutating) return;
+    const sequence = ++this.mutationSequence;
+    this.setMutating(true);
     let loaded: WorkspaceInfo;
     try {
       loaded = await window.znxstudio.workspace.load(target);
     } catch (error) {
       this.showLoadError('open', target, error);
       return;
+    } finally {
+      if (sequence === this.mutationSequence) this.setMutating(false);
     }
+    if (sequence !== this.mutationSequence) return;
     const previous = this.currentFolder();
     this.folderSet.set([loaded]);
-    this.recordRecent(target);
+    this.recordRecent(loaded.root);
     this.emit(previous);
     // A project is now open — dismiss the welcome/start overlay so the IDE reflects it.
     this.context.services.tryGet<EditorService>(ServiceKeys.Editor)?.hideView();
@@ -123,58 +133,76 @@ export class WorkspaceModule implements IModule, WorkspaceService {
   }
 
   async addFolder(path?: string): Promise<void> {
-    const target = path ?? (await window.znxstudio.dialog.openFolder());
+    const target = await this.resolveFolder(path, 'add');
     if (!target) return;
+    if (this.mutating) return;
+    const sequence = ++this.mutationSequence;
+    this.setMutating(true);
     let loaded: WorkspaceInfo;
     try {
       loaded = await window.znxstudio.workspace.load(target);
     } catch (error) {
       this.showLoadError('add', target, error);
       return;
+    } finally {
+      if (sequence === this.mutationSequence) this.setMutating(false);
     }
+    if (sequence !== this.mutationSequence) return;
     const previous = this.currentFolder();
     this.folderSet.add(loaded);
     this.emit(previous);
   }
 
   removeFolder(root: string): void {
+    if (!this.folderSet.has(root)) return;
+    this.mutationSequence += 1;
+    this.setMutating(false);
     const previous = this.currentFolder();
     if (this.folderSet.remove(root)) this.emit(previous);
   }
 
   private async removeFolderCommand(explicitRoot?: string): Promise<void> {
-    if (explicitRoot) {
-      this.removeFolder(explicitRoot);
-      return;
-    }
     const folders = this.folderSet.list();
     if (folders.length === 0) return;
-    if (folders.length === 1) {
-      this.removeFolder(folders[0].root);
-      return;
+    let selected = explicitRoot;
+    if (!selected && folders.length === 1) selected = folders[0].root;
+    if (!selected) {
+      const picker = this.context.services.tryGet<QuickPickService>(ServiceKeys.QuickPick);
+      selected = await picker?.pick(
+        folders.map((folder) => ({
+          label: folder.project?.name ?? baseName(folder.root),
+          description: folder.root,
+          value: folder.root,
+        })),
+        { placeholder: 'Select a folder to remove from the workspace' },
+      );
     }
-    const picker = this.context.services.tryGet<QuickPickService>(ServiceKeys.QuickPick);
-    const selected = await picker?.pick(
-      folders.map((folder) => ({
-        label: folder.project?.name ?? baseName(folder.root),
-        description: folder.root,
-        value: folder.root,
-      })),
-      { placeholder: 'Select a folder to remove from the workspace' },
-    );
-    if (selected) this.removeFolder(selected);
+    if (!selected || !this.folderSet.has(selected)) return;
+    const input = this.context.services.get<InputBoxService>(ServiceKeys.InputBox);
+    const confirmed = await input.confirm({
+      title: `Remove ${baseName(selected)} from Workspace?`,
+      message: 'The folder stays on disk; it is only removed from this workspace window.',
+      confirmLabel: 'Remove Folder',
+    });
+    if (confirmed && this.folderSet.has(selected)) this.removeFolder(selected);
   }
 
   async refresh(): Promise<void> {
     const roots = this.folderSet.list().map((folder) => folder.root);
     if (roots.length === 0) return;
+    if (this.mutating) return;
+    const sequence = ++this.mutationSequence;
+    this.setMutating(true);
     let reloaded: WorkspaceInfo[];
     try {
       reloaded = await Promise.all(roots.map((root) => window.znxstudio.workspace.load(root)));
     } catch (error) {
       this.context.layout.showToast(`Could not refresh the workspace: ${errorMessage(error)}`, 'error');
       return;
+    } finally {
+      if (sequence === this.mutationSequence) this.setMutating(false);
     }
+    if (sequence !== this.mutationSequence) return;
     this.folderSet.set(reloaded);
     // A refresh reloads content even when the primary root is unchanged, so force
     // the single-root change event.
@@ -187,6 +215,21 @@ export class WorkspaceModule implements IModule, WorkspaceService {
       `Could not ${verb} ${baseName(target)}: ${errorMessage(error)}`,
       'error',
     );
+  }
+
+  private async resolveFolder(path: string | undefined, action: 'open' | 'add'): Promise<string | null> {
+    if (path) return path;
+    try {
+      return await window.znxstudio.dialog.openFolder();
+    } catch (error) {
+      this.context.layout.showToast(`Could not choose a folder to ${action}: ${errorMessage(error)}`, 'error');
+      return null;
+    }
+  }
+
+  private setMutating(value: boolean): void {
+    this.mutating = value;
+    this.context.commands.notifyEnablementChanged();
   }
 
   /**

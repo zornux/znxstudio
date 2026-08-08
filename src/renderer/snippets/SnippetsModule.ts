@@ -2,6 +2,7 @@ import * as monaco from 'monaco-editor';
 import {
   ServiceKeys,
   type EditorService,
+  type InputBoxService,
   type SettingsService,
   type SnippetService,
 } from '../core/Contracts';
@@ -41,6 +42,7 @@ export class SnippetsModule implements IModule {
   private userSnippets: Snippet[] = [];
   private externalSnippets: Snippet[] = [];
   private picker: HTMLElement | undefined;
+  private savingSelection = false;
 
   activate(context: ModuleContext): void {
     this.context = context;
@@ -60,9 +62,12 @@ export class SnippetsModule implements IModule {
     context.commands.register(CommandIds.SnippetInsert, () => this.openPicker(), 'Editor: Insert Snippet');
     context.commands.register(
       CommandIds.SnippetSaveSelection,
-      () => this.saveSelection(),
+      () => void this.saveSelection(),
       'Snippets: Save Selection as Snippet',
     );
+    context.commands.addEnablementRule((id) => id === CommandIds.SnippetSaveSelection
+      ? !this.savingSelection && Boolean(this.editor.selectedText().trim())
+      : undefined);
 
     void selfTestCoordinator.run('snippets', () => this.maybeSelfTest());
   }
@@ -112,26 +117,74 @@ export class SnippetsModule implements IModule {
     });
   }
 
-  private saveSelection(): void {
+  private async saveSelection(): Promise<void> {
+    if (this.savingSelection) return;
     const text = this.editor.selectedText();
     if (!text.trim()) {
       this.context.layout.showToast('Select some code first, then save it as a snippet.', 'info');
       return;
     }
-    const prefix = window.prompt('Snippet prefix (type this to trigger it):', 'mysnippet');
-    if (!prefix) return;
-    const name = window.prompt('Snippet name:', prefix) ?? prefix;
-    const language = this.activeLanguage();
-    const snippet: Snippet = {
-      name,
-      prefix,
-      description: 'User snippet',
-      body: escapeSnippetBody(text),
-      languages: [language],
-    };
-    this.userSnippets = [...this.userSnippets, snippet];
-    this.settings?.set(USER_KEY, this.userSnippets);
-    this.context.layout.showToast(`Saved snippet “${prefix}” for ${language}.`, 'success');
+    const input = this.context.services.get<InputBoxService>(ServiceKeys.InputBox);
+    this.savingSelection = true;
+    this.context.commands.notifyEnablementChanged();
+    let prefix: string | null = null;
+    let name: string | null = null;
+    try {
+      prefix = await input.prompt({
+        title: 'Save Selection as Snippet',
+        label: 'Trigger prefix',
+        value: 'mysnippet',
+        placeholder: 'Type this prefix to insert the snippet',
+        submitLabel: 'Next',
+        validate: (value) => {
+          const normalized = value.trim();
+          if (!normalized) return 'Enter a snippet prefix.';
+          if (/\s/.test(normalized)) return 'The snippet prefix cannot contain spaces.';
+          return null;
+        },
+      });
+      if (prefix === null) return;
+      prefix = prefix.trim();
+
+      name = await input.prompt({
+        title: 'Save Selection as Snippet',
+        label: 'Snippet name',
+        value: prefix,
+        placeholder: 'A descriptive name for this snippet',
+        submitLabel: 'Save Snippet',
+        validate: (value) => value.trim() ? null : 'Enter a snippet name.',
+      });
+      if (name === null) return;
+      name = name.trim();
+
+      const language = this.activeLanguage();
+      const existingIndex = this.userSnippets.findIndex((snippet) =>
+        snippet.prefix === prefix && snippet.languages.includes(language));
+      if (existingIndex >= 0) {
+        const replace = await input.confirm({
+          title: 'Replace Snippet?',
+          message: `A user snippet with the prefix “${prefix}” already exists for ${language}. Replace it?`,
+          confirmLabel: 'Replace',
+        });
+        if (!replace) return;
+      }
+
+      const snippet: Snippet = {
+        name,
+        prefix,
+        description: 'User snippet',
+        body: escapeSnippetBody(text),
+        languages: [language],
+      };
+      this.userSnippets = existingIndex >= 0
+        ? this.userSnippets.map((entry, index) => index === existingIndex ? snippet : entry)
+        : [...this.userSnippets, snippet];
+      this.settings?.set(USER_KEY, this.userSnippets);
+      this.context.layout.showToast(`${existingIndex >= 0 ? 'Updated' : 'Saved'} snippet “${prefix}” for ${language}.`, 'success');
+    } finally {
+      this.savingSelection = false;
+      this.context.commands.notifyEnablementChanged();
+    }
   }
 
   /* ----- insert picker ----- */

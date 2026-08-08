@@ -30,12 +30,12 @@ export class NavHistoryModule implements IModule {
     this.editor = context.services.get<EditorService>(ServiceKeys.Editor);
     this.status = context.services.tryGet<StatusService>(ServiceKeys.Status);
 
-    context.commands.register(CommandIds.NavBack, () => void this.go('back'), 'Go: Back');
-    context.commands.register(CommandIds.NavForward, () => void this.go('forward'), 'Go: Forward');
+    context.commands.register(CommandIds.NavBack, () => this.go('back'), 'Go: Back');
+    context.commands.register(CommandIds.NavForward, () => this.go('forward'), 'Go: Forward');
     context.subscriptions.push(
       context.commands.addEnablementRule((id) => {
-        if (id === CommandIds.NavBack) return this.history.canBack();
-        if (id === CommandIds.NavForward) return this.history.canForward();
+        if (id === CommandIds.NavBack) return !this.navigating && this.history.canBack();
+        if (id === CommandIds.NavForward) return !this.navigating && this.history.canForward();
         return undefined;
       }),
     );
@@ -63,21 +63,28 @@ export class NavHistoryModule implements IModule {
   }
 
   private async go(direction: 'back' | 'forward'): Promise<void> {
+    if (this.navigating) return;
     const target = direction === 'back' ? this.history.back() : this.history.forward();
     if (!target) {
       this.context.layout.showToast(`No ${direction} history.`, 'info');
       return;
     }
     this.navigating = true;
+    this.updateStatus();
     try {
       await this.editor.revealLocation(target.uri, target.line, target.character);
+    } catch (error) {
+      // back()/forward() move the pointer eagerly. Remove an unreachable target
+      // so it cannot trap every subsequent navigation attempt.
+      this.history.discardCurrent();
+      this.context.layout.showToast(`Could not navigate ${direction}: ${(error as Error).message}`, 'error');
     } finally {
       // Let the reveal's selection/active-file events settle before re-recording.
       setTimeout(() => {
         this.navigating = false;
+        this.updateStatus();
       }, 0);
     }
-    this.updateStatus();
   }
 
   private updateStatus(): void {

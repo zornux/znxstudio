@@ -2,6 +2,7 @@ import {
   ServiceKeys,
   type AiService,
   type EditorService,
+  type InputBoxService,
 } from '../core/Contracts';
 import { selfTestCoordinator } from '../core/SelfTestCoordinator';
 import type { IModule, ModuleContext } from '../core/Module';
@@ -55,6 +56,7 @@ export class DocsModule implements IModule {
   /* ----- document the symbol at the cursor ----- */
   private async documentSymbol(): Promise<void> {
     if (!this.guardEnabled()) return;
+    const sourceUri = this.editor.currentUri();
     const text = this.editor.activeText();
     const cursor = this.editor.cursorPosition();
     if (!text || !cursor) {
@@ -67,7 +69,11 @@ export class DocsModule implements IModule {
       return;
     }
     if (hasDocCommentAbove(text, decl.headerLine)) {
-      const proceed = window.confirm(`${decl.kind} ${decl.name} already has a comment above it. Add another?`);
+      const proceed = await this.context.services.tryGet<InputBoxService>(ServiceKeys.InputBox)?.confirm({
+        title: 'Existing Documentation',
+        message: `${decl.kind} ${decl.name} already has a comment above it. Add another comment?`,
+        confirmLabel: 'Add Another',
+      });
       if (!proceed) return;
     }
 
@@ -83,6 +89,10 @@ export class DocsModule implements IModule {
     const comment = formatDocComment(result.text, decl.indent);
     if (!cleanDocText(result.text)) {
       this.context.layout.showToast('The model returned no documentation.', 'info');
+      return;
+    }
+    if (this.editor.currentUri() !== sourceUri || this.editor.activeText() !== text) {
+      this.context.layout.showToast('The source file changed while documentation was generated. Run the command again.', 'info');
       return;
     }
     // Insert above the header as a single edit (header shifts down).

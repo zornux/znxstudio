@@ -1,4 +1,4 @@
-import { ServiceKeys, type EditorService, type LogService } from '../core/Contracts';
+import { ServiceKeys, type EditorService, type InputBoxService, type LogService } from '../core/Contracts';
 import { LanguageServiceKeys } from '../language/api';
 import type { DocumentManager } from '../language/DocumentManager';
 import { selfTestCoordinator } from '../core/SelfTestCoordinator';
@@ -49,6 +49,7 @@ export class CrashRecoveryModule implements IModule {
   private timer: ReturnType<typeof setTimeout> | null = null;
   private session: SessionState | null = null;
   private recovered: SessionSnapshot | null = null;
+  private recoveryBusy = false;
 
   async activate(context: ModuleContext): Promise<void> {
     this.moduleContext = context;
@@ -210,25 +211,47 @@ export class CrashRecoveryModule implements IModule {
    * file by file, whether the recovered version is the one they want.
    */
   private async restore(): Promise<void> {
+    if (this.recoveryBusy) return;
     if (!this.recovered) {
       this.moduleContext.layout.showToast('There is no recovered work to restore.', 'info');
       return;
     }
+    this.recoveryBusy = true;
     const buffers = recoverableBuffers(this.recovered);
     let restored = 0;
-    for (const buffer of buffers) {
-      try {
-        await this.editor?.openFile(buffer.path);
-        const managed = this.documents?.allManaged().find((document) => document.path === buffer.path);
-        if (managed && buffer.text !== undefined && managed.model.getValue() !== buffer.text) {
-          managed.model.setValue(buffer.text);
+    const failed: OpenBuffer[] = [];
+    try {
+      for (const buffer of buffers) {
+        try {
+          if (!this.editor || !this.documents) throw new Error('The editor is not available.');
+          await this.editor.openFile(buffer.path);
+          const managed = this.documents.allManaged().find((document) => document.path === buffer.path);
+          if (!managed || buffer.text === undefined) throw new Error('The recovered document could not be loaded.');
+          if (managed.model.getValue() !== buffer.text) managed.model.setValue(buffer.text);
           restored += 1;
+        } catch (error) {
+          failed.push(buffer);
+          this.logger?.error('crash', `could not restore ${buffer.path}: ${(error as Error).message}`);
         }
-      } catch (error) {
-        this.logger?.error('crash', `could not restore ${buffer.path}: ${(error as Error).message}`);
       }
+    } finally {
+      this.recoveryBusy = false;
     }
+
+    if (failed.length > 0) {
+      this.recovered = { ...this.recovered, buffers: failed, activeFile: failed[0]?.path ?? null };
+      await this.persistCurrentAndFailed(failed);
+      this.moduleContext.layout.showToast(
+        `Restored ${restored} file(s); ${failed.length} could not be opened. The failed recovery data was kept — run Restore again to retry.`,
+        'error',
+      );
+      return;
+    }
+
     this.recovered = null;
+    // Immediately replace the old crash snapshot with the now-open dirty
+    // buffers; do not leave a window where another crash re-offers stale data.
+    await this.saveSnapshot();
     await this.acknowledge();
     this.moduleContext.layout.showToast(
       `Restored ${restored} unsaved file(s) into the editor. Nothing was written to disk — review and save.`,
@@ -237,10 +260,40 @@ export class CrashRecoveryModule implements IModule {
   }
 
   private async discard(): Promise<void> {
+    if (this.recoveryBusy) return;
+    if (!this.recovered) {
+      this.moduleContext.layout.showToast('There is no recovered work to discard.', 'info');
+      return;
+    }
+    const input = this.moduleContext.services.tryGet<InputBoxService>(ServiceKeys.InputBox);
+    const confirmed = await input?.confirm({
+      title: 'Discard recovered work?',
+      message: `${recoverableBuffers(this.recovered).length} unsaved file(s) will be permanently removed from crash recovery. This cannot be undone.`,
+      confirmLabel: 'Discard Recovery',
+      danger: true,
+    });
+    if (!confirmed) return;
     this.recovered = null;
     await this.clearSnapshot();
     await this.acknowledge();
     this.moduleContext.layout.showToast('Recovered work discarded.', 'info');
+  }
+
+  /** Keep failed recovery text alongside buffers restored during this session. */
+  private async persistCurrentAndFailed(failed: OpenBuffer[]): Promise<void> {
+    if (!this.snapshotPath) return;
+    const current = this.currentBuffers();
+    const currentPaths = new Set(current.map((buffer) => buffer.path));
+    const snapshot = buildSnapshot(
+      [...current, ...failed.filter((buffer) => !currentPaths.has(buffer.path))],
+      this.editor?.currentFile() ?? failed[0]?.path ?? null,
+      Date.now(),
+    );
+    try {
+      await window.znxstudio.fs.writeFile(this.snapshotPath, JSON.stringify(snapshot));
+    } catch {
+      /* The in-memory retry remains available for this session. */
+    }
   }
 
   private async acknowledge(): Promise<void> {

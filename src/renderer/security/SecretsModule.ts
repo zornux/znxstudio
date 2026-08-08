@@ -1,4 +1,4 @@
-import { ServiceKeys, type EditorService, type SecurityService } from '../core/Contracts';
+import { ServiceKeys, type EditorService, type InputBoxService, type SecurityService } from '../core/Contracts';
 import { selfTestCoordinator } from '../core/SelfTestCoordinator';
 import type { IModule, ModuleContext } from '../core/Module';
 import { CommandIds } from '../commands/CommandIds';
@@ -24,6 +24,7 @@ export class SecretsModule implements IModule {
   private security: SecurityService | undefined;
   private editor: EditorService | undefined;
   private panel!: HTMLElement;
+  private readonly suppressing = new Set<string>();
 
   activate(context: ModuleContext): void {
     this.moduleContext = context;
@@ -53,29 +54,52 @@ export class SecretsModule implements IModule {
 
   /** Insert a justified suppression directive on the line above a finding. */
   private async suppress(finding: SecurityFinding): Promise<void> {
-    const justification = window.prompt(
-      `Why is ${finding.code} safe to ignore here?\n\nThe compiler ignores a suppression with no reason.`,
-      '',
-    );
-    if (justification === null) return;
-    if (!justification.trim()) {
-      this.moduleContext.layout.showToast('A suppression needs a justification — nothing was written.', 'error');
+    if (!this.editor) {
+      this.moduleContext.layout.showToast('The editor is not available.', 'error');
       return;
     }
-    if (!this.editor) return;
+    const key = findingKey(finding);
+    if (this.suppressing.has(key)) return;
+    this.suppressing.add(key);
+    this.render();
+    try {
+      const input = this.moduleContext.services.get<InputBoxService>(ServiceKeys.InputBox);
+      const justification = await input.prompt({
+        title: `Suppress ${finding.code}`,
+        label: 'Why is this finding safe to ignore?',
+        placeholder: 'Document the specific reason for this exception',
+        submitLabel: 'Add Suppression',
+        validate: (value) => value.trim().length >= 3
+          ? null
+          : 'Enter a meaningful justification (at least 3 characters).',
+      });
+      if (justification === null) return;
 
-    if (this.editor.currentFile() !== finding.file) await this.editor.openFile(finding.file);
-    const text = this.editor.activeText() ?? '';
-    const comment = buildSuppressionComment(finding.code, justification, indentOf(text, finding.startLine));
+      const stillCurrent = this.security?.findings().some((entry) => findingKey(entry) === key) ?? false;
+      if (!stillCurrent) {
+        this.moduleContext.layout.showToast('This finding changed during the scan. Review the latest results before suppressing it.', 'info');
+        return;
+      }
 
-    // Put the caret at the start of the offending line; the inserted text ends
-    // with a newline, so the directive lands on the line ABOVE it.
-    this.editor.revealPosition(finding.startLine - 1, 0);
-    this.editor.setSelections([
-      { startLine: finding.startLine - 1, startCharacter: 0, endLine: finding.startLine - 1, endCharacter: 0 },
-    ]);
-    this.editor.insertText(`${comment}\n`);
-    this.moduleContext.layout.showToast(`${finding.code} suppressed — rescan to confirm.`, 'info');
+      if (this.editor.currentFile() !== finding.file) await this.editor.openFile(finding.file);
+      if (this.editor.currentFile() !== finding.file) throw new Error('The finding file could not be opened.');
+      const text = this.editor.activeText() ?? '';
+      const comment = buildSuppressionComment(finding.code, justification, indentOf(text, finding.startLine));
+
+      // Put the caret at the start of the offending line; the inserted text ends
+      // with a newline, so the directive lands on the line ABOVE it.
+      this.editor.revealPosition(finding.startLine - 1, 0);
+      this.editor.setSelections([
+        { startLine: finding.startLine - 1, startCharacter: 0, endLine: finding.startLine - 1, endCharacter: 0 },
+      ]);
+      this.editor.insertText(`${comment}\n`);
+      this.moduleContext.layout.showToast(`${finding.code} suppressed — rescan to confirm.`, 'info');
+    } catch (error) {
+      this.moduleContext.layout.showToast(`Could not add suppression: ${(error as Error).message}`, 'error');
+    } finally {
+      this.suppressing.delete(key);
+      this.render();
+    }
   }
 
   /** Palette entry point: suppress whichever finding sits on the caret's line. */
@@ -178,7 +202,8 @@ export class SecretsModule implements IModule {
 
     const ignore = document.createElement('button');
     ignore.className = 'znxstudio-btn-small';
-    ignore.textContent = 'Suppress…';
+    ignore.textContent = this.suppressing.has(findingKey(finding)) ? 'Suppressing…' : 'Suppress…';
+    ignore.disabled = this.suppressing.has(findingKey(finding));
     ignore.addEventListener('click', () => void this.suppress(finding));
 
     const docs = document.createElement('a');
@@ -246,4 +271,8 @@ function basename(path: string): string {
 
 function toUri(path: string): string {
   return `file:///${path.replace(/\\/g, '/')}`;
+}
+
+function findingKey(finding: SecurityFinding): string {
+  return `${finding.file}:${finding.startLine}:${finding.startColumn}:${finding.code}`;
 }

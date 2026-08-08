@@ -3,6 +3,7 @@ import {
   ServiceKeys,
   type EditorService,
   type ExplorerService,
+  type InputBoxService,
   type SettingsService,
   type StatusService,
   type WorkspaceService,
@@ -120,17 +121,32 @@ export class BookmarksModule implements IModule {
     this.editor.revealPosition(target, 0);
   }
 
-  private clearAll(): void {
+  private async clearAll(): Promise<void> {
+    const count = this.model.count();
+    if (count === 0) return;
+    const input = this.context.services.get<InputBoxService>(ServiceKeys.InputBox);
+    const confirmed = await input.confirm({
+      title: 'Clear All Bookmarks?',
+      message: `Remove ${count} bookmark${count === 1 ? '' : 's'} from this workspace?`,
+      confirmLabel: 'Clear Bookmarks',
+      danger: true,
+    });
+    if (!confirmed) return;
     this.model.clear();
     this.persist();
     this.renderGlyphs();
     this.renderPanel();
+    this.context.layout.showToast('All workspace bookmarks cleared.', 'info');
   }
 
   private renderGlyphs(): void {
     const uri = this.editor.currentUri();
     this.editor.setBookmarkGlyphs(uri ? this.model.lines(uri) : []);
     this.context.commands.notifyEnablementChanged();
+    if (this.model.count() === 0) {
+      this.status?.removeItem('editor.bookmarks');
+      return;
+    }
     this.status?.setItem('editor.bookmarks', {
       text: `🔖 ${this.model.count()}`,
       tooltip: 'Bookmarks — click to view',
@@ -160,6 +176,20 @@ export class BookmarksModule implements IModule {
       return;
     }
 
+    const toolbar = document.createElement('div');
+    toolbar.className = 'znxstudio-bookmarks-toolbar';
+    const summary = document.createElement('span');
+    summary.className = 'znxstudio-bookmarks-summary';
+    const fileCount = new Set(all.map((bookmark) => bookmark.uri)).size;
+    summary.textContent = `${all.length} bookmark${all.length === 1 ? '' : 's'} in ${fileCount} file${fileCount === 1 ? '' : 's'}`;
+    const clear = document.createElement('button');
+    clear.type = 'button';
+    clear.className = 'znxstudio-btn-small';
+    clear.textContent = 'Clear all';
+    clear.addEventListener('click', () => void this.clearAll());
+    toolbar.append(summary, clear);
+    host.appendChild(toolbar);
+
     let lastUri = '';
     for (const bookmark of all) {
       if (bookmark.uri !== lastUri) {
@@ -181,7 +211,11 @@ export class BookmarksModule implements IModule {
       row.tabIndex = 0;
       row.setAttribute('role', 'button');
       row.setAttribute('aria-label', `${this.basename(bookmark.uri)}, line ${bookmark.line + 1}`);
-      const reveal = (): void => void this.editor.revealLocation(bookmark.uri, bookmark.line, 0);
+      const reveal = (): void => {
+        void this.editor.revealLocation(bookmark.uri, bookmark.line, 0).catch((error: unknown) => {
+          this.context.layout.showToast(`Could not open bookmark: ${(error as Error).message}`, 'error');
+        });
+      };
       row.addEventListener('click', reveal);
       row.addEventListener('keydown', (event) => {
         if (event.key === 'Enter' || event.key === ' ') {

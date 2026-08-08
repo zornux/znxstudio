@@ -1,4 +1,4 @@
-import { ServiceKeys, type KeybindingService, type SettingsService } from '../core/Contracts';
+import { ServiceKeys, type InputBoxService, type KeybindingService, type SettingsService } from '../core/Contracts';
 import { Emitter } from '../core/Emitter';
 import { selfTestCoordinator } from '../core/SelfTestCoordinator';
 import type { Disposable, IModule, ModuleContext } from '../core/Module';
@@ -77,6 +77,7 @@ export class KeybindingsModule implements IModule, KeybindingService {
   private pending: Chord[] = [];
   private pendingTimer: ReturnType<typeof setTimeout> | undefined;
   private listener: ((event: KeyboardEvent) => void) | undefined;
+  private readonly editingCommands = new Set<string>();
   private readonly changeEmitter = new Emitter<void>();
   readonly onDidChange = this.changeEmitter.event;
 
@@ -230,17 +231,12 @@ export class KeybindingsModule implements IModule, KeybindingService {
 
         const rebind = document.createElement('button');
         rebind.className = 'znxstudio-btn-small';
-        rebind.textContent = 'Rebind';
+        rebind.textContent = this.editingCommands.has(binding.command) ? 'Rebinding…' : 'Rebind';
+        rebind.disabled = this.editingCommands.has(binding.command);
         rebind.addEventListener('click', () => {
-          const typed = window.prompt(`New keys for ${binding.command}`, formatKeybinding(binding.chords));
-          if (typed === null) return;
-          const canonical = normalizeKeybinding(typed);
-          if (!canonical) {
-            this.context.layout.showToast(`"${typed}" is not a valid keybinding.`, 'error');
-            return;
-          }
-          this.setUserBindings({ ...renderUserKeybindings(this.user), [canonical]: binding.command });
+          const pending = this.rebind(binding);
           render();
+          void pending.finally(render);
         });
 
         row.append(keys, command, origin, rebind);
@@ -261,6 +257,49 @@ export class KeybindingsModule implements IModule, KeybindingService {
     render();
     this.context.layout.setSideBar('Keyboard Shortcuts', view);
     this.context.layout.focusSideBar();
+  }
+
+  private async rebind(binding: Keybinding): Promise<void> {
+    if (this.editingCommands.has(binding.command)) return;
+    this.editingCommands.add(binding.command);
+    try {
+      const input = this.context.services.get<InputBoxService>(ServiceKeys.InputBox);
+      const typed = await input.prompt({
+        title: 'Change Keyboard Shortcut',
+        label: binding.command,
+        value: formatKeybinding(binding.chords),
+        placeholder: 'For example: Ctrl+K Ctrl+S',
+        submitLabel: 'Change Shortcut',
+        validate: (value) => normalizeKeybinding(value) ? null : 'Enter one or two valid key chords.',
+      });
+      if (typed === null) return;
+      const canonical = normalizeKeybinding(typed);
+      if (!canonical) return;
+
+      const conflicts = [...new Set(this.bindings()
+        .filter((entry) => formatKeybinding(entry.chords) === canonical && entry.command !== binding.command)
+        .map((entry) => entry.command))];
+      if (conflicts.length) {
+        const replace = await input.confirm({
+          title: 'Replace Existing Shortcut?',
+          message: `${canonical} is currently assigned to ${conflicts.join(', ')}. Reassign it to ${binding.command}?`,
+          confirmLabel: 'Reassign',
+        });
+        if (!replace) return;
+      }
+
+      const next = renderUserKeybindings(this.user);
+      for (const [keys, command] of Object.entries(next)) {
+        if (command === binding.command) delete next[keys];
+      }
+      next[canonical] = binding.command;
+      this.setUserBindings(next);
+      this.context.layout.showToast(`Changed ${binding.command} to ${canonical}.`, 'success');
+    } catch (error) {
+      this.context.layout.showToast(`Could not change shortcut: ${(error as Error).message}`, 'error');
+    } finally {
+      this.editingCommands.delete(binding.command);
+    }
   }
 
   /* ----- optional headless self-test (ZNXSTUDIO_SELFTEST=1) ----- */

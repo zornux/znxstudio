@@ -3,6 +3,7 @@ import {
   type CollabService,
   type CollabState,
   type EditorService,
+  type InputBoxService,
   type StatusService,
   type WorkspaceService,
 } from '../core/Contracts';
@@ -58,6 +59,7 @@ export class CollabModule implements IModule, CollabService {
   private selfId = 'me';
   private manifest: WorkspaceManifest | null = null;
   private syncNote = '';
+  private transitioning = false;
   private readonly changeEmitter = new Emitter<void>();
   private readonly frameEmitter = new Emitter<{ peerId: string; frame: CollabFrame }>();
   readonly onDidChange = this.changeEmitter.event;
@@ -73,10 +75,16 @@ export class CollabModule implements IModule, CollabService {
     this.view = document.createElement('div');
     this.view.className = 'znxstudio-collab';
     context.layout.addActivityItem({ id: 'collab', label: 'Collaboration', icon: '👥', onSelect: () => this.reveal() });
-    context.commands.register(CommandIds.CollabHost, () => void this.hostSession(), 'Collaboration: Host Session');
-    context.commands.register(CommandIds.CollabJoin, () => void this.joinSession(), 'Collaboration: Join Session');
-    context.commands.register(CommandIds.CollabLeave, () => void this.leave(), 'Collaboration: Leave Session');
+    context.commands.register(CommandIds.CollabHost, () => this.hostSession(), 'Collaboration: Host Session');
+    context.commands.register(CommandIds.CollabJoin, () => this.joinSession(), 'Collaboration: Join Session');
+    context.commands.register(CommandIds.CollabLeave, () => this.leave(), 'Collaboration: Leave Session');
     context.commands.register(CommandIds.CollabShow, () => this.reveal(), 'Collaboration: Show');
+    context.commands.addEnablementRule((id) => {
+      if (id === CommandIds.CollabHost) return !this.transitioning && !this.collabSession && Boolean(this.workspace?.currentFolder());
+      if (id === CommandIds.CollabJoin) return !this.transitioning && !this.collabSession;
+      if (id === CommandIds.CollabLeave) return !this.transitioning && this.collabSession !== null;
+      return undefined;
+    });
 
     window.znxstudio.collab.onMessage((message) => this.receive(message.peerId, message.payload as CollabFrame));
     window.znxstudio.collab.onPeerJoined((event) => this.peerJoined(event.peerId, event.name));
@@ -118,33 +126,47 @@ export class CollabModule implements IModule, CollabService {
       return;
     }
 
-    const lan = window.confirm(
-      'Expose this session on the local network?\n\n' +
-        'OK — bind 0.0.0.0, reachable by anyone who can route to this machine and holds the token. Traffic is NOT encrypted.\n' +
-        'Cancel — bind loopback only (recommended).',
-    );
-    const token = generateToken();
-    const result = await window.znxstudio.collab.host({ token, host: lan ? '0.0.0.0' : '127.0.0.1', port: 0 });
-    if (!result.ok || result.port === undefined) {
-      this.moduleContext.layout.showToast(`Could not host: ${result.error ?? 'unknown error'}`, 'error');
-      return;
-    }
+    if (this.transitioning) return;
+    this.setTransitioning(true);
+    try {
+      const input = this.moduleContext.services.get<InputBoxService>(ServiceKeys.InputBox);
+      const lan = await input.confirm({
+        title: 'Expose Session on Local Network?',
+        message: 'Choose LAN exposure only if every device on this network is trusted. Traffic is not encrypted. Cancel keeps the session on this machine only.',
+        confirmLabel: 'Expose on LAN',
+        danger: true,
+      });
+      if (this.workspace?.currentFolder() !== root) {
+        this.moduleContext.layout.showToast('Hosting cancelled because the workspace changed.', 'info');
+        return;
+      }
+      const token = generateToken();
+      const result = await window.znxstudio.collab.host({ token, host: lan ? '0.0.0.0' : '127.0.0.1', port: 0 });
+      if (!result.ok || result.port === undefined) {
+        this.moduleContext.layout.showToast(`Could not host: ${result.error ?? 'unknown error'}`, 'error');
+        return;
+      }
 
-    this.role = 'host';
-    this.selfId = 'host';
-    this.collabSession = {
-      sessionId: token.slice(0, 8),
-      host: result.host ?? '127.0.0.1',
-      port: result.port,
-      root,
-      token,
-      participants: [],
-      loopbackOnly: result.loopbackOnly ?? true,
-    };
-    this.collabSession = addParticipant(this.collabSession, { id: 'host', name: 'You (host)', role: 'host', readOnly: false });
-    this.manifest = await this.readManifest(root);
-    this.update();
-    this.moduleContext.layout.showToast(`Hosting on ${result.host}:${result.port}.`, 'info');
+      this.role = 'host';
+      this.selfId = 'host';
+      this.collabSession = {
+        sessionId: token.slice(0, 8),
+        host: result.host ?? '127.0.0.1',
+        port: result.port,
+        root,
+        token,
+        participants: [],
+        loopbackOnly: result.loopbackOnly ?? true,
+      };
+      this.collabSession = addParticipant(this.collabSession, { id: 'host', name: 'You (host)', role: 'host', readOnly: false });
+      this.manifest = await this.readManifest(root);
+      this.update();
+      this.moduleContext.layout.showToast(`Hosting on ${result.host}:${result.port}.`, 'info');
+    } catch (error) {
+      this.moduleContext.layout.showToast(`Could not host: ${(error as Error).message}`, 'error');
+    } finally {
+      this.setTransitioning(false);
+    }
   }
 
   private async joinSession(): Promise<void> {
@@ -152,51 +174,88 @@ export class CollabModule implements IModule, CollabService {
       this.moduleContext.layout.showToast('Already in a session.', 'info');
       return;
     }
-    const text = window.prompt('Paste the invite link:', 'znxstudio://join?host=127.0.0.1&port=0&token=');
-    if (!text) return;
-    const invite = decodeInvite(text);
-    if (!invite) {
-      this.moduleContext.layout.showToast('That is not a valid ZnxStudio invite.', 'error');
-      return;
-    }
-    if (!isLoopback(invite.host)) {
-      const proceed = window.confirm(
-        `This invite points at ${invite.host}, not this machine.\n\nThe connection is NOT encrypted. Continue only on a network you trust.`,
-      );
-      if (!proceed) return;
-    }
+    if (this.transitioning) return;
+    this.setTransitioning(true);
+    try {
+      const input = this.moduleContext.services.get<InputBoxService>(ServiceKeys.InputBox);
+      const text = await input.prompt({
+        title: 'Join Collaboration Session',
+        label: 'Invite link',
+        placeholder: 'znxstudio://join?host=…&port=…&token=…',
+        submitLabel: 'Continue',
+        validate: (value) => decodeInvite(value.trim()) ? null : 'Paste a valid ZnxStudio invite link.',
+      });
+      if (text === null) return;
+      const invite = decodeInvite(text.trim());
+      if (!invite) return;
+      if (!isLoopback(invite.host)) {
+        const proceed = await input.confirm({
+          title: 'Join Unencrypted Network Session?',
+          message: `This invite connects to ${invite.host}, not this machine. Continue only on a network you trust; traffic is not encrypted.`,
+          confirmLabel: 'Join Session',
+          danger: true,
+        });
+        if (!proceed) return;
+      }
 
-    const name = window.prompt('Your name in the session:', 'Guest') ?? 'Guest';
-    const result = await window.znxstudio.collab.join({ ...invite, name });
-    if (!result.ok) {
-      this.moduleContext.layout.showToast(`Could not join: ${result.error ?? 'unknown error'}`, 'error');
-      return;
-    }
+      const nameValue = await input.prompt({
+        title: 'Join Collaboration Session',
+        label: 'Your display name',
+        value: 'Guest',
+        submitLabel: 'Join Session',
+        validate: validateParticipantName,
+      });
+      if (nameValue === null) return;
+      const name = nameValue.trim();
+      const result = await window.znxstudio.collab.join({ ...invite, name });
+      if (!result.ok) {
+        this.moduleContext.layout.showToast(`Could not join: ${result.error ?? 'unknown error'}`, 'error');
+        return;
+      }
 
-    this.role = 'guest';
-    this.selfId = 'guest';
-    this.collabSession = {
-      sessionId: invite.token.slice(0, 8),
-      host: invite.host,
-      port: invite.port,
-      root: this.workspace?.currentFolder() ?? '',
-      token: invite.token,
-      participants: [],
-      loopbackOnly: isLoopback(invite.host),
-    };
-    this.collabSession = addParticipant(this.collabSession, { id: 'guest', name, role: 'guest', readOnly: false });
-    this.update();
+      this.role = 'guest';
+      this.selfId = 'guest';
+      this.collabSession = {
+        sessionId: invite.token.slice(0, 8),
+        host: invite.host,
+        port: invite.port,
+        root: this.workspace?.currentFolder() ?? '',
+        token: invite.token,
+        participants: [],
+        loopbackOnly: isLoopback(invite.host),
+      };
+      this.collabSession = addParticipant(this.collabSession, { id: 'guest', name, role: 'guest', readOnly: false });
+      this.update();
+      this.moduleContext.layout.showToast(`Joined the session as ${name}.`, 'success');
+    } catch (error) {
+      this.moduleContext.layout.showToast(`Could not join: ${(error as Error).message}`, 'error');
+    } finally {
+      this.setTransitioning(false);
+    }
   }
 
   private async leave(): Promise<void> {
-    if (!this.collabSession) return;
-    await window.znxstudio.collab.leave();
-    this.collabSession = null;
-    this.role = null;
-    this.manifest = null;
-    this.syncNote = '';
-    this.update();
-    this.moduleContext.layout.showToast('Left the session.', 'info');
+    if (!this.collabSession || this.transitioning) return;
+    this.setTransitioning(true);
+    try {
+      await window.znxstudio.collab.leave();
+      this.collabSession = null;
+      this.role = null;
+      this.manifest = null;
+      this.syncNote = '';
+      this.update();
+      this.moduleContext.layout.showToast('Left the session.', 'info');
+    } catch (error) {
+      this.moduleContext.layout.showToast(`Could not leave: ${(error as Error).message}`, 'error');
+    } finally {
+      this.setTransitioning(false);
+    }
+  }
+
+  private setTransitioning(value: boolean): void {
+    this.transitioning = value;
+    this.moduleContext.commands.notifyEnablementChanged();
+    this.render();
   }
 
   /* ----- wire ----- */
@@ -276,6 +335,7 @@ export class CollabModule implements IModule, CollabService {
 
   /* ----- UI ----- */
   private update(): void {
+    this.moduleContext.commands.notifyEnablementChanged();
     this.render();
     this.updateStatusBar();
     this.changeEmitter.fire();
@@ -318,8 +378,12 @@ export class CollabModule implements IModule, CollabService {
           'znxstudio-collab-note',
         ),
       );
-      this.view.appendChild(button('🟢 Host session', () => void this.hostSession()));
-      this.view.appendChild(button('🔗 Join session', () => void this.joinSession()));
+      const host = button(this.transitioning ? 'Working…' : '🟢 Host session', () => void this.hostSession());
+      const join = button(this.transitioning ? 'Working…' : '🔗 Join session', () => void this.joinSession());
+      host.disabled = this.transitioning || !this.workspace?.currentFolder();
+      join.disabled = this.transitioning;
+      host.title = this.workspace?.currentFolder() ? 'Host a collaboration session' : 'Open a folder before hosting a session';
+      this.view.append(host, join);
       return;
     }
 
@@ -366,7 +430,9 @@ export class CollabModule implements IModule, CollabService {
       roster.appendChild(row);
     }
     this.view.appendChild(roster);
-    this.view.appendChild(button('⏹ Leave session', () => void this.leave()));
+    const leave = button(this.transitioning ? 'Leaving…' : '⏹ Leave session', () => void this.leave());
+    leave.disabled = this.transitioning;
+    this.view.appendChild(leave);
   }
 
   /* ----- optional headless self-test (ZNXSTUDIO_SELFTEST=1) ----- */
@@ -444,10 +510,18 @@ function note(text: string, className: string): HTMLElement {
   return element;
 }
 
-function button(label: string, onClick: () => void): HTMLElement {
+function button(label: string, onClick: () => void): HTMLButtonElement {
   const element = document.createElement('button');
   element.className = 'znxstudio-btn-small znxstudio-collab-action';
   element.textContent = label;
   element.addEventListener('click', onClick);
   return element;
+}
+
+function validateParticipantName(value: string): string | null {
+  const name = value.trim();
+  if (!name) return 'Enter a display name.';
+  if (name.length > 50) return 'Use 50 characters or fewer.';
+  if (/[\u0000-\u001f\u007f]/.test(name)) return 'Display names cannot contain control characters.';
+  return null;
 }

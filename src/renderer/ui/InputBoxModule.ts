@@ -19,26 +19,44 @@ export class InputBoxModule implements IModule, InputBoxService {
   readonly displayName = 'Input Box';
 
   private root!: HTMLElement;
+  private cancelActive: (() => void) | undefined;
 
   activate(context: ModuleContext): void {
     context.services.register<InputBoxService>(ServiceKeys.InputBox, this);
     this.root = document.createElement('div');
     this.root.className = 'znxstudio-inputbox';
     document.body.appendChild(this.root);
+    context.subscriptions.push({
+      dispose: () => {
+        this.cancelActive?.();
+        this.root.remove();
+      },
+    });
     void selfTestCoordinator.run('inputbox', () => this.maybeSelfTest());
   }
 
   /** Prompt for a single line of text; resolves to the value, or null if cancelled. */
   prompt(options: InputBoxOptions): Promise<string | null> {
+    this.cancelActive?.();
     return new Promise((resolve) => {
       const restoreFocus = captureFocus();
+      let settled = false;
+      let cancelThis: () => void;
       const settle = (value: string | null): void => {
-        this.root.replaceChildren();
-        this.root.classList.remove('is-open');
+        if (settled) return;
+        settled = true;
+        if (this.cancelActive === cancelThis) {
+          this.cancelActive = undefined;
+          this.root.onmousedown = null;
+          this.root.replaceChildren();
+          this.root.classList.remove('is-open');
+        }
         document.removeEventListener('keydown', onKey, true);
         restoreFocus();
         resolve(value);
       };
+      cancelThis = () => settle(null);
+      this.cancelActive = cancelThis;
 
       const panel = document.createElement('div');
       panel.className = 'znxstudio-inputbox-panel';
@@ -109,9 +127,9 @@ export class InputBoxModule implements IModule, InputBoxService {
       panel.append(input, error, actions);
       this.root.replaceChildren(panel);
       this.root.classList.add('is-open');
-      this.root.addEventListener('mousedown', (event) => {
+      this.root.onmousedown = (event) => {
         if (event.target === this.root) settle(null);
-      });
+      };
       document.addEventListener('keydown', onKey, true);
       refresh();
       input.focus();
@@ -121,15 +139,26 @@ export class InputBoxModule implements IModule, InputBoxService {
 
   /** Yes/No confirmation; resolves true if confirmed. */
   confirm(options: ConfirmOptions): Promise<boolean> {
+    this.cancelActive?.();
     return new Promise((resolve) => {
       const restoreFocus = captureFocus();
+      let settled = false;
+      let cancelThis: () => void;
       const settle = (value: boolean): void => {
-        this.root.replaceChildren();
-        this.root.classList.remove('is-open');
+        if (settled) return;
+        settled = true;
+        if (this.cancelActive === cancelThis) {
+          this.cancelActive = undefined;
+          this.root.onmousedown = null;
+          this.root.replaceChildren();
+          this.root.classList.remove('is-open');
+        }
         document.removeEventListener('keydown', onKey, true);
         restoreFocus();
         resolve(value);
       };
+      cancelThis = () => settle(false);
+      this.cancelActive = cancelThis;
 
       const panel = document.createElement('div');
       panel.className = 'znxstudio-inputbox-panel';
@@ -166,9 +195,9 @@ export class InputBoxModule implements IModule, InputBoxService {
       panel.append(heading, message, actions);
       this.root.replaceChildren(panel);
       this.root.classList.add('is-open');
-      this.root.addEventListener('mousedown', (event) => {
+      this.root.onmousedown = (event) => {
         if (event.target === this.root) settle(false);
-      });
+      };
       document.addEventListener('keydown', onKey, true);
       ok.focus();
     });

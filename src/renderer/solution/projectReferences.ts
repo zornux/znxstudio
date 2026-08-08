@@ -23,6 +23,8 @@ export interface ResolvedReference {
   dependency: PackageDependency;
   /** True when the dependency resolves to another open project. */
   internal: boolean;
+  /** More than one open manifest declares the dependency's package name. */
+  ambiguous?: boolean;
   targetRoot?: string;
   targetVersion?: string;
 }
@@ -44,8 +46,12 @@ export interface ProjectReferencesService {
 
 export function resolveProjectReferences(nodes: ProjectNode[]): ProjectReferenceGraph {
   const byName = new Map<string, ProjectNode>();
+  const ambiguousNames = new Set<string>();
   for (const node of nodes) {
-    if (node.hasManifest) byName.set(node.name.toLowerCase(), node);
+    if (!node.hasManifest) continue;
+    const key = node.name.toLowerCase();
+    if (byName.has(key)) ambiguousNames.add(key);
+    else byName.set(key, node);
   }
 
   const references = new Map<string, ResolvedReference[]>();
@@ -54,12 +60,14 @@ export function resolveProjectReferences(nodes: ProjectNode[]): ProjectReference
     const resolved: ResolvedReference[] = [];
     const targets: string[] = [];
     for (const dependency of node.dependencies) {
-      const target = byName.get(dependency.name.toLowerCase());
+      const key = dependency.name.toLowerCase();
+      const ambiguous = ambiguousNames.has(key);
+      const target = ambiguous ? undefined : byName.get(key);
       if (target && target.root !== node.root) {
         resolved.push({ dependency, internal: true, targetRoot: target.root, targetVersion: target.version });
         targets.push(target.root);
       } else {
-        resolved.push({ dependency, internal: false });
+        resolved.push({ dependency, internal: false, ambiguous });
       }
     }
     references.set(node.root, resolved);

@@ -3,6 +3,8 @@ import {
   type CompilerService,
   type DatabaseService,
   type EditorService,
+  type InputBoxService,
+  type QuickPickService,
 } from '../core/Contracts';
 import { selfTestCoordinator } from '../core/SelfTestCoordinator';
 import type { IModule, ModuleContext } from '../core/Module';
@@ -41,6 +43,7 @@ export class MigrationsModule implements IModule {
   private panel!: HTMLElement;
   private sections: FileSection[] = [];
   private busy = false;
+  private creatingMigration = false;
 
   activate(context: ModuleContext): void {
     this.context = context;
@@ -53,6 +56,9 @@ export class MigrationsModule implements IModule {
     context.commands.register(CommandIds.MigrationsShow, () => this.context.layout.showPanelView('migrations'), 'Database: Show Migrations');
     context.commands.register(CommandIds.MigrationsRefresh, () => void this.discover(), 'Database: Refresh Migrations');
     context.commands.register(CommandIds.MigrationNew, () => void this.newMigration(), 'Database: New Migration');
+    context.commands.addEnablementRule((id) => id === CommandIds.MigrationNew
+      ? !this.creatingMigration && Boolean(context.services.tryGet<EditorService>(ServiceKeys.Editor)?.currentFile()?.toLowerCase().endsWith('.zx'))
+      : undefined);
 
     this.database?.onDidChange(() => void this.discover());
     this.renderMessage('Open a folder with `migration … end` blocks.');
@@ -190,30 +196,89 @@ export class MigrationsModule implements IModule {
   }
 
   private async newMigration(): Promise<void> {
-    const name = window.prompt('Migration name:', 'AddField');
-    if (!name) return;
-    const kind = (window.prompt('Kind: "create-table" or "add-field"', 'add-field') ?? '').trim();
-
-    let spec: MigrationSpec;
-    if (kind === 'create-table') {
-      const table = window.prompt('Table name:', 'Products');
-      const from = window.prompt('From class:', 'Product');
-      if (!table || !from) return;
-      spec = { name, kind: 'create-table', table, from };
-    } else {
-      const field = window.prompt('Field to add:', 'sku');
-      const table = window.prompt('To table:', 'Products');
-      if (!field || !table) return;
-      spec = { name, kind: 'add-field', field, table };
-    }
-
     const editor = this.context.services.tryGet<EditorService>(ServiceKeys.Editor);
-    if (!editor || !editor.currentUri()) {
+    const sourceUri = editor?.currentUri();
+    if (!editor || !sourceUri || !editor.currentFile()?.toLowerCase().endsWith('.zx')) {
       this.context.layout.showToast('Open a .zx file to insert the migration.', 'info');
       return;
     }
-    editor.insertText(`${generateMigration(spec)}\n`);
-    this.context.layout.showToast(`Inserted migration "${name}".`, 'success');
+    if (this.creatingMigration) return;
+
+    this.creatingMigration = true;
+    this.context.commands.notifyEnablementChanged();
+    try {
+      const input = this.context.services.get<InputBoxService>(ServiceKeys.InputBox);
+      const picker = this.context.services.get<QuickPickService>(ServiceKeys.QuickPick);
+      const existingNames = new Set(parseMigrations(editor.activeText() ?? '').map((migration) => migration.name));
+      const nameValue = await input.prompt({
+        title: 'New Database Migration',
+        label: 'Migration name',
+        value: 'AddField',
+        placeholder: 'For example: AddSkuToProducts',
+        submitLabel: 'Choose Operation',
+        validate: (value) => validateIdentifier(value, 'Migration name')
+          ?? (existingNames.has(value.trim()) ? 'A migration with this name already exists in the file.' : null),
+      });
+      if (nameValue === null) return;
+      const name = nameValue.trim();
+
+      const kind = await picker.pick<MigrationSpec['kind']>([
+        { label: 'Create Table', description: 'Create a table from an existing class', value: 'create-table' },
+        { label: 'Add Field', description: 'Add one field to an existing table', value: 'add-field' },
+      ], { placeholder: 'Select a migration operation' });
+      if (kind === undefined) return;
+
+      let spec: MigrationSpec;
+      if (kind === 'create-table') {
+        const table = await input.prompt({
+          title: 'New Database Migration · Create Table',
+          label: 'Table name',
+          value: 'Products',
+          submitLabel: 'Next',
+          validate: (value) => validateIdentifier(value, 'Table name'),
+        });
+        if (table === null) return;
+        const from = await input.prompt({
+          title: 'New Database Migration · Create Table',
+          label: 'Source class',
+          value: 'Product',
+          submitLabel: 'Insert Migration',
+          validate: (value) => validateIdentifier(value, 'Class name'),
+        });
+        if (from === null) return;
+        spec = { name, kind, table: table.trim(), from: from.trim() };
+      } else {
+        const field = await input.prompt({
+          title: 'New Database Migration · Add Field',
+          label: 'Field name',
+          value: 'sku',
+          submitLabel: 'Next',
+          validate: (value) => validateIdentifier(value, 'Field name'),
+        });
+        if (field === null) return;
+        const table = await input.prompt({
+          title: 'New Database Migration · Add Field',
+          label: 'Target table',
+          value: 'Products',
+          submitLabel: 'Insert Migration',
+          validate: (value) => validateIdentifier(value, 'Table name'),
+        });
+        if (table === null) return;
+        spec = { name, kind, field: field.trim(), table: table.trim() };
+      }
+
+      if (editor.currentUri() !== sourceUri) {
+        this.context.layout.showToast('Migration creation cancelled because the active editor changed.', 'info');
+        return;
+      }
+      editor.insertText(`${generateMigration(spec)}\n`);
+      this.context.layout.showToast(`Inserted migration "${name}".`, 'success');
+    } catch (error) {
+      this.context.layout.showToast(`Could not create migration: ${(error as Error).message}`, 'error');
+    } finally {
+      this.creatingMigration = false;
+      this.context.commands.notifyEnablementChanged();
+    }
   }
 
   private async open(file: string, line: number): Promise<void> {
@@ -273,4 +338,12 @@ export class MigrationsModule implements IModule {
       log(`migrations REAL failed: ${(error as Error).message}`);
     }
   }
+}
+
+function validateIdentifier(value: string, label: string): string | null {
+  const normalized = value.trim();
+  if (!normalized) return `${label} is required.`;
+  return /^[A-Za-z_][A-Za-z0-9_]*$/.test(normalized)
+    ? null
+    : `${label} must start with a letter or underscore and contain only letters, numbers, or underscores.`;
 }

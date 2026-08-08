@@ -89,15 +89,28 @@ export class CoverageModule implements IModule {
           'error',
         );
       }
-      const files: { file: string; text: string }[] = [];
+      const filesByRoot = new Map<string, { file: string; text: string }[]>();
       for (const path of discovered) {
         try {
+          const owner = this.workspace.folderContaining(path)?.root ?? roots[0];
+          const files = filesByRoot.get(owner) ?? [];
           files.push({ file: path, text: await window.znxstudio.fs.readFile(path) });
+          filesByRoot.set(owner, files);
         } catch {
           /* skip unreadable */
         }
       }
-      this.report = analyzeCoverage(files);
+      const reports = [...filesByRoot.values()].map((files) => analyzeCoverage(files));
+      const functions = reports.flatMap((report) => report.functions)
+        .sort((left, right) => left.file.localeCompare(right.file) || left.name.localeCompare(right.name));
+      const total = reports.reduce((sum, report) => sum + report.total, 0);
+      const covered = reports.reduce((sum, report) => sum + report.covered, 0);
+      this.report = {
+        functions,
+        total,
+        covered,
+        percent: total === 0 ? 100 : Math.round((covered / total) * 100),
+      };
       this.updateStatus();
     } catch (error) {
       this.context.layout.showToast(`Coverage computation failed: ${(error as Error).message}`, 'error');
@@ -162,6 +175,11 @@ export class CoverageModule implements IModule {
 
     const bar = document.createElement('div');
     bar.className = 'znxstudio-coverage-bar';
+    bar.setAttribute('role', 'progressbar');
+    bar.setAttribute('aria-label', 'Function coverage');
+    bar.setAttribute('aria-valuemin', '0');
+    bar.setAttribute('aria-valuemax', '100');
+    bar.setAttribute('aria-valuenow', String(this.report.percent));
     const fill = document.createElement('div');
     fill.className = 'znxstudio-coverage-fill';
     fill.style.width = `${this.report.percent}%`;
@@ -185,15 +203,28 @@ export class CoverageModule implements IModule {
     for (const fn of uncovered) {
       const row = document.createElement('div');
       row.className = 'znxstudio-coverage-row';
-      row.innerHTML = '<span class="znxstudio-coverage-dot">○</span>';
+      row.tabIndex = 0;
+      row.setAttribute('role', 'button');
+      row.setAttribute('aria-label', `${fn.name}, ${this.basename(fn.file)}, line ${fn.line + 1}`);
+      const dot = document.createElement('span');
+      dot.className = 'znxstudio-coverage-dot';
+      dot.textContent = '○';
+      dot.setAttribute('aria-hidden', 'true');
       const name = document.createElement('span');
       name.className = 'znxstudio-coverage-name';
       name.textContent = fn.name;
       const loc = document.createElement('span');
       loc.className = 'znxstudio-coverage-loc';
       loc.textContent = `${this.basename(fn.file)}:${fn.line + 1}`;
-      row.append(name, loc);
-      row.addEventListener('click', () => void this.open(fn.file, fn.line));
+      row.append(dot, name, loc);
+      const open = (): void => void this.open(fn.file, fn.line);
+      row.addEventListener('click', open);
+      row.addEventListener('keydown', (event) => {
+        if (event.key === 'Enter' || event.key === ' ') {
+          event.preventDefault();
+          open();
+        }
+      });
       this.panel.appendChild(row);
     }
   }

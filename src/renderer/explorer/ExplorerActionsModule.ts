@@ -199,12 +199,16 @@ export class ExplorerActionsModule implements IModule {
     } catch {
       /* ignore — rename will surface the real error */
     }
+    const editor = this.context.services.tryGet<EditorService>(ServiceKeys.Editor);
+    const closeEditors = editor ? await editor.prepareEditorsForPath(path) : () => undefined;
+    if (!closeEditors) return;
     try {
       await window.znxstudio.fs.rename(path, target);
     } catch (error) {
       this.toast(`Could not rename: ${(error as Error).message}`, 'error');
       return;
     }
+    closeEditors();
     await this.explorer()?.refreshDirectory(parent);
     await this.explorer()?.revealPath(target);
     this.toast(`Renamed to ${newName}.`, 'success');
@@ -221,12 +225,16 @@ export class ExplorerActionsModule implements IModule {
       danger: true,
     });
     if (!confirmed) return;
+    const editor = this.context.services.tryGet<EditorService>(ServiceKeys.Editor);
+    const closeEditors = editor ? await editor.prepareEditorsForPath(path) : () => undefined;
+    if (!closeEditors) return;
     try {
       await window.znxstudio.fs.delete(path);
     } catch (error) {
       this.toast(`Could not delete "${name}": ${(error as Error).message}`, 'error');
       return;
     }
+    closeEditors();
     await this.explorer()?.refreshDirectory(dirName(path));
     this.toast(`Deleted ${name}.`, 'success');
   }

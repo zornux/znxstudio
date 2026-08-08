@@ -1,4 +1,4 @@
-import { ServiceKeys, type CollabService, type EditorService, type StatusService } from '../core/Contracts';
+import { ServiceKeys, type CollabService, type EditorService, type QuickPickService, type StatusService } from '../core/Contracts';
 import { selfTestCoordinator } from '../core/SelfTestCoordinator';
 import type { IModule, ModuleContext } from '../core/Module';
 import { CommandIds } from '../commands/CommandIds';
@@ -36,6 +36,7 @@ export class PairModule implements IModule {
   private statusBar: StatusService | undefined;
   private readonly tracker = new PresenceTracker();
   private followState: FollowState = NOT_FOLLOWING;
+  private choosingParticipant = false;
 
   activate(context: ModuleContext): void {
     this.moduleContext = context;
@@ -45,16 +46,27 @@ export class PairModule implements IModule {
 
     context.commands.register(CommandIds.CollabFollow, () => this.followSomeone(), 'Collaboration: Follow Participant');
     context.commands.register(CommandIds.CollabUnfollow, () => this.stopFollowing(), 'Collaboration: Stop Following');
+    context.commands.addEnablementRule((id) => {
+      if (id === CommandIds.CollabFollow) {
+        const session = this.collab?.session();
+        return !this.choosingParticipant && Boolean(session?.participants.some((participant) => participant.id !== this.collab?.participantId()));
+      }
+      if (id === CommandIds.CollabUnfollow) return this.followState.following !== null;
+      return undefined;
+    });
 
     this.collab?.onDidReceiveFrame(({ frame }) => this.receive(frame));
     this.collab?.onDidChange(() => {
       if (this.collab?.state() === 'idle') this.reset();
       this.updateStatusBar();
+      this.moduleContext.commands.notifyEnablementChanged();
     });
 
     // Broadcast our own caret, and surrender a follow the moment we type.
     this.editor?.onDidChangeSelections(() => {
+      const wasFollowing = this.followState.following;
       this.followState = breakFollowOnEdit(this.followState);
+      if (wasFollowing !== this.followState.following) this.moduleContext.commands.notifyEnablementChanged();
       this.publishPresence();
       this.updateStatusBar();
     });
@@ -103,7 +115,8 @@ export class PairModule implements IModule {
     }
   }
 
-  private followSomeone(): void {
+  private async followSomeone(): Promise<void> {
+    if (this.choosingParticipant) return;
     const session = this.collab?.session();
     if (!session) {
       this.moduleContext.layout.showToast('Join a session to follow someone.', 'info');
@@ -114,19 +127,44 @@ export class PairModule implements IModule {
       this.moduleContext.layout.showToast('Nobody else is here yet.', 'info');
       return;
     }
-    const name = window.prompt(`Follow whom?\n${others.map((p) => p.name).join(', ')}`, others[0].name);
-    const target = others.find((p) => p.name === name);
-    if (!target) return;
+    this.choosingParticipant = true;
+    this.moduleContext.commands.notifyEnablementChanged();
+    try {
+      const picker = this.moduleContext.services.get<QuickPickService>(ServiceKeys.QuickPick);
+      const selectedId = await picker.pick(
+        others.map((participant) => {
+          const presence = this.tracker.of(participant.id);
+          return {
+            label: participant.name,
+            description: presence?.file ? `Active in ${basename(presence.file)}` : 'No cursor shared yet',
+            value: participant.id,
+          };
+        }),
+        { placeholder: 'Choose a participant to follow' },
+      );
+      if (selectedId === undefined) return;
 
-    this.followState = follow(this.followState, target.id, this.collab?.participantId() ?? 'me');
-    this.followIfNeeded();
-    this.updateStatusBar();
-    this.moduleContext.layout.showToast(`Following ${target.name}. Type to take back control.`, 'info');
+      const target = this.collab?.session()?.participants.find((participant) => participant.id === selectedId);
+      if (!target || target.id === this.collab?.participantId()) {
+        this.moduleContext.layout.showToast('That participant has left the session.', 'info');
+        return;
+      }
+      this.followState = follow(this.followState, target.id, this.collab?.participantId() ?? 'me');
+      this.followIfNeeded();
+      this.updateStatusBar();
+      this.moduleContext.layout.showToast(`Following ${target.name}. Type to take back control.`, 'info');
+    } catch (error) {
+      this.moduleContext.layout.showToast(`Could not start following: ${(error as Error).message}`, 'error');
+    } finally {
+      this.choosingParticipant = false;
+      this.moduleContext.commands.notifyEnablementChanged();
+    }
   }
 
   private stopFollowing(): void {
     this.followState = unfollow();
     this.updateStatusBar();
+    this.moduleContext.commands.notifyEnablementChanged();
   }
 
   /** Jump to wherever the followed participant currently is. */
@@ -246,4 +284,8 @@ function positionOf(text: string, offset: number): { line: number; character: nu
   const before = text.slice(0, Math.max(0, offset));
   const lines = before.split('\n');
   return { line: lines.length - 1, character: lines[lines.length - 1].length };
+}
+
+function basename(path: string): string {
+  return path.split(/[\\/]/).pop() ?? path;
 }

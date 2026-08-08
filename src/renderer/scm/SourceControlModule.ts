@@ -2,6 +2,7 @@ import {
   ServiceKeys,
   type EditorService,
   type GitCommitResult,
+  type InputBoxService,
   type SourceControlService,
   type StatusService,
   type WorkspaceService,
@@ -52,6 +53,7 @@ export class SourceControlModule implements IModule, SourceControlService {
   private commitMessage = '';
   private commitInput: HTMLTextAreaElement | undefined;
   private refreshing = false;
+  private creatingBranch = false;
   private refreshGeneration = 0;
   private detectGeneration = 0;
   private readonly changeEmitter = new Emitter<void>();
@@ -79,6 +81,9 @@ export class SourceControlModule implements IModule, SourceControlService {
     context.commands.register(CommandIds.ScmCheckout, () => this.showBranchPicker(), 'Source Control: Checkout Branch');
     context.commands.register(CommandIds.ScmCreateBranch, () => void this.createBranchPrompt(), 'Source Control: Create Branch');
     context.commands.addEnablementRule((id) => {
+      if (id === CommandIds.ScmCheckout || id === CommandIds.ScmCreateBranch) {
+        return this.repoRoot !== null && !this.creatingBranch;
+      }
       if (id === CommandIds.ScmCommit) return this.repoRoot !== null && this.entries.some((entry) => entry.staged);
       if (id === CommandIds.ScmStageAll) return this.repoRoot !== null && this.entries.some((entry) => entry.unstaged);
       if (id === CommandIds.HistoryShow) return this.repoRoot !== null;
@@ -626,10 +631,36 @@ export class SourceControlModule implements IModule, SourceControlService {
   }
 
   private async createBranchPrompt(): Promise<void> {
-    const name = window.prompt('New branch name:');
-    if (!name) return;
-    const result = await this.createBranch(name.trim());
-    this.context.layout.showToast(result.ok ? `Created and switched to ${name.trim()}.` : `Create failed: ${result.error}`, result.ok ? 'success' : 'error');
+    if (!this.repoRoot || this.creatingBranch) return;
+    const input = this.context.services.get<InputBoxService>(ServiceKeys.InputBox);
+    const value = await input.prompt({
+      title: 'Create Branch',
+      label: 'Branch name',
+      placeholder: 'feature/my-change',
+      submitLabel: 'Create Branch',
+      validate: (candidate) => {
+        const invalid = validateBranchName(candidate);
+        if (invalid) return invalid;
+        const normalized = candidate.trim();
+        return localBranches(this.branchList).some((branch) => branch.name === normalized)
+          ? `A branch named "${normalized}" already exists.`
+          : null;
+      },
+    });
+    if (value === null) return;
+
+    const name = value.trim();
+    this.creatingBranch = true;
+    this.context.commands.notifyEnablementChanged();
+    try {
+      const result = await this.createBranch(name);
+      this.context.layout.showToast(result.ok ? `Created and switched to ${name}.` : `Create failed: ${result.error}`, result.ok ? 'success' : 'error');
+    } catch (error) {
+      this.context.layout.showToast(`Create failed: ${(error as Error).message}`, 'error');
+    } finally {
+      this.creatingBranch = false;
+      this.context.commands.notifyEnablementChanged();
+    }
   }
 
   private openFile(relPath: string): void {

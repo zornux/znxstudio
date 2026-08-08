@@ -1,4 +1,4 @@
-import { ServiceKeys, type TrustService, type WorkspaceService } from '../core/Contracts';
+import { ServiceKeys, type InputBoxService, type TrustService, type WorkspaceService } from '../core/Contracts';
 import { selfTestCoordinator } from '../core/SelfTestCoordinator';
 import type { IModule, ModuleContext } from '../core/Module';
 import { CommandIds } from '../commands/CommandIds';
@@ -37,6 +37,8 @@ export class SolutionExplorerModule implements IModule {
   private container!: HTMLElement;
   private readonly scriptRows: HTMLElement[] = [];
   private readonly packageActionRows: HTMLElement[] = [];
+  private renderSequence = 0;
+  private packageBusy = false;
 
   activate(context: ModuleContext): void {
     this.context = context;
@@ -88,6 +90,7 @@ export class SolutionExplorerModule implements IModule {
   }
 
   private async render(): Promise<void> {
+    const sequence = ++this.renderSequence;
     this.scriptRows.length = 0;
     this.packageActionRows.length = 0;
     const folders = this.workspace.folders();
@@ -97,9 +100,26 @@ export class SolutionExplorerModule implements IModule {
     }
     const solution = buildSolution(folders);
     // Resolve the reference graph between the open projects (5C).
-    const graph = await this.references?.graphFor(folders);
+    let graph: ProjectReferenceGraph | undefined;
+    let referenceError = '';
+    try {
+      graph = await this.references?.graphFor(folders);
+    } catch (error) {
+      referenceError = (error as Error).message;
+    }
+    if (
+      sequence !== this.renderSequence ||
+      !sameRoots(folders.map((folder) => folder.root), this.workspace.folders().map((folder) => folder.root))
+    ) return;
     const fragment = document.createDocumentFragment();
     fragment.appendChild(this.renderSolutionHeader(solution));
+    if (referenceError) {
+      const warning = document.createElement('div');
+      warning.className = 'znxstudio-solution-detail';
+      warning.textContent = `Could not resolve project references: ${referenceError}`;
+      fragment.appendChild(warning);
+      this.context.layout.showToast('Project references could not be refreshed.', 'error');
+    }
     for (const project of solution.projects) {
       fragment.appendChild(this.renderProject(project, graph));
     }
@@ -298,6 +318,9 @@ export class SolutionExplorerModule implements IModule {
       row.classList.add('is-internal');
       label.textContent = `→ ${dependency.name} ${dependency.constraint}`;
       row.title = `Internal reference — resolves to the open project (v${reference.targetVersion ?? '?'})`;
+    } else if (reference.ambiguous) {
+      label.textContent = `${dependency.name} ${dependency.constraint} · ⚠ multiple matching projects`;
+      row.title = 'Ambiguous internal dependency — more than one open project declares this package name';
     } else {
       label.textContent = `${dependency.name} ${dependency.constraint}${scope}`;
       row.title = 'External dependency (registry / package)';
@@ -310,7 +333,7 @@ export class SolutionExplorerModule implements IModule {
     remove.textContent = '✕';
     remove.addEventListener('click', (event) => {
       event.stopPropagation();
-      void this.runPackage('remove', projectRoot, [dependency.name]);
+      void this.confirmRemoveDependency(projectRoot, dependency.name);
     });
     this.packageActionRows.push(remove);
 
@@ -360,21 +383,47 @@ export class SolutionExplorerModule implements IModule {
 
   /** Run a `zornux` package op, report the outcome, and refresh the view. */
   private async runPackage(command: 'add' | 'remove' | 'restore', root: string, args: string[]): Promise<void> {
+    if (this.packageBusy) return;
     const trust = this.context.services.tryGet<TrustService>(ServiceKeys.Trust);
     if (trust && !trust.requireTrust('Manage project dependencies')) return;
-    const info = await window.znxstudio.compiler.info();
-    if (!info.available) {
-      this.context.layout.showToast('Zornux compiler not available — cannot manage packages.', 'error');
+    if (!this.workspace.folders().some((folder) => folder.root === root)) {
+      this.context.layout.showToast('That project is no longer in the workspace.', 'info');
       return;
     }
-    const result = await window.znxstudio.packages.run({ command, cwd: root, args, compilerPath: info.path });
-    if (result.success) {
-      this.context.layout.showToast(result.message || `zornux ${command} succeeded.`, 'info');
-    } else {
-      const detail = result.diagnostics[0]?.message ?? result.message ?? `zornux ${command} failed.`;
-      this.context.layout.showToast(detail, 'error');
+    this.packageBusy = true;
+    this.refreshPackageActions();
+    try {
+      const info = await window.znxstudio.compiler.info();
+      if (!info.available) {
+        this.context.layout.showToast('Zornux compiler not available — cannot manage packages.', 'error');
+        return;
+      }
+      const result = await window.znxstudio.packages.run({ command, cwd: root, args, compilerPath: info.path });
+      if (result.success) {
+        this.context.layout.showToast(result.message || `zornux ${command} succeeded.`, 'success');
+      } else {
+        const detail = result.diagnostics[0]?.message ?? result.message ?? `zornux ${command} failed.`;
+        this.context.layout.showToast(detail, 'error');
+      }
+    } catch (error) {
+      this.context.layout.showToast(`Package operation failed: ${(error as Error).message}`, 'error');
+    } finally {
+      this.packageBusy = false;
+      this.refreshPackageActions();
+      void this.render();
     }
-    void this.render(); // re-reads manifests → refreshed reference graph
+  }
+
+  private async confirmRemoveDependency(root: string, name: string): Promise<void> {
+    if (this.packageBusy) return;
+    const input = this.context.services.get<InputBoxService>(ServiceKeys.InputBox);
+    const confirmed = await input.confirm({
+      title: `Remove Dependency ${name}?`,
+      message: 'This updates the project manifest and may change the lockfile.',
+      confirmLabel: 'Remove Dependency',
+      danger: true,
+    });
+    if (confirmed) await this.runPackage('remove', root, [name]);
   }
 
   private makePackageAction(element: HTMLElement, action: () => void): void {
@@ -395,7 +444,7 @@ export class SolutionExplorerModule implements IModule {
   }
 
   private refreshPackageActions(): void {
-    const enabled = this.context.services.tryGet<TrustService>(ServiceKeys.Trust)?.isTrusted() ?? true;
+    const enabled = (this.context.services.tryGet<TrustService>(ServiceKeys.Trust)?.isTrusted() ?? true) && !this.packageBusy;
     for (const action of this.packageActionRows) {
       action.classList.toggle('is-disabled', !enabled);
       action.setAttribute('aria-disabled', String(!enabled));
@@ -457,4 +506,8 @@ export class SolutionExplorerModule implements IModule {
       log(`solution self-test failed: ${(error as Error).message}`);
     }
   }
+}
+
+function sameRoots(a: string[], b: string[]): boolean {
+  return a.length === b.length && a.every((root, index) => root === b[index]);
 }

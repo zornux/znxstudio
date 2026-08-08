@@ -697,6 +697,8 @@ export interface EditorService {
   activateEditor(uri: string): void;
   /** Close an open editor by uri (disposes its model). */
   closeEditor(uri: string): void;
+  /** Confirm affected editors, returning a closer to run only after a mutation succeeds. */
+  prepareEditorsForPath(path: string): Promise<(() => void) | null>;
   /** Fires when the set / order / dirty / pin state of open editors changes. */
   readonly onDidChangeEditors: Event<void>;
   /** Overlay an arbitrary DOM view (welcome, settings, …) over the editor. */

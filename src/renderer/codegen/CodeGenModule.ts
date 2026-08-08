@@ -1,5 +1,5 @@
 import * as monaco from 'monaco-editor';
-import { ServiceKeys, type EditorService } from '../core/Contracts';
+import { ServiceKeys, type EditorService, type InputBoxService } from '../core/Contracts';
 import { selfTestCoordinator } from '../core/SelfTestCoordinator';
 import type { IModule, ModuleContext } from '../core/Module';
 import { LanguageServiceKeys } from '../language/api';
@@ -25,6 +25,7 @@ export class CodeGenModule implements IModule {
   private context!: ModuleContext;
   private editor!: EditorService;
   private documents!: DocumentManager;
+  private readonly running = new Set<string>();
 
   activate(context: ModuleContext): void {
     this.context = context;
@@ -38,12 +39,20 @@ export class CodeGenModule implements IModule {
         `Generate: ${generator.title}`,
       );
     }
+    context.commands.addEnablementRule((id) => {
+      const generator = GENERATORS.find((entry) => id === `znxstudio.codegen.${entry.id}`);
+      if (!generator) return undefined;
+      const language = this.documents.getActive()?.languageId;
+      return Boolean(language && generator.languages.includes(language) && !this.running.has(generator.id));
+    });
 
     void selfTestCoordinator.run('codegen', () => this.maybeSelfTest());
   }
 
-  private run(generator: CodeGenerator): void {
-    const language = this.documents.getActive()?.languageId;
+  private async run(generator: CodeGenerator): Promise<void> {
+    if (this.running.has(generator.id)) return;
+    const activeDocument = this.documents.getActive();
+    const language = activeDocument?.languageId;
     if (!language || !generator.languages.includes(language)) {
       this.context.layout.showToast(
         `Open a ${generator.languages.join('/')} file to generate a ${generator.title}.`,
@@ -52,20 +61,37 @@ export class CodeGenModule implements IModule {
       return;
     }
 
-    const values: Record<string, string> = {};
-    for (const param of generator.params) {
-      const answer = window.prompt(param.label, param.placeholder ?? '');
-      if (answer === null) return; // cancelled
-      if (param.required && !answer.trim()) {
-        this.context.layout.showToast(`${param.label} is required.`, 'error');
+    const input = this.context.services.get<InputBoxService>(ServiceKeys.InputBox);
+    this.running.add(generator.id);
+    this.context.commands.notifyEnablementChanged();
+    try {
+      const values: Record<string, string> = {};
+      for (const [index, param] of generator.params.entries()) {
+        const answer = await input.prompt({
+          title: `Generate ${generator.title} · ${index + 1} of ${generator.params.length}`,
+          label: param.label,
+          value: param.placeholder,
+          placeholder: param.kind === 'list' ? 'Separate multiple values with commas' : undefined,
+          submitLabel: index === generator.params.length - 1 ? 'Generate' : 'Next',
+          validate: (value) => param.required && !value.trim() ? `${param.label} is required.` : null,
+        });
+        if (answer === null) return;
+        values[param.name] = answer.trim();
+      }
+
+      if (this.documents.getActive()?.uri !== activeDocument.uri) {
+        this.context.layout.showToast('Generation cancelled because the active editor changed.', 'info');
         return;
       }
-      values[param.name] = answer;
+      const code = generator.generate(values);
+      this.editor.insertText(code);
+      this.context.layout.showToast(`Generated ${generator.title}.`, 'success');
+    } catch (error) {
+      this.context.layout.showToast(`Could not generate ${generator.title}: ${(error as Error).message}`, 'error');
+    } finally {
+      this.running.delete(generator.id);
+      this.context.commands.notifyEnablementChanged();
     }
-
-    const code = generator.generate(values);
-    this.editor.insertText(code);
-    this.context.layout.showToast(`Generated ${generator.title}.`, 'success');
   }
 
   /* ----- optional headless self-test (ZNXSTUDIO_SELFTEST=1) ----- */

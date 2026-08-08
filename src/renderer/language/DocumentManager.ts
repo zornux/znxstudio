@@ -52,11 +52,14 @@ export class DocumentManager implements DocumentStore {
   private readonly changeEmitter = new Emitter<ManagedDocument>();
   private readonly activeEmitter = new Emitter<ManagedDocument | null>();
   private readonly saveEmitter = new Emitter<ManagedDocument>();
+  private readonly saveErrorEmitter = new Emitter<{ document: ManagedDocument; error: unknown }>();
   private readonly closeEmitter = new Emitter<ManagedDocument>();
   readonly onDidOpen = this.openEmitter.event;
   readonly onDidChange = this.changeEmitter.event;
   readonly onDidChangeActive = this.activeEmitter.event;
   readonly onDidSave = this.saveEmitter.event;
+  /** Fires when a manual save or autosave fails; the document remains dirty. */
+  readonly onDidSaveError = this.saveErrorEmitter.event;
   /** Fires after a document is closed and its model disposed. */
   readonly onDidClose = this.closeEmitter.event;
 
@@ -125,12 +128,35 @@ export class DocumentManager implements DocumentStore {
   async save(uri: string): Promise<void> {
     const managed = this.docs.get(uri);
     if (!managed) return;
-    await window.znxstudio.fs.writeFile(managed.path, managed.model.getValue());
-    managed.dirty = false;
-    this.saveEmitter.fire(managed);
+    const version = managed.model.getVersionId();
+    const content = managed.model.getValue();
+    try {
+      await window.znxstudio.fs.writeFile(managed.path, content);
+      // Edits made while the IPC write was in flight are newer than the bytes
+      // written to disk and must remain visibly dirty.
+      managed.dirty = managed.model.getVersionId() !== version;
+      this.saveEmitter.fire(managed);
+    } catch (error) {
+      managed.dirty = true;
+      this.saveErrorEmitter.fire({ document: managed, error });
+      throw error;
+    }
   }
   async saveActive(): Promise<void> {
     if (this.active) await this.save(this.active);
+  }
+
+  /** Replace an open model with the current file contents from disk. */
+  async revert(uri: string): Promise<void> {
+    const managed = this.docs.get(uri);
+    if (!managed) return;
+    const content = await window.znxstudio.fs.readFile(managed.path);
+    if (managed.model.getValue() !== content) managed.model.setValue(content);
+    const timer = this.autosaveTimers.get(uri);
+    if (timer) clearTimeout(timer);
+    this.autosaveTimers.delete(uri);
+    managed.dirty = false;
+    this.saveEmitter.fire(managed);
   }
 
   setAutosave(mode: AutosaveMode, delay = 1000): void {
@@ -148,7 +174,7 @@ export class DocumentManager implements DocumentStore {
     if (previous) clearTimeout(previous);
     this.autosaveTimers.set(
       managed.uri,
-      setTimeout(() => void this.save(managed.uri), this.autosaveDelay),
+      setTimeout(() => void this.save(managed.uri).catch(() => undefined), this.autosaveDelay),
     );
   }
 

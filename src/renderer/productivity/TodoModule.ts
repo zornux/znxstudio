@@ -34,6 +34,8 @@ export class TodoModule implements IModule {
   private status: StatusService | undefined;
   private panel!: HTMLElement;
   private entries: TodoEntry[] = [];
+  private scanning = false;
+  private scanSequence = 0;
 
   activate(context: ModuleContext): void {
     this.context = context;
@@ -44,10 +46,17 @@ export class TodoModule implements IModule {
     this.panel.className = 'znxstudio-todo';
     context.layout.addPanelView({ id: 'todo', title: 'TODOs', element: this.panel });
 
-    context.commands.register(CommandIds.TodoScan, () => void this.scan(), 'Todo: Scan for Task Comments');
+    context.commands.register(CommandIds.TodoScan, () => this.scan(), 'Todo: Scan for Task Comments');
     context.commands.register(CommandIds.TodoShow, () => this.context.layout.showPanelView('todo'), 'Todo: Show Task Comments');
+    context.commands.addEnablementRule((id) => {
+      if (id === CommandIds.TodoScan) return Boolean(this.workspace.currentFolder()) && !this.scanning;
+      return undefined;
+    });
 
-    this.workspace.onDidChangeWorkspace(() => void this.scan());
+    this.workspace.onDidChangeWorkspace(() => {
+      this.context.commands.notifyEnablementChanged();
+      void this.scan();
+    });
     this.renderMessage('Run “Scan for Task Comments” to find TODO/FIXME/… tags.');
     void this.scan();
     void selfTestCoordinator.run('todo', () => this.maybeSelfTest());
@@ -56,24 +65,44 @@ export class TodoModule implements IModule {
   private async scan(): Promise<void> {
     const root = this.workspace.currentFolder();
     if (!root) {
+      this.scanSequence += 1;
+      this.scanning = false;
       this.entries = [];
       this.renderMessage('Open a folder to scan for task comments.');
       this.updateStatus();
+      this.context.commands.notifyEnablementChanged();
       return;
     }
-    this.renderMessage('Scanning…');
-    const result = await window.znxstudio.search.text({ root, query: TASK_TAG_REGEX, isRegex: true, caseSensitive: true });
+    const sequence = ++this.scanSequence;
+    this.scanning = true;
+    this.entries = [];
+    this.updateStatus();
+    this.context.commands.notifyEnablementChanged();
+    this.renderMessage('Scanning workspace for task comments…', true);
+    try {
+      const result = await window.znxstudio.search.text({ root, query: TASK_TAG_REGEX, isRegex: true, caseSensitive: true });
+      if (sequence !== this.scanSequence || this.workspace.currentFolder() !== root) return;
 
-    const entries: TodoEntry[] = [];
-    for (const file of result.files) {
-      for (const match of file.matches) {
-        const parsed = parseTaskTag(match.text);
-        if (parsed) entries.push({ tag: parsed.tag, message: parsed.message, file: file.file, line: match.line });
+      const entries: TodoEntry[] = [];
+      for (const file of result.files) {
+        for (const match of file.matches) {
+          const parsed = parseTaskTag(match.text);
+          if (parsed) entries.push({ tag: parsed.tag, message: parsed.message, file: file.file, line: match.line });
+        }
+      }
+      this.entries = entries;
+      this.renderPanel();
+      this.updateStatus();
+    } catch (error) {
+      if (sequence !== this.scanSequence) return;
+      this.renderMessage(`Could not scan task comments: ${(error as Error).message}`, false, true);
+      this.context.layout.showToast('Task-comment scan failed.', 'error');
+    } finally {
+      if (sequence === this.scanSequence) {
+        this.scanning = false;
+        this.context.commands.notifyEnablementChanged();
       }
     }
-    this.entries = entries;
-    this.renderPanel();
-    this.updateStatus();
   }
 
   private updateStatus(): void {
@@ -91,10 +120,20 @@ export class TodoModule implements IModule {
     });
   }
 
-  private renderMessage(message: string): void {
+  private renderMessage(message: string, busy = false, retry = false): void {
     const empty = document.createElement('div');
     empty.className = 'znxstudio-todo-empty';
-    empty.textContent = message;
+    if (busy) empty.setAttribute('aria-live', 'polite');
+    const text = document.createElement('span');
+    text.textContent = message;
+    empty.appendChild(text);
+    if (retry) {
+      const button = document.createElement('button');
+      button.className = 'znxstudio-btn-small';
+      button.textContent = 'Retry scan';
+      button.addEventListener('click', () => void this.scan());
+      empty.appendChild(button);
+    }
     this.panel.replaceChildren(empty);
   }
 
@@ -129,7 +168,8 @@ export class TodoModule implements IModule {
         header.textContent = entry.tag;
         this.panel.appendChild(header);
       }
-      const row = document.createElement('div');
+      const row = document.createElement('button');
+      row.type = 'button';
       row.className = 'znxstudio-tree-row znxstudio-todo-row';
       const badge = document.createElement('span');
       badge.className = `znxstudio-todo-badge znxstudio-todo-badge--${TAG_CLASS[entry.tag]}`;
@@ -142,6 +182,7 @@ export class TodoModule implements IModule {
       loc.textContent = `${this.basename(entry.file)}:${entry.line + 1}`;
       row.append(badge, msg, loc);
       row.title = entry.file;
+      row.setAttribute('aria-label', `${entry.tag}: ${entry.message || 'No description'}, ${this.basename(entry.file)} line ${entry.line + 1}`);
       row.addEventListener('click', () => void this.openEntry(entry));
       this.panel.appendChild(row);
     }

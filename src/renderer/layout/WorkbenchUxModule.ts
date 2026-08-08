@@ -1,4 +1,4 @@
-import { ServiceKeys, type KeybindingService, type LayoutService, type SettingsService } from '../core/Contracts';
+import { ServiceKeys, type InputBoxService, type KeybindingService, type LayoutService, type SettingsService } from '../core/Contracts';
 import { selfTestCoordinator } from '../core/SelfTestCoordinator';
 import type { IModule, ModuleContext } from '../core/Module';
 import { CommandIds } from '../commands/CommandIds';
@@ -48,6 +48,8 @@ export class WorkbenchUxModule implements IModule {
   private profiles: LayoutProfile[] = [];
   private stopObserving: (() => void) | undefined;
   private replaying = false;
+  private namingMacro = false;
+  private savingProfile = false;
 
   activate(context: ModuleContext): void {
     this.context = context;
@@ -64,6 +66,13 @@ export class WorkbenchUxModule implements IModule {
     context.commands.register(CommandIds.MacroShow, () => this.showMacros(), 'Macro: Show Macros');
     context.commands.register(CommandIds.LayoutProfilesShow, () => this.showProfiles(), 'View: Layout Profiles');
     context.commands.register(CommandIds.LayoutProfileSave, () => this.saveProfile(), 'View: Save Layout Profile');
+    context.commands.addEnablementRule((id) => {
+      if (id === CommandIds.MacroStartRecording) return !this.recorder.isRecording && !this.namingMacro;
+      if (id === CommandIds.MacroStopRecording) return this.recorder.isRecording && !this.namingMacro;
+      if (id === CommandIds.MacroReplay) return !this.recorder.isRecording && !this.replaying && this.macros.length > 0;
+      if (id === CommandIds.LayoutProfileSave) return !this.savingProfile;
+      return undefined;
+    });
 
     void selfTestCoordinator.run('workbench-ux', () => this.maybeSelfTest());
   }
@@ -81,26 +90,59 @@ export class WorkbenchUxModule implements IModule {
       if (this.replaying) return; // a replay must not re-record itself
       this.recorder.record(id, Date.now());
     });
+    this.context.commands.notifyEnablementChanged();
     this.context.layout.showToast('Recording. Every command you run is captured.', 'info');
   }
 
-  private stopRecording(): void {
-    if (!this.recorder.isRecording) return;
+  private async stopRecording(): Promise<void> {
+    if (!this.recorder.isRecording || this.namingMacro) return;
     const refused = this.recorder.refusedCommands;
     this.stopObserving?.();
     this.stopObserving = undefined;
-
-    const name = window.prompt('Name this macro:', 'My macro');
-    const macro = this.recorder.stop(name ?? '');
-    if (!macro) {
+    const recorded = this.recorder.stop('Recorded macro');
+    this.context.commands.notifyEnablementChanged();
+    if (!recorded) {
       this.context.layout.showToast('Nothing was recorded.', 'info');
       return;
     }
-    this.macros = upsertMacro(this.macros, macro);
-    this.settings?.set(MACROS_SETTING, this.macros);
 
-    const note = refused.length ? ` ${refused.length} command(s) were refused as unsafe to replay.` : '';
-    this.context.layout.showToast(`Saved "${macro.name}" (${macro.steps.length} steps).${note}`, 'info');
+    this.namingMacro = true;
+    this.context.commands.notifyEnablementChanged();
+    try {
+      const input = this.context.services.get<InputBoxService>(ServiceKeys.InputBox);
+      const value = await input.prompt({
+        title: 'Save Recorded Macro',
+        label: 'Macro name',
+        value: 'My macro',
+        placeholder: 'A descriptive name for this command sequence',
+        submitLabel: 'Save Macro',
+        validate: (name) => name.trim() ? null : 'Enter a macro name.',
+      });
+      if (value === null) {
+        this.context.layout.showToast('Recording discarded.', 'info');
+        return;
+      }
+      const name = value.trim();
+      if (this.macros.some((entry) => entry.name === name)) {
+        const replace = await input.confirm({
+          title: 'Replace Macro?',
+          message: `A macro named “${name}” already exists. Replace it with this recording?`,
+          confirmLabel: 'Replace',
+        });
+        if (!replace) return;
+      }
+      const macro: Macro = { ...recorded, name };
+      this.macros = upsertMacro(this.macros, macro);
+      this.settings?.set(MACROS_SETTING, this.macros);
+
+      const note = refused.length ? ` ${refused.length} command(s) were refused as unsafe to replay.` : '';
+      this.context.layout.showToast(`Saved "${macro.name}" (${macro.steps.length} steps).${note}`, 'info');
+    } catch (error) {
+      this.context.layout.showToast(`Could not save macro: ${(error as Error).message}`, 'error');
+    } finally {
+      this.namingMacro = false;
+      this.context.commands.notifyEnablementChanged();
+    }
   }
 
   private async replay(name?: string): Promise<void> {
@@ -145,9 +187,12 @@ export class WorkbenchUxModule implements IModule {
       toggle.className = 'znxstudio-btn-small';
       toggle.textContent = this.recorder.isRecording ? '⏹ Stop recording' : '⏺ Start recording';
       toggle.addEventListener('click', () => {
-        if (this.recorder.isRecording) this.stopRecording();
-        else this.startRecording();
-        render();
+        if (this.recorder.isRecording) {
+          void this.stopRecording().finally(render);
+        } else {
+          this.startRecording();
+          render();
+        }
       });
       view.appendChild(toggle);
 
@@ -204,18 +249,46 @@ export class WorkbenchUxModule implements IModule {
     this.context.layout.showToast(`Layout profile: ${profile.name}`, 'info');
   }
 
-  private saveProfile(): void {
-    const name = window.prompt('Save the current layout as:', 'My layout');
-    if (!name) return;
-    const profile = captureProfile(name, this.configuration());
-    const next = upsertProfile(this.profiles, profile);
-    if (next === this.profiles) {
-      this.context.layout.showToast(`"${name}" is a built-in profile and cannot be replaced.`, 'error');
-      return;
+  private async saveProfile(): Promise<void> {
+    if (this.savingProfile) return;
+    this.savingProfile = true;
+    this.context.commands.notifyEnablementChanged();
+    try {
+      const input = this.context.services.get<InputBoxService>(ServiceKeys.InputBox);
+      const value = await input.prompt({
+        title: 'Save Layout Profile',
+        label: 'Profile name',
+        value: 'My layout',
+        placeholder: 'A name for the current layout and keybindings',
+        submitLabel: 'Save Profile',
+        validate: (name) => {
+          const normalized = name.trim();
+          if (!normalized) return 'Enter a layout profile name.';
+          return allProfiles([]).some((profile) => profile.builtIn && profile.name === normalized)
+            ? 'Built-in layout profiles cannot be replaced.'
+            : null;
+        },
+      });
+      if (value === null) return;
+      const name = value.trim();
+      if (this.profiles.some((profile) => profile.name === name)) {
+        const replace = await input.confirm({
+          title: 'Replace Layout Profile?',
+          message: `A layout profile named “${name}” already exists. Replace it with the current layout?`,
+          confirmLabel: 'Replace',
+        });
+        if (!replace) return;
+      }
+      const profile = captureProfile(name, this.configuration());
+      this.profiles = upsertProfile(this.profiles, profile);
+      this.settings?.set(PROFILES_SETTING, this.profiles);
+      this.context.layout.showToast(`Saved layout profile "${profile.name}".`, 'info');
+    } catch (error) {
+      this.context.layout.showToast(`Could not save layout profile: ${(error as Error).message}`, 'error');
+    } finally {
+      this.savingProfile = false;
+      this.context.commands.notifyEnablementChanged();
     }
-    this.profiles = next;
-    this.settings?.set(PROFILES_SETTING, this.profiles);
-    this.context.layout.showToast(`Saved layout profile "${profile.name}".`, 'info');
   }
 
   private showProfiles(): void {
@@ -264,10 +337,10 @@ export class WorkbenchUxModule implements IModule {
 
       const save = document.createElement('button');
       save.className = 'znxstudio-btn-small';
-      save.textContent = '＋ Save current layout';
+      save.textContent = this.savingProfile ? 'Saving…' : '＋ Save current layout';
+      save.disabled = this.savingProfile;
       save.addEventListener('click', () => {
-        this.saveProfile();
-        render();
+        void this.saveProfile().finally(render);
       });
       view.appendChild(save);
     };

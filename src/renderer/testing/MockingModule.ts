@@ -33,10 +33,20 @@ export class MockingModule implements IModule {
     context.commands.register(CommandIds.MockingShow, () => this.context.layout.showPanelView('mocking'), 'Test: Show Mocks');
 
     const editor = context.services.tryGet<EditorService>(ServiceKeys.Editor);
-    editor?.onDidChangeActiveFile(() => this.scheduleRefresh(0));
-    this.documents.onDidChange((doc) => {
-      if (doc.uri === this.documents.getActive()?.uri) this.scheduleRefresh(400);
-    });
+    if (editor) {
+      context.subscriptions.push(editor.onDidChangeActiveFile(() => this.scheduleRefresh(0)));
+    }
+    context.subscriptions.push(
+      this.documents.onDidChange((doc) => {
+        if (doc.uri === this.documents.getActive()?.uri) this.scheduleRefresh(400);
+      }),
+      {
+        dispose: () => {
+          if (this.refreshTimer) clearTimeout(this.refreshTimer);
+          this.refreshTimer = null;
+        },
+      },
+    );
 
     this.renderMessage('Open a .zx file with repository/service components.');
     void selfTestCoordinator.run('mocking', () => this.maybeSelfTest());
@@ -58,7 +68,7 @@ export class MockingModule implements IModule {
       this.renderMessage('No DI components (repository/service/application) in this file.');
       return;
     }
-    this.render(components);
+    this.render(components, active.uri);
   }
 
   private renderMessage(message: string): void {
@@ -68,7 +78,7 @@ export class MockingModule implements IModule {
     this.panel.replaceChildren(empty);
   }
 
-  private render(components: Component[]): void {
+  private render(components: Component[], sourceUri: string): void {
     this.panel.replaceChildren();
     for (const component of components) {
       const card = document.createElement('div');
@@ -78,6 +88,7 @@ export class MockingModule implements IModule {
       head.className = 'znxstudio-mocking-head';
       const icon = document.createElement('span');
       icon.textContent = KIND_ICON[component.kind] ?? '•';
+      icon.setAttribute('aria-hidden', 'true');
       const name = document.createElement('span');
       name.className = 'znxstudio-mocking-name';
       name.textContent = component.name;
@@ -92,7 +103,8 @@ export class MockingModule implements IModule {
         mock.className = 'znxstudio-btn-small';
         mock.textContent = '⧉ Mock';
         mock.title = 'Generate a test double and insert it at the cursor';
-        mock.addEventListener('click', () => this.insertMock(component));
+        mock.setAttribute('aria-label', `Insert mock for ${component.name}`);
+        mock.addEventListener('click', () => this.insertMock(component, sourceUri));
         head.appendChild(mock);
       }
       card.appendChild(head);
@@ -123,10 +135,15 @@ export class MockingModule implements IModule {
     }
   }
 
-  private insertMock(component: Component): void {
+  private insertMock(component: Component, sourceUri: string): void {
     const editor = this.context.services.tryGet<EditorService>(ServiceKeys.Editor);
     if (!editor || !editor.currentUri()) {
       this.context.layout.showToast('Open a .zx file to insert the mock.', 'info');
+      return;
+    }
+    if (editor.currentUri() !== sourceUri) {
+      this.context.layout.showToast('The active file changed. Select the component again before inserting a mock.', 'info');
+      this.scheduleRefresh(0);
       return;
     }
     editor.insertText(`\n${generateMock(component)}`);

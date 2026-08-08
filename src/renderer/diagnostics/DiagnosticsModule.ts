@@ -70,16 +70,15 @@ export class DiagnosticsModule implements IModule {
   private render(surfaceOnError: boolean): void {
     const projectDiags = this.workspaceInfo?.diagnostics ?? [];
     const languageUris = (this.engine?.uris() ?? []).filter((uri) => (this.engine?.get(uri).length ?? 0) > 0);
-    const languageTotal = languageUris.reduce((n, uri) => n + (this.engine?.get(uri).length ?? 0), 0);
+    const counts = this.countAll(projectDiags, languageUris);
 
-    this.renderStatus(projectDiags, languageTotal);
+    this.renderStatus(counts);
 
     if (projectDiags.length === 0 && languageUris.length === 0) {
       this.surface.innerHTML = `<div class="znxstudio-diagnostics-empty">✓ No problems detected.</div>`;
       return;
     }
 
-    const counts = this.countAll(projectDiags, languageUris);
     const container = document.createElement('div');
     container.appendChild(this.toolbar(counts));
 
@@ -136,8 +135,10 @@ export class DiagnosticsModule implements IModule {
     bar.className = 'znxstudio-diagnostics-toolbar';
     const chip = (bucket: FilterBucket, icon: string, label: string) => {
       const el = document.createElement('button');
+      el.type = 'button';
       el.className = `znxstudio-diag-chip${this.filters[bucket] ? ' is-active' : ''}`;
       el.textContent = `${icon} ${counts[bucket]} ${label}`;
+      el.setAttribute('aria-pressed', String(this.filters[bucket]));
       el.addEventListener('click', () => {
         this.filters[bucket] = !this.filters[bucket];
         this.render(false);
@@ -235,6 +236,14 @@ export class DiagnosticsModule implements IModule {
     if (opts.onClick) {
       row.classList.add('is-clickable');
       row.addEventListener('click', opts.onClick);
+      row.tabIndex = 0;
+      row.setAttribute('role', 'button');
+      row.addEventListener('keydown', (event) => {
+        if (event.key === 'Enter' || event.key === ' ') {
+          event.preventDefault();
+          opts.onClick?.();
+        }
+      });
     }
     return row;
   }
@@ -247,25 +256,36 @@ export class DiagnosticsModule implements IModule {
   }
 
   private codeBadge(code: string): HTMLElement {
-    const badge = document.createElement('span');
-    badge.className = 'znxstudio-diagnostic-code';
-    badge.textContent = code;
     const url = this.docsUrl();
     if (url && isZornuxCode(code)) {
+      const badge = document.createElement('button');
+      badge.type = 'button';
+      badge.className = 'znxstudio-diagnostic-code';
+      badge.textContent = code;
       badge.classList.add('is-link');
       badge.title = 'Open diagnostic documentation';
       badge.addEventListener('click', (event) => {
         event.stopPropagation(); // don't also navigate the row
-        void window.znxstudio.shell.openExternal(`${url.replace(/\/$/, '')}#${code}`);
+        void window.znxstudio.shell.openExternal(`${url.replace(/\/$/, '')}#${code}`).catch((error: unknown) => {
+          this.context.layout.showToast(`Could not open diagnostic documentation: ${(error as Error).message}`, 'error');
+        });
       });
+      badge.addEventListener('keydown', (event) => event.stopPropagation());
+      return badge;
     }
+    const badge = document.createElement('span');
+    badge.className = 'znxstudio-diagnostic-code';
+    badge.textContent = code;
     return badge;
   }
 
   /** Navigate to a diagnostic's file + position in the editor. */
   private reveal(uri: string, diagnostic: Diagnostic): void {
     const editor = this.context.services.tryGet<EditorService>(ServiceKeys.Editor);
-    void editor?.revealLocation(uri, diagnostic.range.start.line, diagnostic.range.start.character);
+    if (!editor) return;
+    void editor.revealLocation(uri, diagnostic.range.start.line, diagnostic.range.start.character).catch((error: unknown) => {
+      this.context.layout.showToast(`Could not open problem location: ${(error as Error).message}`, 'error');
+    });
   }
 
   private docsUrl(): string {
@@ -275,11 +295,11 @@ export class DiagnosticsModule implements IModule {
     return typeof value === 'string' ? value.trim() : '';
   }
 
-  private renderStatus(projectDiags: ProjectDiagnostic[], languageCount: number): void {
+  private renderStatus(counts: Record<FilterBucket, number>): void {
     const status = this.context.services.tryGet<StatusService>(ServiceKeys.Status);
     if (!status) return;
-    const errors = projectDiags.filter((d) => d.severity === 'error').length;
-    const warnings = projectDiags.filter((d) => d.severity === 'warning').length + languageCount;
+    const errors = counts.error;
+    const warnings = counts.warning;
     status.setItem('diagnostics', {
       text: errors || warnings ? `⛔ ${errors}  ⚠️ ${warnings}` : '✓ 0',
       tooltip: 'Project + language problems',

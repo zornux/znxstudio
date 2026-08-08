@@ -54,6 +54,9 @@ export class ProfilesModule implements IModule, ProfileService {
 
   private activeProfile: EnvironmentProfile = DEFAULT_PROFILE;
   private container!: HTMLElement;
+  private renderSequence = 0;
+  private configSequence = 0;
+  private runningConfig = false;
 
   activate(context: ModuleContext): void {
     this.context = context;
@@ -67,6 +70,9 @@ export class ProfilesModule implements IModule, ProfileService {
     this.activeProfile = this.loadProfile();
 
     context.commands.register(CommandIds.ProfileSelect, () => this.openView(), 'Workspace: Select Profile');
+    context.subscriptions.push(
+      context.commands.addEnablementRule((id) => id === CommandIds.ProfileSelect ? Boolean(this.workspace.currentFolder()) : undefined),
+    );
 
     context.layout.addActivityItem({
       id: 'profiles',
@@ -77,16 +83,21 @@ export class ProfilesModule implements IModule, ProfileService {
 
     // Re-load the persisted profile when the primary folder changes.
     this.workspace.onDidChangeWorkspace(() => {
+      this.renderSequence += 1;
+      this.configSequence += 1;
+      this.runningConfig = false;
       const next = this.loadProfile();
       if (next !== this.activeProfile) {
         this.activeProfile = next;
         this.changeEmitter.fire(next);
       }
       this.updateStatus();
+      this.context.commands.notifyEnablementChanged();
       void this.render();
     });
 
     this.updateStatus();
+    this.context.commands.notifyEnablementChanged();
     void selfTestCoordinator.run('profiles', () => this.maybeSelfTest());
   }
 
@@ -102,6 +113,8 @@ export class ProfilesModule implements IModule, ProfileService {
 
   setActive(profile: EnvironmentProfile): void {
     if (profile === this.activeProfile) return;
+    this.configSequence += 1;
+    this.runningConfig = false;
     this.activeProfile = profile;
     this.persistProfile(profile);
     this.changeEmitter.fire(profile);
@@ -131,6 +144,10 @@ export class ProfilesModule implements IModule, ProfileService {
 
   private updateStatus(): void {
     const status = this.context.services.tryGet<StatusService>(ServiceKeys.Status);
+    if (!this.workspace.currentFolder()) {
+      status?.removeItem('profiles.active');
+      return;
+    }
     status?.setItem('profiles.active', {
       text: `${PROFILE_ICON[this.activeProfile]} ${profileDisplay(this.activeProfile)}`,
       tooltip: `Active environment profile — click to change (threaded into zornux run/config as --profile ${this.activeProfile})`,
@@ -159,7 +176,10 @@ export class ProfilesModule implements IModule, ProfileService {
   }
 
   private async render(): Promise<void> {
-    if (!this.workspace.currentFolder()) {
+    const sequence = ++this.renderSequence;
+    const root = this.workspace.currentFolder();
+    const profile = this.activeProfile;
+    if (!root) {
       const empty = document.createElement('div');
       empty.className = 'znxstudio-explorer-empty';
       const message = document.createElement('p');
@@ -171,7 +191,8 @@ export class ProfilesModule implements IModule, ProfileService {
 
     const fragment = document.createDocumentFragment();
     fragment.appendChild(this.renderProfilePicker());
-    fragment.appendChild(await this.renderConfigLayers());
+    fragment.appendChild(await this.renderConfigLayers(root, profile));
+    if (sequence !== this.renderSequence || this.workspace.currentFolder() !== root || this.activeProfile !== profile) return;
     fragment.appendChild(this.renderConfigActions());
     this.container.replaceChildren(fragment);
   }
@@ -180,7 +201,8 @@ export class ProfilesModule implements IModule, ProfileService {
     const group = document.createElement('div');
     group.className = 'znxstudio-profiles-picker';
     for (const profile of ENVIRONMENT_PROFILES) {
-      const row = document.createElement('div');
+      const row = document.createElement('button');
+      row.type = 'button';
       row.className = 'znxstudio-tree-row znxstudio-profiles-option';
       if (profile === this.activeProfile) row.classList.add('is-active');
       const mark = document.createElement('span');
@@ -192,13 +214,14 @@ export class ProfilesModule implements IModule, ProfileService {
       const label = document.createElement('span');
       label.textContent = profileDisplay(profile);
       row.append(mark, icon, label);
+      row.setAttribute('aria-pressed', String(profile === this.activeProfile));
       row.addEventListener('click', () => this.setActive(profile));
       group.appendChild(row);
     }
     return group;
   }
 
-  private async renderConfigLayers(): Promise<HTMLElement> {
+  private async renderConfigLayers(root: string, profile: EnvironmentProfile): Promise<HTMLElement> {
     const section = document.createElement('div');
     section.className = 'znxstudio-profiles-layers';
     const header = document.createElement('div');
@@ -206,17 +229,14 @@ export class ProfilesModule implements IModule, ProfileService {
     header.textContent = 'Config layers';
     section.appendChild(header);
 
-    const root = this.workspace.currentFolder();
     const present = new Set<string>();
-    if (root) {
-      try {
-        for (const node of await window.znxstudio.fs.readDirectory(root)) present.add(node.name);
-      } catch {
-        /* unreadable root — treat as no config files */
-      }
+    try {
+      for (const node of await window.znxstudio.fs.readDirectory(root)) present.add(node.name);
+    } catch {
+      /* unreadable root — treat as no config files */
     }
 
-    for (const file of profileConfigFiles(this.activeProfile)) {
+    for (const file of profileConfigFiles(profile)) {
       const row = document.createElement('div');
       row.className = 'znxstudio-solution-detail znxstudio-profiles-layer';
       const exists = present.has(file.name);
@@ -243,11 +263,13 @@ export class ProfilesModule implements IModule, ProfileService {
     const showBtn = document.createElement('button');
     showBtn.className = 'znxstudio-btn';
     showBtn.textContent = 'Show effective config';
+    showBtn.dataset.configAction = 'true';
     showBtn.addEventListener('click', () => void this.runConfig('show'));
 
     const validateBtn = document.createElement('button');
     validateBtn.className = 'znxstudio-btn';
     validateBtn.textContent = 'Validate';
+    validateBtn.dataset.configAction = 'true';
     validateBtn.addEventListener('click', () => void this.runConfig('validate'));
 
     const output = document.createElement('div');
@@ -272,31 +294,54 @@ export class ProfilesModule implements IModule, ProfileService {
   }
 
   private async runConfig(subcommand: 'show' | 'validate'): Promise<void> {
+    if (this.runningConfig) return;
     const root = this.workspace.currentFolder();
     const entry = this.zornuxEntry();
     const host = this.outputHost();
     if (!root || !entry || !host) return;
-
-    const info = await window.znxstudio.compiler.info();
-    if (!info.available) {
-      this.context.layout.showToast('Zornux compiler not available.', 'error');
-      return;
+    const profile = this.activeProfile;
+    const sequence = ++this.configSequence;
+    this.runningConfig = true;
+    this.setConfigBusy(true);
+    host.textContent = `Running zornux config ${subcommand} --profile ${profile}…`;
+    try {
+      const info = await window.znxstudio.compiler.info();
+      if (!info.available) {
+        this.context.layout.showToast('Zornux compiler not available.', 'error');
+        host.textContent = 'Zornux compiler is not available.';
+        return;
+      }
+      const raw = await window.znxstudio.config.query({
+        subcommand,
+        file: entry,
+        profile,
+        cwd: root,
+        compilerPath: info.path,
+      });
+      if (!this.isCurrentConfig(sequence, root, profile, host)) return;
+      if (subcommand === 'show') {
+        host.replaceChildren(this.renderShow(parseConfigShow(raw.exitCode, raw.stdout, raw.stderr)));
+      } else {
+        host.replaceChildren(this.renderValidate(parseConfigValidate(raw.exitCode, raw.stdout, raw.stderr)));
+      }
+    } catch (error) {
+      if (!this.isCurrentConfig(sequence, root, profile, host)) return;
+      host.textContent = `Config command failed: ${(error as Error).message}`;
+      this.context.layout.showToast('Configuration command failed.', 'error');
+    } finally {
+      if (sequence === this.configSequence) {
+        this.runningConfig = false;
+        this.setConfigBusy(false);
+      }
     }
+  }
 
-    host.textContent = `Running zornux config ${subcommand} --profile ${this.activeProfile}…`;
-    const raw = await window.znxstudio.config.query({
-      subcommand,
-      file: entry,
-      profile: this.activeProfile,
-      cwd: root,
-      compilerPath: info.path,
-    });
+  private setConfigBusy(busy: boolean): void {
+    for (const button of this.container.querySelectorAll<HTMLButtonElement>('[data-config-action="true"]')) button.disabled = busy;
+  }
 
-    if (subcommand === 'show') {
-      host.replaceChildren(this.renderShow(parseConfigShow(raw.exitCode, raw.stdout, raw.stderr)));
-    } else {
-      host.replaceChildren(this.renderValidate(parseConfigValidate(raw.exitCode, raw.stdout, raw.stderr)));
-    }
+  private isCurrentConfig(sequence: number, root: string, profile: EnvironmentProfile, host: HTMLElement): boolean {
+    return sequence === this.configSequence && host.isConnected && this.workspace.currentFolder() === root && this.activeProfile === profile;
   }
 
   private renderShow(result: ConfigShowResult): HTMLElement {

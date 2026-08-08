@@ -466,10 +466,12 @@ export class TestExplorerModule implements IModule {
 
     const header = document.createElement('div');
     header.className = 'znxstudio-tests-file-head';
-    header.tabIndex = 0;
-    header.setAttribute('role', 'button');
-    header.setAttribute('aria-expanded', String(file.expanded));
-    header.setAttribute('aria-label', `${this.basename(file.file)}, ${file.tests.length} tests`);
+    const disclosure = document.createElement('div');
+    disclosure.className = 'znxstudio-tests-file-disclosure';
+    disclosure.tabIndex = 0;
+    disclosure.setAttribute('role', 'button');
+    disclosure.setAttribute('aria-expanded', String(file.expanded));
+    disclosure.setAttribute('aria-label', `${this.basename(file.file)}, ${file.tests.length} tests`);
     const caret = document.createElement('span');
     caret.className = 'znxstudio-tests-caret';
     caret.textContent = file.expanded ? '▾' : '▸';
@@ -495,14 +497,14 @@ export class TestExplorerModule implements IModule {
       event.stopPropagation();
       if (this.canRunFile(file)) void this.runFile(file);
     });
-    header.append(caret, name, kind, summary, run);
+    disclosure.append(caret, name, kind, summary);
+    header.append(disclosure, run);
     const toggle = (): void => {
       file.expanded = !file.expanded;
       this.render();
     };
-    header.addEventListener('click', toggle);
-    header.addEventListener('keydown', (event) => {
-      if (event.target !== header) return;
+    disclosure.addEventListener('click', toggle);
+    disclosure.addEventListener('keydown', (event) => {
       if (event.key === 'Enter' || event.key === ' ') {
         event.preventDefault();
         toggle();
@@ -519,12 +521,15 @@ export class TestExplorerModule implements IModule {
   private renderTest(file: UiFile, test: UiTest): HTMLElement {
     const row = document.createElement('div');
     row.className = `znxstudio-tests-case znxstudio-tests-case--${test.status}`;
-    row.tabIndex = 0;
-    row.setAttribute('role', 'button');
-    row.setAttribute('aria-label', `${test.name}, ${test.status === 'none' ? 'not run' : test.status}`);
+    const target = document.createElement('div');
+    target.className = 'znxstudio-tests-case-target';
+    target.tabIndex = 0;
+    target.setAttribute('role', 'button');
+    target.setAttribute('aria-label', `${test.name}, ${test.status === 'none' ? 'not run' : test.status}`);
     const icon = document.createElement('span');
     icon.className = 'znxstudio-tests-icon';
     icon.textContent = STATUS_ICON[test.status] ?? '○';
+    icon.setAttribute('aria-hidden', 'true');
     const name = document.createElement('span');
     name.className = 'znxstudio-tests-case-name';
     name.textContent = test.name;
@@ -542,11 +547,11 @@ export class TestExplorerModule implements IModule {
       event.stopPropagation();
       if (this.canRunFile(file)) void this.runFile(file, test.name);
     });
-    row.append(icon, name, meta, run);
+    target.append(icon, name, meta);
+    row.append(target, run);
     const open = (): void => void this.open(file.file, test.line);
-    row.addEventListener('click', open);
-    row.addEventListener('keydown', (event) => {
-      if (event.target !== row) return;
+    target.addEventListener('click', open);
+    target.addEventListener('keydown', (event) => {
       if (event.key === 'Enter' || event.key === ' ') {
         event.preventDefault();
         open();

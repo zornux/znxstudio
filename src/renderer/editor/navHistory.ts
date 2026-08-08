@@ -68,6 +68,14 @@ export class NavHistory {
     return this.entries[this.index] ?? null;
   }
 
+  /** Remove the current entry, retaining the nearest valid location. */
+  discardCurrent(): NavLocation | null {
+    if (this.index < 0) return null;
+    this.entries.splice(this.index, 1);
+    if (this.index >= this.entries.length) this.index = this.entries.length - 1;
+    return this.current();
+  }
+
   size(): number {
     return this.entries.length;
   }

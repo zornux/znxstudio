@@ -328,6 +328,7 @@ export class LayoutModule implements IModule, LayoutService {
       { separator: true },
       this.menuItem('Save', CommandIds.FileSave),
       this.menuItem('Save All', CommandIds.FileSaveAll),
+      this.menuItem('Revert File', CommandIds.FileRevert),
       { separator: true },
       this.menuItem('Close Editor', CommandIds.EditorClose),
       { separator: true },
@@ -565,11 +566,22 @@ export class LayoutModule implements IModule, LayoutService {
     const list = this.recentWorkspaces();
     if (list.length === 0) return;
     const checks = await Promise.all(
-      list.map(async (path) => [path, await window.znxstudio.fs.directoryExists(path)] as const),
+      list.map(async (path) => {
+        try {
+          return [path, await window.znxstudio.fs.directoryExists(path)] as const;
+        } catch {
+          // An IPC/filesystem outage does not prove the folder was removed.
+          return [path, true] as const;
+        }
+      }),
     );
     const existing = new Set(checks.filter(([, ok]) => ok).map(([path]) => path));
     const pruned = pruneRecentWorkspaces(list, existing);
-    if (pruned.length !== list.length) settings.set('workbench.recentWorkspaces', pruned);
+    // Do not overwrite a newer entry added while the asynchronous checks ran.
+    const current = this.recentWorkspaces();
+    if (pruned.length !== list.length && current.length === list.length && current.every((path, index) => path === list[index])) {
+      settings.set('workbench.recentWorkspaces', pruned);
+    }
   }
 
   private async openFileFromDialog(): Promise<void> {

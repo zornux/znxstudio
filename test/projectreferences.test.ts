@@ -42,6 +42,18 @@ describe('resolveProjectReferences', () => {
     expect(graph.references.get('C:/a')![0].internal).toBeFalsy();
   });
 
+  test('duplicate package names remain external instead of resolving arbitrarily', () => {
+    const graph = resolveProjectReferences([
+      node('C:/app', 'app', [dep('shared')]),
+      node('C:/lib-a', 'Shared'),
+      node('C:/lib-b', 'shared'),
+    ]);
+    const reference = graph.references.get('C:/app')![0];
+    expect(reference.internal).toBeFalsy();
+    expect(reference.ambiguous).toBeTruthy();
+    expect(reference.targetRoot).toBe(undefined);
+  });
+
   test('build order lists dependencies before dependents', () => {
     const graph = resolveProjectReferences([
       node('C:/app', 'app', [dep('lib')]),

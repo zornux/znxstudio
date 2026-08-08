@@ -238,6 +238,7 @@ export const CommandIds = {
   PaletteShow: 'znxstudio.palette.show',
   SearchEverywhere: 'znxstudio.search.everywhere',
   FileSave: 'znxstudio.file.save',
+  FileRevert: 'znxstudio.file.revert',
   FileSaveAll: 'znxstudio.file.saveAll',
   ExplorerRename: 'znxstudio.explorer.rename',
   ExplorerDelete: 'znxstudio.explorer.delete',

@@ -70,12 +70,17 @@ export function parseSession(value: unknown): SessionSnapshot {
   const raw = value as { tabs?: unknown; activePath?: unknown };
   if (!Array.isArray(raw.tabs)) return empty;
   const tabs: SessionTab[] = [];
+  const paths = new Set<string>();
   for (const entry of raw.tabs) {
     if (entry && typeof entry === 'object' && typeof (entry as SessionTab).path === 'string') {
-      tabs.push({ path: (entry as SessionTab).path, pinned: (entry as { pinned?: unknown }).pinned === true });
+      const path = (entry as SessionTab).path.trim();
+      if (path.length > 0 && !paths.has(path)) {
+        paths.add(path);
+        tabs.push({ path, pinned: (entry as { pinned?: unknown }).pinned === true });
+      }
     }
   }
-  const activePath = typeof raw.activePath === 'string' ? raw.activePath : null;
+  const activePath = typeof raw.activePath === 'string' && paths.has(raw.activePath) ? raw.activePath : null;
   return { version: SESSION_VERSION, tabs, activePath };
 }
 

@@ -42,6 +42,12 @@ export class LiveErrorsModule implements IModule {
 
     context.commands.register(CommandIds.ErrorNext, () => this.goToNext(), 'Go: Next Problem');
     context.commands.register(CommandIds.ErrorPrevious, () => this.goToPrevious(), 'Go: Previous Problem');
+    context.subscriptions.push(
+      context.commands.addEnablementRule((id) => {
+        if (id === CommandIds.ErrorNext || id === CommandIds.ErrorPrevious) return this.activeDiagnostics().length > 0;
+        return undefined;
+      }),
+    );
 
     // Repaint when diagnostics for the active file change, or the active file changes.
     this.engine?.onDidChange(({ uri }) => {
@@ -74,11 +80,11 @@ export class LiveErrorsModule implements IModule {
 
   /* ----- rendering ----- */
   private refresh(): void {
-    const uri = this.editor?.currentUri() ?? null;
-    const diagnostics = uri ? this.engine?.get(uri) ?? [] : [];
+    const diagnostics = this.activeDiagnostics();
 
     this.renderErrorLens(diagnostics);
     this.renderStatus(diagnostics);
+    this.context.commands.notifyEnablementChanged();
   }
 
   private renderErrorLens(diagnostics: Diagnostic[]): void {
@@ -132,7 +138,16 @@ export class LiveErrorsModule implements IModule {
     const diagnostics = this.engine?.get(uri) ?? [];
     const position = this.editor.cursorPosition() ?? { line: 0, character: 0 };
     const target = pick(diagnostics, position);
-    if (target) this.editor.revealPosition(target.range.start.line, target.range.start.character);
+    if (!target) {
+      this.context.layout.showToast('No problems in the active file.', 'info');
+      return;
+    }
+    this.editor.revealPosition(target.range.start.line, target.range.start.character);
+  }
+
+  private activeDiagnostics(): Diagnostic[] {
+    const uri = this.editor?.currentUri();
+    return uri ? this.engine?.get(uri) ?? [] : [];
   }
 
   private errorLensEnabled(): boolean {

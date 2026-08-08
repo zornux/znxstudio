@@ -41,6 +41,8 @@ export class DependencyGraphModule implements IModule, DependencyGraphService {
   private lastCheckedHash: string | null = null;
   private lastDiagnosticUris: string[] = [];
   private refreshTimer: ReturnType<typeof setTimeout> | undefined;
+  private refreshSequence = 0;
+  private refreshing = false;
 
   async activate(context: ModuleContext): Promise<void> {
     this.context = context;
@@ -56,6 +58,12 @@ export class DependencyGraphModule implements IModule, DependencyGraphService {
       CommandIds.ViewDependencies,
       () => context.layout.showPanelView('dependencies'),
       'Zornux: Show Dependencies',
+    );
+    context.subscriptions.push(
+      context.commands.addEnablementRule((id) => {
+        if (id === CommandIds.CheckProject) return Boolean(this.workspaceInfo()) && !this.refreshing;
+        return undefined;
+      }),
     );
 
     const workspace = context.services.tryGet<WorkspaceService>(ServiceKeys.Workspace);
@@ -87,43 +95,66 @@ export class DependencyGraphModule implements IModule, DependencyGraphService {
   }
 
   private async refresh(force: boolean): Promise<void> {
+    const sequence = ++this.refreshSequence;
     const info = this.workspaceInfo();
     if (!info) {
+      this.refreshing = false;
       this.current = null;
       this.clearDiagnostics();
       this.renderEmpty('No workspace open.');
+      this.removeStatus();
+      this.context.commands.notifyEnablementChanged();
       return;
     }
 
+    this.refreshing = true;
+    this.context.commands.notifyEnablementChanged();
+    if (force) this.renderEmpty('Building dependency graph…', true);
     const sourceDir = this.resolveSourceDir(info);
-    let snapshot: DependencyGraphSnapshot;
+    let graphBuilt = false;
     try {
-      snapshot = await window.znxstudio.graph.build({ root: info.root, sourceDir });
-    } catch {
-      this.renderEmpty('Could not read the workspace.');
-      return;
+      const snapshot = await window.znxstudio.graph.build({ root: info.root, sourceDir });
+      if (!this.isCurrent(sequence, info.root)) return;
+      this.current = snapshot;
+      this.render(snapshot);
+      this.updateStatus(snapshot);
+      graphBuilt = true;
+
+      if (snapshot.fileCount === 0) {
+        this.clearDiagnostics();
+        return;
+      }
+
+      // Module-aware project check — skip when nothing changed since last check.
+      if (!force && snapshot.contentHash && snapshot.contentHash === this.lastCheckedHash) return;
+      if (!this.compiler || !(await this.compiler.info()).available) return;
+      if (!this.isCurrent(sequence, info.root)) return;
+
+      const result = await this.compiler.checkProject({
+        sourceDir,
+        workspaceRoot: info.root,
+        compilerPath: this.compilerPathOverride(),
+      });
+      if (!this.isCurrent(sequence, info.root) || !result.available || !result.ran) return;
+      this.lastCheckedHash = snapshot.contentHash ?? null;
+      this.publishProjectDiagnostics(result.diagnostics, info.root);
+    } catch (error) {
+      if (!this.isCurrent(sequence, info.root)) return;
+      if (graphBuilt) {
+        this.context.layout.showToast(`Project check failed: ${(error as Error).message}`, 'error');
+      } else {
+        this.current = null;
+        this.clearDiagnostics();
+        this.removeStatus();
+        this.renderEmpty(`Could not refresh dependencies: ${(error as Error).message}`, false, true);
+        this.context.layout.showToast('Dependency graph refresh failed.', 'error');
+      }
+    } finally {
+      if (sequence === this.refreshSequence) {
+        this.refreshing = false;
+        this.context.commands.notifyEnablementChanged();
+      }
     }
-    this.current = snapshot;
-    this.render(snapshot);
-    this.updateStatus(snapshot);
-
-    if (snapshot.fileCount === 0) {
-      this.clearDiagnostics();
-      return;
-    }
-
-    // Module-aware project check — skip when nothing changed since last check.
-    if (!force && snapshot.contentHash && snapshot.contentHash === this.lastCheckedHash) return;
-    if (!this.compiler || !(await this.compiler.info()).available) return;
-
-    const result = await this.compiler.checkProject({
-      sourceDir,
-      workspaceRoot: info.root,
-      compilerPath: this.compilerPathOverride(),
-    });
-    if (!result.available || !result.ran) return;
-    this.lastCheckedHash = snapshot.contentHash ?? null;
-    this.publishProjectDiagnostics(result.diagnostics, info.root);
   }
 
   /**
@@ -199,8 +230,22 @@ export class DependencyGraphModule implements IModule, DependencyGraphService {
     this.surface.replaceChildren(container);
   }
 
-  private renderEmpty(message: string): void {
-    this.surface.innerHTML = `<div class="znxstudio-deps-empty">${message}</div>`;
+  private renderEmpty(message: string, busy = false, retry = false): void {
+    const empty = document.createElement('div');
+    empty.className = 'znxstudio-deps-empty';
+    if (busy) empty.setAttribute('aria-live', 'polite');
+    const text = document.createElement('span');
+    text.textContent = message;
+    empty.appendChild(text);
+    if (retry) {
+      const button = document.createElement('button');
+      button.type = 'button';
+      button.className = 'znxstudio-btn-small';
+      button.textContent = 'Retry';
+      button.addEventListener('click', () => void this.refresh(true));
+      empty.appendChild(button);
+    }
+    this.surface.replaceChildren(empty);
   }
 
   private summary(text: string): HTMLElement {
@@ -217,13 +262,26 @@ export class DependencyGraphModule implements IModule, DependencyGraphService {
     if (onClick) {
       el.classList.add('is-clickable');
       el.addEventListener('click', onClick);
+      el.tabIndex = 0;
+      el.setAttribute('role', 'button');
+      el.addEventListener('keydown', (event) => {
+        if (event.key === 'Enter' || event.key === ' ') {
+          event.preventDefault();
+          onClick();
+        }
+      });
     }
     return el;
   }
 
   private async open(path: string): Promise<void> {
     const editor = this.context.services.tryGet<EditorService>(ServiceKeys.Editor);
-    await editor?.openFile(path);
+    if (!editor) return;
+    try {
+      await editor.openFile(path);
+    } catch (error) {
+      this.context.layout.showToast(`Could not open dependency: ${(error as Error).message}`, 'error');
+    }
   }
 
   private updateStatus(snapshot: DependencyGraphSnapshot): void {
@@ -241,6 +299,14 @@ export class DependencyGraphModule implements IModule, DependencyGraphService {
       side: 'right',
       priority: 15,
     });
+  }
+
+  private removeStatus(): void {
+    this.context.services.tryGet<StatusService>(ServiceKeys.Status)?.removeItem('dependencies');
+  }
+
+  private isCurrent(sequence: number, root: string): boolean {
+    return sequence === this.refreshSequence && this.workspaceInfo()?.root === root;
   }
 
   /* ----- helpers ----- */

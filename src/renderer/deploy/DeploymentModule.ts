@@ -4,6 +4,8 @@ import {
   type DeployAction,
   type DeploymentContext,
   type DeploymentService,
+  type InputBoxService,
+  type QuickPickService,
   type SettingsService,
   type WorkspaceService,
 } from '../core/Contracts';
@@ -12,7 +14,6 @@ import { selfTestCoordinator } from '../core/SelfTestCoordinator';
 import type { IModule, ModuleContext } from '../core/Module';
 import { CommandIds } from '../commands/CommandIds';
 import {
-  DEPLOY_TARGETS,
   defaultProfile,
   parseDeploymentProfiles,
   validateProfile,
@@ -38,6 +39,7 @@ export class DeploymentModule implements IModule, DeploymentService {
   private view!: HTMLElement;
   private profileList: DeploymentProfile[] = [];
   private activeId = '';
+  private creatingProfile = false;
   private readonly registeredActions: DeployAction[] = [];
   private readonly actionButtons = new Map<string, HTMLButtonElement>();
   private readonly changeEmitter = new Emitter<void>();
@@ -59,6 +61,7 @@ export class DeploymentModule implements IModule, DeploymentService {
     context.layout.addActivityItem({ id: 'deploy', label: 'Deployment', icon: '🚀', onSelect: () => this.reveal() });
     context.commands.register(CommandIds.DeployShow, () => this.reveal(), 'Deployment: Show');
     context.commands.register(CommandIds.DeployNewProfile, () => this.newProfilePrompt(), 'Deployment: New Profile');
+    context.commands.addEnablementRule((id) => id === CommandIds.DeployNewProfile ? !this.creatingProfile : undefined);
 
     this.settings.onDidChange((event) => {
       if (event.key === PROFILES_KEY || event.key === ACTIVE_KEY) {
@@ -157,17 +160,55 @@ export class DeploymentModule implements IModule, DeploymentService {
     this.moduleContext.layout.focusSideBar();
   }
 
-  private newProfilePrompt(): void {
-    const name = window.prompt('Deployment profile name:', 'production');
-    if (!name) return;
-    const target = (window.prompt(`Target (${DEPLOY_TARGETS.join(' / ')}):`, 'docker') ?? 'docker') as DeployTarget;
-    const profile = defaultProfile(name.trim(), DEPLOY_TARGETS.includes(target) ? target : 'docker');
-    const invalid = validateProfile(profile);
-    if (invalid) {
-      this.moduleContext.layout.showToast(invalid, 'error');
-      return;
+  private async newProfilePrompt(): Promise<void> {
+    if (this.creatingProfile) return;
+    this.creatingProfile = true;
+    this.moduleContext.commands.notifyEnablementChanged();
+    this.render();
+    try {
+      const input = this.moduleContext.services.get<InputBoxService>(ServiceKeys.InputBox);
+      const picker = this.moduleContext.services.get<QuickPickService>(ServiceKeys.QuickPick);
+      const value = await input.prompt({
+        title: 'New Deployment Profile',
+        label: 'Profile name',
+        value: 'production',
+        placeholder: 'For example: production or staging',
+        submitLabel: 'Choose Target',
+        validate: (candidate) => {
+          const profile = defaultProfile(candidate.trim());
+          const invalid = validateProfile(profile);
+          if (invalid) return invalid;
+          return this.profileList.some((entry) => entry.id === profile.id)
+            ? 'A profile with this name already exists.'
+            : null;
+        },
+      });
+      if (value === null) return;
+      const name = value.trim();
+
+      const target = await picker.pick<DeployTarget>([
+        { label: 'Docker', description: 'Generate a container image configuration', value: 'docker' },
+        { label: 'Kubernetes', description: 'Generate Kubernetes deployment resources', value: 'kubernetes' },
+        { label: 'Cloud', description: 'Configure a managed cloud deployment', value: 'cloud' },
+        { label: 'Static', description: 'Publish prebuilt static files', value: 'static' },
+      ], { placeholder: 'Select a deployment target' });
+      if (target === undefined) return;
+
+      const profile = defaultProfile(name, target);
+      const invalid = validateProfile(profile);
+      if (invalid) {
+        this.moduleContext.layout.showToast(invalid, 'error');
+        return;
+      }
+      this.addProfile(profile);
+      this.moduleContext.layout.showToast(`Created deployment profile “${profile.name}”.`, 'success');
+    } catch (error) {
+      this.moduleContext.layout.showToast(`Could not create deployment profile: ${(error as Error).message}`, 'error');
+    } finally {
+      this.creatingProfile = false;
+      this.moduleContext.commands.notifyEnablementChanged();
+      this.render();
     }
-    this.addProfile(profile);
   }
 
   private render(): void {
@@ -224,8 +265,9 @@ export class DeploymentModule implements IModule, DeploymentService {
 
     const newBtn = document.createElement('button');
     newBtn.className = 'znxstudio-btn-small';
-    newBtn.textContent = '＋ New Profile';
-    newBtn.addEventListener('click', () => this.newProfilePrompt());
+    newBtn.textContent = this.creatingProfile ? 'Creating…' : '＋ New Profile';
+    newBtn.disabled = this.creatingProfile;
+    newBtn.addEventListener('click', () => void this.newProfilePrompt());
     this.view.appendChild(newBtn);
 
     // Generator actions (contributed by 13B–13F), grouped.

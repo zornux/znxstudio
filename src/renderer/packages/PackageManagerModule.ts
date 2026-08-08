@@ -1,4 +1,4 @@
-import { ServiceKeys, type WorkspaceService } from '../core/Contracts';
+import { ServiceKeys, type InputBoxService, type WorkspaceService } from '../core/Contracts';
 import { selfTestCoordinator } from '../core/SelfTestCoordinator';
 import type { IModule, ModuleContext } from '../core/Module';
 import { CommandIds } from '../commands/CommandIds';
@@ -28,10 +28,15 @@ export class PackageManagerModule implements IModule {
   private workspace!: WorkspaceService;
   private container!: HTMLElement;
   private searchInput?: HTMLInputElement;
+  private searchButton?: HTMLButtonElement;
   private registryFilter?: HTMLSelectElement;
   private results: PackageSearchResult[] = [];
   private registries: RegistryEntry[] = [];
   private searchStatus = '';
+  private searchSequence = 0;
+  private registrySequence = 0;
+  private searching = false;
+  private readonly pendingPackages = new Set<string>();
 
   activate(context: ModuleContext): void {
     this.context = context;
@@ -52,6 +57,10 @@ export class PackageManagerModule implements IModule {
     });
 
     this.workspace.onDidChangeWorkspace(() => {
+      this.searchSequence += 1;
+      this.registrySequence += 1;
+      this.searching = false;
+      this.updateSearchButton();
       this.results = [];
       this.searchStatus = '';
       void this.refreshRegistries();
@@ -71,6 +80,7 @@ export class PackageManagerModule implements IModule {
     const input = document.createElement('input');
     input.className = 'znxstudio-input';
     input.placeholder = 'Search packages…';
+    input.setAttribute('aria-label', 'Search packages');
     input.addEventListener('keydown', (event) => {
       if (event.key === 'Enter') void this.runSearch();
     });
@@ -82,9 +92,11 @@ export class PackageManagerModule implements IModule {
     this.registryFilter = filter;
 
     const button = document.createElement('button');
+    button.type = 'button';
     button.className = 'znxstudio-btn';
     button.textContent = 'Search';
     button.addEventListener('click', () => void this.runSearch());
+    this.searchButton = button;
 
     bar.append(input, filter, button);
     shell.append(bar, this.container);
@@ -107,61 +119,91 @@ export class PackageManagerModule implements IModule {
       return;
     }
     if (!term) {
+      this.searchSequence += 1;
+      this.searching = false;
       this.results = [];
       this.searchStatus = '';
+      this.updateSearchButton();
       this.render();
       return;
     }
+    if (this.searching) return;
 
-    const compilerPath = await this.compilerPath();
-    if (compilerPath === null) return;
-
+    const sequence = ++this.searchSequence;
+    this.searching = true;
+    this.updateSearchButton();
     this.searchStatus = 'Searching…';
     this.results = [];
     this.render();
-
-    const registry = this.registryFilter?.value || undefined;
-    const raw = await window.znxstudio.packages.query({ command: 'search', cwd, args: [term], registry, compilerPath });
-    const outcome = parseSearchResults(raw.exitCode, raw.stdout, raw.stderr);
-    if (outcome.diagnostics.length > 0) {
-      this.context.layout.showToast(outcome.diagnostics[0].message, 'error');
-      this.searchStatus = outcome.diagnostics[0].message;
-      this.results = [];
-    } else {
-      this.results = outcome.results;
-      this.searchStatus = outcome.results.length === 0 ? `No packages match “${term}”.` : '';
+    try {
+      const compilerPath = await this.compilerPath();
+      if (compilerPath === null || !this.isCurrentWorkspace(cwd, sequence, 'search')) return;
+      const registry = this.registryFilter?.value || undefined;
+      const raw = await window.znxstudio.packages.query({ command: 'search', cwd, args: [term], registry, compilerPath });
+      if (!this.isCurrentWorkspace(cwd, sequence, 'search')) return;
+      const outcome = parseSearchResults(raw.exitCode, raw.stdout, raw.stderr);
+      if (outcome.diagnostics.length > 0) {
+        this.context.layout.showToast(outcome.diagnostics[0].message, 'error');
+        this.searchStatus = outcome.diagnostics[0].message;
+        this.results = [];
+      } else {
+        this.results = outcome.results;
+        this.searchStatus = outcome.results.length === 0 ? `No packages match “${term}”.` : '';
+      }
+    } catch (error) {
+      if (!this.isCurrentWorkspace(cwd, sequence, 'search')) return;
+      this.searchStatus = `Search failed: ${(error as Error).message}`;
+      this.context.layout.showToast('Package search failed.', 'error');
+    } finally {
+      if (sequence === this.searchSequence) {
+        this.searching = false;
+        this.updateSearchButton();
+        this.render();
+      }
     }
-    this.render();
   }
 
   private async showInfo(pkg: PackageSearchResult, host: HTMLElement): Promise<void> {
     const cwd = this.workspace.currentFolder();
     if (!cwd) return;
-    const compilerPath = await this.compilerPath();
-    if (compilerPath === null) return;
-
     host.textContent = 'Loading versions…';
-    const raw = await window.znxstudio.packages.query({ command: 'info', cwd, args: [pkg.name], compilerPath });
-    const outcome = parsePackageInfo(raw.exitCode, raw.stdout, raw.stderr);
-    if (outcome.info) {
-      host.replaceChildren(this.renderInfo(outcome.info));
-    } else {
-      host.textContent = outcome.diagnostics[0]?.message ?? 'No version information.';
+    try {
+      const compilerPath = await this.compilerPath();
+      if (compilerPath === null || this.workspace.currentFolder() !== cwd) return;
+      const raw = await window.znxstudio.packages.query({ command: 'info', cwd, args: [pkg.name], compilerPath });
+      if (!host.isConnected || this.workspace.currentFolder() !== cwd) return;
+      const outcome = parsePackageInfo(raw.exitCode, raw.stdout, raw.stderr);
+      if (outcome.info) {
+        host.replaceChildren(this.renderInfo(outcome.info));
+      } else {
+        host.textContent = outcome.diagnostics[0]?.message ?? 'No version information.';
+      }
+    } catch (error) {
+      if (host.isConnected) host.textContent = `Could not load versions: ${(error as Error).message}`;
     }
   }
 
   private async install(pkg: PackageSearchResult): Promise<void> {
     const cwd = this.workspace.currentFolder();
     if (!cwd) return;
-    const compilerPath = await this.compilerPath();
-    if (compilerPath === null) return;
-
     const spec = `${pkg.name}@${pkg.version}`;
-    const result = await window.znxstudio.packages.run({ command: 'add', cwd, args: [spec], compilerPath });
-    if (result.success) {
-      this.context.layout.showToast(result.message || `Added ${spec}.`, 'info');
-    } else {
-      this.context.layout.showToast(result.diagnostics[0]?.message ?? result.message ?? `Adding ${spec} failed.`, 'error');
+    if (this.pendingPackages.has(spec)) return;
+    this.pendingPackages.add(spec);
+    this.render();
+    try {
+      const compilerPath = await this.compilerPath();
+      if (compilerPath === null || this.workspace.currentFolder() !== cwd) return;
+      const result = await window.znxstudio.packages.run({ command: 'add', cwd, args: [spec], compilerPath });
+      if (result.success) {
+        this.context.layout.showToast(result.message || `Added ${spec}.`, 'success');
+      } else {
+        this.context.layout.showToast(result.diagnostics[0]?.message ?? result.message ?? `Adding ${spec} failed.`, 'error');
+      }
+    } catch (error) {
+      this.context.layout.showToast(`Adding ${spec} failed: ${(error as Error).message}`, 'error');
+    } finally {
+      this.pendingPackages.delete(spec);
+      this.render();
     }
   }
 
@@ -169,48 +211,76 @@ export class PackageManagerModule implements IModule {
 
   private async refreshRegistries(): Promise<void> {
     const cwd = this.workspace.currentFolder();
+    const sequence = ++this.registrySequence;
     if (!cwd) {
       this.registries = [];
       this.renderRegistryFilter();
       this.render();
       return;
     }
-    const compilerPath = await this.compilerPath(false);
-    if (compilerPath === null) {
+    try {
+      const compilerPath = await this.compilerPath(false);
+      if (compilerPath === null || !this.isCurrentWorkspace(cwd, sequence, 'registry')) return;
+      const raw = await window.znxstudio.packages.query({ command: 'registry', cwd, args: ['list'], compilerPath });
+      if (!this.isCurrentWorkspace(cwd, sequence, 'registry')) return;
+      this.registries = raw.exitCode === 0 ? parseRegistryList(raw.stdout) : [];
+    } catch (error) {
+      if (!this.isCurrentWorkspace(cwd, sequence, 'registry')) return;
+      this.registries = [];
+      this.context.layout.showToast(`Could not load registries: ${(error as Error).message}`, 'error');
+    } finally {
       this.render();
-      return;
+      if (sequence === this.registrySequence) this.renderRegistryFilter();
     }
-    const raw = await window.znxstudio.packages.query({ command: 'registry', cwd, args: ['list'], compilerPath });
-    this.registries = raw.exitCode === 0 ? parseRegistryList(raw.stdout) : [];
-    this.renderRegistryFilter();
-    this.render();
   }
 
   private async addRegistry(name: string, location: string): Promise<void> {
     const cwd = this.workspace.currentFolder();
     if (!cwd) return;
-    const compilerPath = await this.compilerPath();
-    if (compilerPath === null) return;
-    const result = await window.znxstudio.packages.run({ command: 'registry', cwd, args: ['add', name, location], compilerPath });
-    if (result.success) this.context.layout.showToast(result.message || `Added registry ${name}.`, 'info');
-    else this.context.layout.showToast(result.diagnostics[0]?.message ?? result.message ?? 'Adding registry failed.', 'error');
-    await this.refreshRegistries();
+    try {
+      const compilerPath = await this.compilerPath();
+      if (compilerPath === null || this.workspace.currentFolder() !== cwd) return;
+      const result = await window.znxstudio.packages.run({ command: 'registry', cwd, args: ['add', name, location], compilerPath });
+      if (result.success) this.context.layout.showToast(result.message || `Added registry ${name}.`, 'success');
+      else this.context.layout.showToast(result.diagnostics[0]?.message ?? result.message ?? 'Adding registry failed.', 'error');
+      await this.refreshRegistries();
+    } catch (error) {
+      this.context.layout.showToast(`Adding registry failed: ${(error as Error).message}`, 'error');
+    }
   }
 
   private async removeRegistry(name: string): Promise<void> {
     const cwd = this.workspace.currentFolder();
     if (!cwd) return;
-    const compilerPath = await this.compilerPath();
-    if (compilerPath === null) return;
-    const result = await window.znxstudio.packages.run({ command: 'registry', cwd, args: ['remove', name], compilerPath });
-    if (result.success) this.context.layout.showToast(result.message || `Removed registry ${name}.`, 'info');
-    else this.context.layout.showToast(result.diagnostics[0]?.message ?? result.message ?? 'Removing registry failed.', 'error');
-    await this.refreshRegistries();
+    const input = this.context.services.get<InputBoxService>(ServiceKeys.InputBox);
+    const confirmed = await input.confirm({
+      title: `Remove Registry ${name}?`,
+      message: 'Packages available only through this registry will no longer be discoverable.',
+      confirmLabel: 'Remove Registry',
+      danger: true,
+    });
+    if (!confirmed || this.workspace.currentFolder() !== cwd) return;
+    try {
+      const compilerPath = await this.compilerPath();
+      if (compilerPath === null || this.workspace.currentFolder() !== cwd) return;
+      const result = await window.znxstudio.packages.run({ command: 'registry', cwd, args: ['remove', name], compilerPath });
+      if (result.success) this.context.layout.showToast(result.message || `Removed registry ${name}.`, 'success');
+      else this.context.layout.showToast(result.diagnostics[0]?.message ?? result.message ?? 'Removing registry failed.', 'error');
+      await this.refreshRegistries();
+    } catch (error) {
+      this.context.layout.showToast(`Removing registry failed: ${(error as Error).message}`, 'error');
+    }
   }
 
   /** Resolves the compiler path, toasting when unavailable. Pass false to stay quiet. */
   private async compilerPath(notify = true): Promise<string | null> {
-    const info = await window.znxstudio.compiler.info();
+    let info;
+    try {
+      info = await window.znxstudio.compiler.info();
+    } catch (error) {
+      if (notify) this.context.layout.showToast(`Could not inspect the compiler: ${(error as Error).message}`, 'error');
+      return null;
+    }
     if (!info.available) {
       if (notify) this.context.layout.showToast('Zornux compiler not available — cannot manage packages.', 'error');
       return null;
@@ -303,7 +373,9 @@ export class PackageManagerModule implements IModule {
 
     const add = document.createElement('button');
     add.className = 'znxstudio-btn znxstudio-btn-small';
-    add.textContent = 'Add';
+    const spec = `${result.name}@${result.version}`;
+    add.disabled = this.pendingPackages.has(spec);
+    add.textContent = add.disabled ? 'Adding…' : 'Add';
     add.title = `Add ${result.name}@${result.version} to the project`;
     add.addEventListener('click', (event) => {
       event.stopPropagation();
@@ -387,7 +459,8 @@ export class PackageManagerModule implements IModule {
     const wrap = document.createElement('div');
     wrap.className = 'znxstudio-packages-status';
 
-    const link = document.createElement('span');
+    const link = document.createElement('button');
+    link.type = 'button';
     link.className = 'znxstudio-solution-action';
     link.textContent = '+ Add registry';
     link.addEventListener('click', () => {
@@ -419,6 +492,17 @@ export class PackageManagerModule implements IModule {
 
     wrap.append(link);
     return wrap;
+  }
+
+  private isCurrentWorkspace(cwd: string, sequence: number, kind: 'search' | 'registry'): boolean {
+    const currentSequence = kind === 'search' ? this.searchSequence : this.registrySequence;
+    return currentSequence === sequence && this.workspace.currentFolder() === cwd;
+  }
+
+  private updateSearchButton(): void {
+    if (!this.searchButton) return;
+    this.searchButton.disabled = this.searching;
+    this.searchButton.textContent = this.searching ? 'Searching…' : 'Search';
   }
 
   /* ----- optional headless self-test (ZNXSTUDIO_SELFTEST=1) -----

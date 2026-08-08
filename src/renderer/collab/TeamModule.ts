@@ -1,4 +1,4 @@
-import { ServiceKeys, type AiService, type SettingsService, type WorkspaceService } from '../core/Contracts';
+import { ServiceKeys, type AiService, type InputBoxService, type SettingsService, type WorkspaceService } from '../core/Contracts';
 import { selfTestCoordinator } from '../core/SelfTestCoordinator';
 import type { IModule, ModuleContext } from '../core/Module';
 import { CommandIds } from '../commands/CommandIds';
@@ -54,6 +54,7 @@ export class TeamModule implements IModule {
   private violations: PolicyViolation[] = [];
   private teamFound = false;
   private policyFound = false;
+  private creatingTeamFile = false;
 
   activate(context: ModuleContext): void {
     this.moduleContext = context;
@@ -146,9 +147,9 @@ export class TeamModule implements IModule {
       this.settingsPanel.appendChild(
         note(`No ${TEAM_FILE} in this workspace. Commit one to share defaults across the team.`, 'znxstudio-team-note'),
       );
-      this.settingsPanel.appendChild(
-        button('＋ Create team settings', () => void this.createTeamFile()),
-      );
+      const create = button(this.creatingTeamFile ? 'Creating…' : '＋ Create team settings', () => void this.createTeamFile());
+      create.disabled = this.creatingTeamFile;
+      this.settingsPanel.appendChild(create);
       return;
     }
 
@@ -202,16 +203,48 @@ export class TeamModule implements IModule {
 
   private async createTeamFile(): Promise<void> {
     const root = this.workspace?.currentFolder();
-    if (!root) return;
-    const name = window.prompt('Team name:', 'Our team');
-    if (!name) return;
-    const content = renderTeamSettings({ name, defaults: { 'editor.tabSize': 4 }, locked: {}, notice: undefined });
+    if (!root || this.creatingTeamFile) return;
+    this.creatingTeamFile = true;
+    this.renderSettings();
     try {
-      await window.znxstudio.fs.writeFile(joinPath(root, TEAM_FILE), content);
+      const input = this.moduleContext.services.get<InputBoxService>(ServiceKeys.InputBox);
+      const value = await input.prompt({
+        title: 'Create Team Settings',
+        label: 'Team name',
+        value: 'Our team',
+        placeholder: 'Shown to everyone using this workspace',
+        submitLabel: 'Create Settings',
+        validate: (name) => {
+          const normalized = name.trim();
+          if (!normalized) return 'Enter a team name.';
+          if (normalized.length > 80) return 'Team name must be 80 characters or fewer.';
+          return /[\u0000-\u001f]/.test(normalized) ? 'Team name cannot contain control characters.' : null;
+        },
+      });
+      if (value === null) return;
+      if (this.workspace?.currentFolder() !== root) {
+        this.moduleContext.layout.showToast('Team settings creation cancelled because the workspace changed.', 'info');
+        return;
+      }
+
+      const path = joinPath(root, TEAM_FILE);
+      try {
+        await window.znxstudio.fs.readFile(path);
+        this.moduleContext.layout.showToast(`${TEAM_FILE} already exists. Reloading the team settings.`, 'info');
+        await this.reload();
+        return;
+      } catch {
+        // The file is still absent; proceed with first-time creation.
+      }
+      const content = renderTeamSettings({ name: value.trim(), defaults: { 'editor.tabSize': 4 }, locked: {}, notice: undefined });
+      await window.znxstudio.fs.writeFile(path, content);
       this.moduleContext.layout.showToast(`Wrote ${TEAM_FILE}. Commit it to share it.`, 'info');
       await this.reload();
     } catch (error) {
       this.moduleContext.layout.showToast(`Could not write ${TEAM_FILE}: ${(error as Error).message}`, 'error');
+    } finally {
+      this.creatingTeamFile = false;
+      this.renderSettings();
     }
   }
 
@@ -338,7 +371,7 @@ function note(text: string, className: string): HTMLElement {
   return element;
 }
 
-function button(label: string, onClick: () => void): HTMLElement {
+function button(label: string, onClick: () => void): HTMLButtonElement {
   const element = document.createElement('button');
   element.className = 'znxstudio-btn-small';
   element.textContent = label;

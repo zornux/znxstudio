@@ -1,8 +1,9 @@
-import { ServiceKeys, type EditorService } from '../core/Contracts';
+import { ServiceKeys, type EditorService, type InputBoxService } from '../core/Contracts';
 import { selfTestCoordinator } from '../core/SelfTestCoordinator';
 import type { IModule, ModuleContext } from '../core/Module';
 import { CommandIds } from '../commands/CommandIds';
 import { PROJECT_TEMPLATES, findTemplate, renderTemplate, type ProjectTemplate } from '../../shared/templates';
+import { validateProjectName } from '../wizards/newProjectWizard';
 
 /**
  * Project Templates (Phase 5G). A gallery of starter templates shown as an
@@ -16,6 +17,7 @@ export class TemplatesModule implements IModule {
   readonly displayName = 'Project Templates';
 
   private context!: ModuleContext;
+  private scaffolding = false;
 
   activate(context: ModuleContext): void {
     this.context = context;
@@ -56,6 +58,7 @@ export class TemplatesModule implements IModule {
     const card = document.createElement('button');
     card.className = 'znxstudio-template-card';
     card.type = 'button';
+    card.disabled = this.scaffolding;
 
     const icon = document.createElement('div');
     icon.className = 'znxstudio-template-icon';
@@ -79,36 +82,61 @@ export class TemplatesModule implements IModule {
   }
 
   private async scaffold(template: ProjectTemplate): Promise<void> {
-    const name = window.prompt(`Name for your ${template.label}?`, 'my-zornux-app');
-    if (!name || !name.trim()) return;
-    const location = await window.znxstudio.dialog.openFolder();
-    if (!location) return;
+    if (this.scaffolding) return;
+    this.setScaffolding(true);
+    try {
+      const input = this.context.services.get<InputBoxService>(ServiceKeys.InputBox);
+      const value = await input.prompt({
+        title: `Create ${template.label}`,
+        label: 'Project name',
+        value: 'my-zornux-app',
+        placeholder: 'Letters, numbers, hyphens, underscores, and dots',
+        submitLabel: 'Choose Location',
+        validate: validateProjectName,
+      });
+      if (value === null) return;
+      const name = value.trim();
 
-    const rendered = renderTemplate(template, name.trim());
-    let compilerPath: string | null = null;
-    if (rendered.runZornuxInit) {
-      const info = await window.znxstudio.compiler.info();
-      if (!info.available) {
-        this.context.layout.showToast('Zornux compiler not available — cannot scaffold a Zornux project.', 'error');
+      const location = await window.znxstudio.dialog.openFolder();
+      if (!location) return;
+
+      const rendered = renderTemplate(template, name);
+      let compilerPath: string | null = null;
+      if (rendered.runZornuxInit) {
+        const info = await window.znxstudio.compiler.info();
+        if (!info.available) {
+          this.context.layout.showToast('Zornux compiler not available — cannot scaffold a Zornux project.', 'error');
+          return;
+        }
+        compilerPath = info.path;
+      }
+
+      const result = await window.znxstudio.project.scaffold({
+        name,
+        location,
+        runZornuxInit: rendered.runZornuxInit,
+        files: rendered.files,
+        compilerPath,
+      });
+
+      if (!result.ok) {
+        this.context.layout.showToast(result.error ?? 'Scaffolding failed.', 'error');
         return;
       }
-      compilerPath = info.path;
+      this.context.layout.showToast(`Created “${result.name}” from ${template.label}.`, 'success');
+      await this.context.commands.execute(CommandIds.WorkspaceOpenFolder, result.path);
+    } catch (error) {
+      this.context.layout.showToast(`Could not create project: ${(error as Error).message}`, 'error');
+    } finally {
+      this.setScaffolding(false);
     }
+  }
 
-    const result = await window.znxstudio.project.scaffold({
-      name: name.trim(),
-      location,
-      runZornuxInit: rendered.runZornuxInit,
-      files: rendered.files,
-      compilerPath,
-    });
-
-    if (!result.ok) {
-      this.context.layout.showToast(result.error ?? 'Scaffolding failed.', 'error');
-      return;
+  private setScaffolding(value: boolean): void {
+    this.scaffolding = value;
+    for (const card of document.querySelectorAll<HTMLButtonElement>('.znxstudio-template-card')) {
+      card.disabled = value;
     }
-    this.context.layout.showToast(`Created “${result.name}” from ${template.label}.`, 'success');
-    await this.context.commands.execute(CommandIds.WorkspaceOpenFolder, result.path);
   }
 
   /* ----- optional headless self-test (ZNXSTUDIO_SELFTEST=1) ----- */

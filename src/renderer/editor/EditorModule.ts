@@ -43,6 +43,7 @@ import {
 
 const ACTIVE_EDITOR_COMMANDS = new Set<string>([
   CommandIds.FileSave,
+  CommandIds.FileRevert,
   CommandIds.EditorUndo,
   CommandIds.EditorRedo,
   CommandIds.EditorCut,
@@ -64,6 +65,11 @@ const ACTIVE_EDITOR_COMMANDS = new Set<string>([
   CommandIds.ToggleFold,
   CommandIds.BookmarkToggle,
 ]);
+
+function normalizeEditorPath(path: string): string {
+  const normalized = path.replace(/\\/g, '/').replace(/\/+$/, '');
+  return /^[A-Za-z]:\//.test(normalized) ? normalized.toLowerCase() : normalized;
+}
 
 /**
  * Editor Engine. Wraps Monaco and tracks the active file, but delegates all
@@ -93,6 +99,8 @@ export class EditorModule implements IModule, EditorService {
   private autosaveMode: AutosaveMode = 'off';
   /** Session persist/restore is disabled under the self-test harness. */
   private sessionEnabled = false;
+  /** Prevent the debounced writer from replacing a snapshot with a partial restore. */
+  private restoringSession = false;
   private persistTimer: ReturnType<typeof setTimeout> | undefined;
   private notifyCommandEnablement: () => void = () => undefined;
 
@@ -102,7 +110,7 @@ export class EditorModule implements IModule, EditorService {
   private readonly editorsEmitter = new Emitter<void>();
   readonly onDidChangeEditors = this.editorsEmitter.event;
 
-  activate(context: ModuleContext): void {
+  async activate(context: ModuleContext): Promise<void> {
     this.context = context;
     this.documents = context.services.get<DocumentManager>(LanguageServiceKeys.Documents);
 
@@ -170,10 +178,14 @@ export class EditorModule implements IModule, EditorService {
 
     // Enable session persistence + restore only outside the self-test harness
     // (which opens its own synthetic tabs). Restore reopens last session's tabs.
-    void window.znxstudio.app.getInfo().then((info) => {
+    try {
+      const info = await window.znxstudio.app.getInfo();
       this.sessionEnabled = info.selftest !== true;
-      if (this.sessionEnabled) void this.restoreSession();
-    });
+      if (this.sessionEnabled) await this.restoreSession();
+    } catch {
+      // Startup must remain usable if app metadata or a restored file cannot be read.
+      this.sessionEnabled = false;
+    }
 
     void selfTestCoordinator.run('editortabs', () => this.maybeSelfTest());
   }
@@ -251,6 +263,7 @@ export class EditorModule implements IModule, EditorService {
       'Find in File',
     );
     context.commands.register(CommandIds.EditorClose, () => this.closeActive(), 'Close Editor');
+    context.commands.register(CommandIds.FileRevert, () => this.revertActive(), 'File: Revert File');
     context.commands.register(
       CommandIds.EditorCloseOthers,
       () => void this.confirmCloseSet(this.tabsState.activeUri ? closeOthers(this.tabsState, this.tabsState.activeUri) : this.tabsState),
@@ -315,6 +328,36 @@ export class EditorModule implements IModule, EditorService {
 
   closeEditor(uri: string): void {
     void this.confirmAndClose(uri);
+  }
+
+  async prepareEditorsForPath(path: string): Promise<(() => void) | null> {
+    const normalized = normalizeEditorPath(path);
+    const affected = new Set(
+      this.tabsState.tabs
+        .filter((tab) => {
+          const candidate = normalizeEditorPath(tab.path);
+          return candidate === normalized || candidate.startsWith(`${normalized}/`);
+        })
+        .map((tab) => tab.uri),
+    );
+    if (affected.size === 0) return () => undefined;
+    const dirty = this.tabsState.tabs
+      .filter((tab) => affected.has(tab.uri) && tab.dirty)
+      .map((tab) => ({ uri: tab.uri, name: tab.name }));
+    if (dirty.length > 0 && !(await this.promptSaveBeforeClose(dirty))) return null;
+
+    // Defer disposal until the caller confirms its filesystem mutation worked.
+    // If rename/delete fails, every tab—including a deliberately unsaved one—
+    // stays open exactly as it was.
+    return () => {
+      const remaining = this.tabsState.tabs.filter((tab) => !affected.has(tab.uri));
+      const activeRemoved = Boolean(this.tabsState.activeUri && affected.has(this.tabsState.activeUri));
+      this.applyTabs({
+        tabs: remaining,
+        activeUri: activeRemoved ? remaining[0]?.uri ?? null : this.tabsState.activeUri,
+      });
+      for (const uri of affected) this.documents.close(uri);
+    };
   }
 
   currentUri(): string | null {
@@ -664,14 +707,15 @@ export class EditorModule implements IModule, EditorService {
    * User-initiated close of a SET of tabs (Close Others / Close All). Prompts
    * once for all dirty members, then closes and disposes them.
    */
-  private async confirmCloseSet(next: TabsState, restoreTabFocus = false): Promise<void> {
+  private async confirmCloseSet(next: TabsState, restoreTabFocus = false): Promise<boolean> {
     const keep = new Set(next.tabs.map((t) => t.uri));
     const closing = this.tabsState.tabs.filter((t) => !keep.has(t.uri));
     const dirty = closing.filter((t) => t.dirty).map((t) => ({ uri: t.uri, name: t.name }));
-    if (dirty.length > 0 && !(await this.promptSaveBeforeClose(dirty))) return;
+    if (dirty.length > 0 && !(await this.promptSaveBeforeClose(dirty))) return false;
     this.applyTabs(next);
     for (const t of closing) this.documents.close(t.uri); // dispose the closed models
     if (restoreTabFocus) this.focusActiveTabOrEditor();
+    return true;
   }
 
   private focusActiveTabOrEditor(): void {
@@ -701,12 +745,45 @@ export class EditorModule implements IModule, EditorService {
       dismissValue: 'cancel',
     });
     if (choice === 'cancel') return false;
-    if (choice === 'save') for (const d of dirty) await this.documents.save(d.uri);
+    if (choice === 'save') {
+      try {
+        for (const d of dirty) await this.documents.save(d.uri);
+      } catch {
+        // The centralized save-error notification explains the failure. Keep
+        // the tab/window open so unsaved data cannot be discarded afterward.
+        return false;
+      }
+    }
     return true;
   }
 
   private closeActive(): void {
     if (this.tabsState.activeUri) void this.confirmAndClose(this.tabsState.activeUri);
+  }
+
+  private async revertActive(): Promise<void> {
+    const uri = this.tabsState.activeUri;
+    if (!uri) return;
+    const tab = this.tabsState.tabs.find((candidate) => candidate.uri === uri);
+    if (tab?.dirty) {
+      const choice = await showModal({
+        title: `Revert ${tab.name}?`,
+        body: 'Reload this file from disk and permanently discard its unsaved changes?',
+        buttons: [
+          { label: 'Revert File', value: 'revert', primary: true },
+          { label: 'Cancel', value: 'cancel' },
+        ],
+        dismissValue: 'cancel',
+      });
+      if (choice !== 'revert') return;
+    }
+    try {
+      await this.documents.revert(uri);
+      this.context.layout.showToast(`${tab?.name ?? 'File'} reloaded from disk.`, 'info');
+    } catch (error) {
+      const detail = error instanceof Error ? error.message : String(error);
+      this.context.layout.showToast(`Could not reload ${tab?.name ?? 'the file'}: ${detail}`, 'error');
+    }
   }
 
   /* ----- saving + dirty state ----- */
@@ -717,7 +794,7 @@ export class EditorModule implements IModule, EditorService {
       'Save File',
     );
     this.editor.addCommand(monaco.KeyMod.CtrlCmd | monaco.KeyCode.KeyS, () =>
-      void this.saveActiveFormatted(),
+      void this.saveActiveFormatted().catch(() => undefined),
     );
 
     const refresh = (uri: string, dirty: boolean) => {
@@ -728,6 +805,11 @@ export class EditorModule implements IModule, EditorService {
     };
     this.documents.onDidChange((doc) => refresh(doc.uri, doc.dirty));
     this.documents.onDidSave((doc) => refresh(doc.uri, doc.dirty));
+    this.documents.onDidSaveError(({ document: doc, error }) => {
+      refresh(doc.uri, true);
+      const detail = error instanceof Error ? error.message : String(error);
+      this.context.layout.showToast(`Could not save ${doc.path}: ${detail}`, 'error');
+    });
 
     // A document closed elsewhere (crash recovery, external) drops its tab too.
     this.documents.onDidClose((doc) => {
@@ -740,10 +822,10 @@ export class EditorModule implements IModule, EditorService {
     // change; window blur = window change. The delay mode is timer-driven inside
     // the document manager instead.
     this.editor.onDidBlurEditorText(() => {
-      if (this.autosaveMode === 'onFocusChange') void this.documents.saveAllDirty();
+      if (this.autosaveMode === 'onFocusChange') void this.documents.saveAllDirty().catch(() => undefined);
     });
     const onWindowBlur = () => {
-      if (this.autosaveMode === 'onWindowChange') void this.documents.saveAllDirty();
+      if (this.autosaveMode === 'onWindowChange') void this.documents.saveAllDirty().catch(() => undefined);
     };
     window.addEventListener('blur', onWindowBlur);
     context.subscriptions.push({ dispose: () => window.removeEventListener('blur', onWindowBlur) });
@@ -784,7 +866,7 @@ export class EditorModule implements IModule, EditorService {
 
   /* ----- session persist / restore (Phase 20J WI2) ----- */
   private schedulePersistSession(): void {
-    if (!this.sessionEnabled) return;
+    if (!this.sessionEnabled || this.restoringSession) return;
     if (this.persistTimer) clearTimeout(this.persistTimer);
     this.persistTimer = setTimeout(() => this.persistSession(), 500);
   }
@@ -799,21 +881,35 @@ export class EditorModule implements IModule, EditorService {
   private async restoreSession(): Promise<void> {
     const snapshot = parseSession(this.settings?.get('workbench.session', null));
     if (snapshot.tabs.length === 0) return;
-    const opened: string[] = [];
-    for (const tab of snapshot.tabs) {
-      try {
-        await this.openFile(tab.path); // permanent tab
-        opened.push(tab.path);
-        if (tab.pinned && this.tabsState.tabs.some((t) => t.path === tab.path)) {
-          const uri = this.tabsState.tabs.find((t) => t.path === tab.path)?.uri;
-          if (uri) this.applyTabs(togglePin(this.tabsState, uri));
+    this.restoringSession = true;
+    try {
+      const opened: string[] = [];
+      for (const tab of snapshot.tabs) {
+        try {
+          await this.openFile(tab.path); // permanent tab
+          opened.push(tab.path);
+          if (tab.pinned && this.tabsState.tabs.some((t) => t.path === tab.path)) {
+            const uri = this.tabsState.tabs.find((t) => t.path === tab.path)?.uri;
+            if (uri) this.applyTabs(togglePin(this.tabsState, uri));
+          }
+        } catch {
+          // A file removed since last session is skipped, not an error.
         }
-      } catch {
-        // A file removed since last session is skipped, not an error.
       }
+      const restored = restorableSession(snapshot, (path) => opened.includes(path));
+      if (restored.activePath) {
+        try {
+          await this.openFile(restored.activePath);
+        } catch {
+          // It was opened moments ago, but an external deletion can still race us.
+        }
+      }
+    } finally {
+      this.restoringSession = false;
+      // Replace the old snapshot now, dropping missing files and preserving any
+      // tabs the user opened while the asynchronous restore was in progress.
+      this.persistSession();
     }
-    const restored = restorableSession(snapshot, (path) => opened.includes(path));
-    if (restored.activePath) await this.openFile(restored.activePath);
   }
 
   /* ----- tab bar rendering + interactions (UX-5) ----- */
