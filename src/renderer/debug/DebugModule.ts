@@ -135,6 +135,7 @@ export class DebugModule implements IModule, DebuggerService {
   private exceptionFilters: ExceptionFilter[] = [];
   private settings: SettingsService | undefined;
   private readonly watches: WatchExpression[] = [];
+  private watchDraft = '';
   private readonly log: string[] = [];
   private readonly stateEmitter = new Emitter<DebugState>();
   readonly onDidChangeState = this.stateEmitter.event;
@@ -302,11 +303,18 @@ export class DebugModule implements IModule, DebuggerService {
     this.context.layout.showPanelView('debug');
 
     const breakpoints = this.context.services.tryGet<BreakpointService>(ServiceKeys.Breakpoints);
-    const result = await window.znxstudio.debug.start({
-      ...config,
-      breakpoints: breakpoints?.launchList() ?? [],
-      exceptionFilters: filtersFor(this.exceptionMode),
-    });
+    let result;
+    try {
+      result = await window.znxstudio.debug.start({
+        ...config,
+        breakpoints: breakpoints?.launchList() ?? [],
+        exceptionFilters: filtersFor(this.exceptionMode),
+      });
+    } catch (error) {
+      this.append(`failed to start: ${(error as Error).message}`);
+      this.setState('error');
+      return;
+    }
     if (!result.success) {
       this.append(`failed to start: ${result.error ?? 'unknown error'}`);
       this.setState('error');
@@ -378,11 +386,15 @@ export class DebugModule implements IModule, DebuggerService {
 
   private async continue(): Promise<void> {
     if (this.currentState !== 'stopped') return;
-    this.clearStack();
-    this.setState('running');
     this.append('continue');
     const result = await window.znxstudio.debug.request('continue', { threadId: 1 });
-    if (!result.success) this.append(`continue failed: ${result.message ?? ''}`);
+    if (!result.success) {
+      this.append(`continue failed: ${result.message ?? 'request refused'}`);
+      this.context.layout.showToast('Could not continue the debug session.', 'error');
+      return;
+    }
+    this.clearStack();
+    this.setState('running');
   }
 
   /**
@@ -425,10 +437,16 @@ export class DebugModule implements IModule, DebuggerService {
   }
 
   private async stop(): Promise<void> {
+    if (this.currentState === 'idle') return;
     this.clearStack();
-    await window.znxstudio.debug.stop();
-    this.append('stop requested');
-    this.setState('idle');
+    try {
+      await window.znxstudio.debug.stop();
+      this.append('stop requested');
+      this.setState('idle');
+    } catch (error) {
+      this.append(`stop failed: ${(error as Error).message}`);
+      this.setState('error');
+    }
   }
 
   /* ----- call stack (Phase 4C) ----- */
@@ -651,6 +669,11 @@ export class DebugModule implements IModule, DebuggerService {
   }
 
   private render(): void {
+    const watchFocused = this.surface.contains(document.activeElement)
+      && (document.activeElement as HTMLElement | null)?.classList.contains('znxstudio-debug-watch-input');
+    const watchSelection = watchFocused && document.activeElement instanceof HTMLInputElement
+      ? [document.activeElement.selectionStart, document.activeElement.selectionEnd] as const
+      : undefined;
     const header = document.createElement('div');
     header.className = 'znxstudio-debug-header';
 
@@ -661,19 +684,64 @@ export class DebugModule implements IModule, DebuggerService {
     this.renderControls(header);
     header.appendChild(this.renderExceptionPicker());
 
-    const console = document.createElement('pre');
-    console.className = 'znxstudio-debug-console';
-    console.textContent = this.log.join('\n');
+    const consoleSection = this.consoleView();
 
     const children: HTMLElement[] = [header];
     if (this.currentState === 'stopped' && this.lastException) children.push(this.exceptionBanner());
     if (this.currentState === 'stopped' && this.frames.length) children.push(this.callStack());
     if (this.currentState === 'stopped' && this.scopes.length) children.push(this.variablesView());
     children.push(this.watchView());
-    children.push(console);
+    children.push(consoleSection.section);
 
     this.surface.replaceChildren(...children);
-    console.scrollTop = console.scrollHeight;
+    consoleSection.console.scrollTop = consoleSection.console.scrollHeight;
+    if (watchFocused) {
+      const next = this.surface.querySelector<HTMLInputElement>('.znxstudio-debug-watch-input');
+      next?.focus();
+      if (next && watchSelection) next.setSelectionRange(watchSelection[0], watchSelection[1]);
+    }
+  }
+
+  private consoleView(): { section: HTMLElement; console: HTMLElement } {
+    const section = document.createElement('section');
+    section.className = 'znxstudio-debug-console-section';
+    const heading = document.createElement('div');
+    heading.className = 'znxstudio-debug-stack-title znxstudio-debug-section-heading';
+    const title = document.createElement('span');
+    title.textContent = 'Debug Console';
+    const actions = document.createElement('span');
+    actions.className = 'znxstudio-debug-section-actions';
+    const copy = this.button('Copy', () => void this.copyConsole());
+    copy.classList.add('is-text');
+    copy.title = 'Copy debug console';
+    copy.setAttribute('aria-label', 'Copy debug console');
+    copy.toggleAttribute('disabled', this.log.length === 0);
+    const clear = this.button('Clear', () => {
+      this.log.length = 0;
+      this.render();
+    });
+    clear.classList.add('is-text');
+    clear.title = 'Clear debug console';
+    clear.setAttribute('aria-label', 'Clear debug console');
+    clear.toggleAttribute('disabled', this.log.length === 0);
+    actions.append(copy, clear);
+    heading.append(title, actions);
+    const console = document.createElement('pre');
+    console.className = 'znxstudio-debug-console';
+    console.setAttribute('aria-label', 'Debug console output');
+    console.textContent = this.log.join('\n') || 'Start debugging to see session output.';
+    section.append(heading, console);
+    return { section, console };
+  }
+
+  private async copyConsole(): Promise<void> {
+    try {
+      if (!navigator.clipboard) throw new Error('Clipboard unavailable');
+      await navigator.clipboard.writeText(this.log.join('\n'));
+      this.context.layout.showToast('Debug console copied.', 'success');
+    } catch {
+      this.context.layout.showToast('Could not copy the debug console.', 'error');
+    }
   }
 
   private watchView(): HTMLElement {
@@ -689,9 +757,15 @@ export class DebugModule implements IModule, DebuggerService {
     input.className = 'znxstudio-debug-watch-input';
     input.type = 'text';
     input.placeholder = 'Add expression…';
+    input.setAttribute('aria-label', 'Add watch expression');
+    input.value = this.watchDraft;
+    input.addEventListener('input', () => {
+      this.watchDraft = input.value;
+    });
     input.addEventListener('keydown', (event) => {
       if (event.key === 'Enter') {
         this.addWatch(input.value);
+        this.watchDraft = '';
         input.value = '';
       }
     });
@@ -714,6 +788,7 @@ export class DebugModule implements IModule, DebuggerService {
       remove.className = 'znxstudio-debug-watch-remove';
       remove.textContent = '×';
       remove.title = 'Remove watch';
+      remove.setAttribute('aria-label', `Remove watch ${watch.expression}`);
       remove.addEventListener('click', (event) => {
         event.stopPropagation();
         this.removeWatch(index);
@@ -722,7 +797,16 @@ export class DebugModule implements IModule, DebuggerService {
       row.append(name, value, remove);
       if (watch.reference > 0) {
         row.classList.add('is-expandable');
+        row.tabIndex = 0;
+        row.setAttribute('role', 'button');
+        row.setAttribute('aria-expanded', String(watch.expanded));
         row.addEventListener('click', () => void this.toggleWatch(watch));
+        row.addEventListener('keydown', (event) => {
+          if (event.target === row && (event.key === 'Enter' || event.key === ' ')) {
+            event.preventDefault();
+            void this.toggleWatch(watch);
+          }
+        });
       }
       section.appendChild(row);
 
@@ -747,7 +831,16 @@ export class DebugModule implements IModule, DebuggerService {
       const scopeRow = document.createElement('div');
       scopeRow.className = 'znxstudio-debug-scope';
       scopeRow.textContent = `${scope.expanded ? '▾' : '▸'} ${scope.name}`;
+      scopeRow.tabIndex = 0;
+      scopeRow.setAttribute('role', 'button');
+      scopeRow.setAttribute('aria-expanded', String(scope.expanded));
       scopeRow.addEventListener('click', () => void this.toggleScope(scope));
+      scopeRow.addEventListener('keydown', (event) => {
+        if (event.key === 'Enter' || event.key === ' ') {
+          event.preventDefault();
+          void this.toggleScope(scope);
+        }
+      });
       section.appendChild(scopeRow);
 
       if (scope.expanded && scope.variables) {
@@ -775,7 +868,16 @@ export class DebugModule implements IModule, DebuggerService {
     row.append(name, value);
     if (expandable) {
       row.classList.add('is-expandable');
+      row.tabIndex = 0;
+      row.setAttribute('role', 'button');
+      row.setAttribute('aria-expanded', String(variable.expanded));
       row.addEventListener('click', () => void this.toggleVariable(variable));
+      row.addEventListener('keydown', (event) => {
+        if (event.key === 'Enter' || event.key === ' ') {
+          event.preventDefault();
+          void this.toggleVariable(variable);
+        }
+      });
     }
     parent.appendChild(row);
 
@@ -809,6 +911,9 @@ export class DebugModule implements IModule, DebuggerService {
     this.frames.forEach((frame, index) => {
       const row = document.createElement('div');
       row.className = `znxstudio-debug-frame${index === this.activeFrame ? ' is-active' : ''}`;
+      row.tabIndex = 0;
+      row.setAttribute('role', 'button');
+      row.setAttribute('aria-current', index === this.activeFrame ? 'true' : 'false');
 
       const name = document.createElement('span');
       name.className = 'znxstudio-debug-frame-name';
@@ -823,6 +928,12 @@ export class DebugModule implements IModule, DebuggerService {
       }
 
       row.addEventListener('click', () => this.focusFrame(index));
+      row.addEventListener('keydown', (event) => {
+        if (event.key === 'Enter' || event.key === ' ') {
+          event.preventDefault();
+          this.focusFrame(index);
+        }
+      });
       section.appendChild(row);
     });
     return section;
@@ -832,6 +943,7 @@ export class DebugModule implements IModule, DebuggerService {
     const add = (label: string, command: string, title: string) => {
       const btn = this.button(label, () => void this.context.commands.execute(command));
       btn.title = title;
+      btn.setAttribute('aria-label', title);
       header.appendChild(btn);
     };
     switch (this.currentState) {

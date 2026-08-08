@@ -2813,19 +2813,27 @@ body.is-resizing {
 /* ----- Debug panel ----- */
 .znxstudio-debug {
   height: 100%;
+  min-height: 0;
   display: flex;
   flex-direction: column;
-  font-size: 13px;
+  overflow: hidden;
+  font-size: 12px;
+  background: var(--z-bg-panel);
 }
 .znxstudio-debug-header {
   display: flex;
   align-items: center;
-  gap: 10px;
-  padding: 8px 16px;
+  gap: 6px;
+  min-height: 38px;
+  padding: 6px 10px;
+  flex-wrap: wrap;
   border-bottom: 1px solid var(--z-border, rgba(255, 255, 255, 0.08));
+  background: color-mix(in srgb, var(--z-fg) 2%, transparent);
 }
 .znxstudio-debug-state {
+  min-width: 92px;
   font-weight: 600;
+  font-size: 11.5px;
 }
 .znxstudio-debug-state--stopped {
   color: #f5a623;
@@ -2842,8 +2850,9 @@ body.is-resizing {
 .znxstudio-debug-btn {
   font: inherit;
   font-size: 12px;
-  padding: 2px 12px;
-  border-radius: 6px;
+  min-height: 26px;
+  padding: 2px 9px;
+  border-radius: 4px;
   border: 1px solid var(--z-border, rgba(255, 255, 255, 0.12));
   background: transparent;
   color: var(--z-fg);
@@ -2852,15 +2861,36 @@ body.is-resizing {
 .znxstudio-debug-btn:hover {
   background: var(--z-bg-hover, rgba(255, 255, 255, 0.06));
 }
+.znxstudio-debug-btn:focus-visible {
+  outline: 1px solid var(--z-accent);
+  outline-offset: 1px;
+}
+.znxstudio-debug-btn:disabled { cursor: default; opacity: 0.45; }
+.znxstudio-debug-btn.is-text {
+  min-height: 20px;
+  padding: 0 4px;
+  border: 0;
+  color: var(--z-fg-muted);
+  font-size: 10.5px;
+}
+.znxstudio-debug-console-section {
+  display: flex;
+  flex: 1;
+  min-height: 90px;
+  flex-direction: column;
+  overflow: hidden;
+}
 .znxstudio-debug-console {
   flex: 1;
   margin: 0;
-  padding: 8px 16px;
+  padding: 7px 12px 10px;
   overflow: auto;
-  font-family: var(--z-font-mono, monospace);
-  font-size: 12px;
+  font-family: var(--znxstudio-font-mono, monospace);
+  font-size: 11.5px;
+  line-height: 1.5;
   color: var(--z-fg-muted);
   white-space: pre-wrap;
+  overflow-wrap: anywhere;
 }
 
 /* ----- Call stack ----- */
@@ -2870,24 +2900,34 @@ body.is-resizing {
   overflow: auto;
 }
 .znxstudio-debug-stack-title {
-  padding: 6px 16px 2px;
+  padding: 6px 10px 3px;
   font-size: 10px;
+  font-weight: 600;
   text-transform: uppercase;
   letter-spacing: 0.7px;
   color: var(--z-fg-muted);
 }
+.znxstudio-debug-section-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  min-height: 27px;
+  border-bottom: 1px solid var(--z-border);
+}
+.znxstudio-debug-section-actions { display: inline-flex; align-items: center; gap: 2px; }
 .znxstudio-debug-frame {
   display: flex;
   justify-content: space-between;
   gap: 12px;
-  padding: 4px 16px;
+  padding: 5px 10px;
   cursor: pointer;
 }
 .znxstudio-debug-frame:hover {
   background: var(--z-bg-hover, rgba(255, 255, 255, 0.06));
 }
 .znxstudio-debug-frame.is-active {
-  background: rgba(245, 200, 66, 0.12);
+  box-shadow: inset 2px 0 var(--z-accent);
+  background: color-mix(in srgb, var(--z-accent) 11%, transparent);
 }
 .znxstudio-debug-frame-name {
   color: var(--z-fg);
@@ -2904,7 +2944,7 @@ body.is-resizing {
   overflow: auto;
 }
 .znxstudio-debug-scope {
-  padding: 4px 16px;
+  padding: 5px 10px;
   cursor: pointer;
   font-size: 12px;
   color: var(--z-fg);
@@ -2915,9 +2955,10 @@ body.is-resizing {
 .znxstudio-debug-var {
   display: flex;
   gap: 10px;
-  padding: 2px 16px 2px 0;
-  font-family: var(--z-font-mono, monospace);
-  font-size: 12px;
+  min-height: 24px;
+  padding: 3px 10px 3px 0;
+  font-family: var(--znxstudio-font-mono, monospace);
+  font-size: 11.5px;
 }
 .znxstudio-debug-var.is-expandable {
   cursor: pointer;
@@ -2943,9 +2984,10 @@ body.is-resizing {
   overflow: auto;
 }
 .znxstudio-debug-watch-input {
-  width: calc(100% - 32px);
-  margin: 2px 16px 4px;
-  padding: 3px 8px;
+  width: calc(100% - 20px);
+  min-height: 27px;
+  margin: 3px 10px 6px;
+  padding: 4px 8px;
   font: inherit;
   font-size: 12px;
   color: var(--z-fg);
@@ -2974,6 +3016,13 @@ body.is-resizing {
 .znxstudio-debug-watch-row:hover .znxstudio-debug-watch-remove {
   opacity: 1;
 }
+.znxstudio-debug-watch-remove:focus-visible { opacity: 1; outline: 1px solid var(--z-accent); }
+.znxstudio-debug-frame:focus-visible,
+.znxstudio-debug-scope:focus-visible,
+.znxstudio-debug-var.is-expandable:focus-visible {
+  outline: 1px solid var(--z-accent);
+  outline-offset: -1px;
+}
 .znxstudio-debug-watch-error {
   color: #e5686d;
   font-style: italic;
@@ -2999,9 +3048,11 @@ body.is-resizing {
 
 /* ----- Exception banner ----- */
 .znxstudio-debug-exception {
-  padding: 8px 16px;
-  background: rgba(229, 72, 77, 0.12);
-  border-bottom: 1px solid rgba(229, 72, 77, 0.4);
+  margin: 7px 10px 0;
+  padding: 7px 9px;
+  border: 1px solid color-mix(in srgb, var(--znxstudio-error, #e5484d) 45%, transparent);
+  border-radius: 5px;
+  background: color-mix(in srgb, var(--znxstudio-error, #e5484d) 10%, transparent);
 }
 .znxstudio-debug-exception-title {
   font-weight: 600;
@@ -6363,6 +6414,8 @@ body.is-resizing {
   opacity: 0.85;
 }
 .znxstudio-debug-exception-mode select {
+  min-height: 26px;
+  border-radius: 4px;
   font-size: 11px;
 }
 
