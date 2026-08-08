@@ -95,6 +95,9 @@ export class TerminalModule implements IModule {
   private observer: ResizeObserver | null = null;
   private themeObserver: MutationObserver | null = null;
   private available = true;
+  private initialized = false;
+  private initPromise: Promise<void> | null = null;
+  private pendingInitialCwd: string | undefined;
   /** True while restoring a persisted layout, so intermediate steps don't save. */
   private restoring = false;
 
@@ -113,23 +116,27 @@ export class TerminalModule implements IModule {
     this.container.append(this.tabStrip, this.body);
 
     context.layout.addPanelView({ id: 'terminal', title: 'Terminal', element: this.container });
+    // Registering contributes Terminal to the searchable panel catalog only.
+    // A shell is created lazily after the user explicitly reveals the panel.
+    context.layout.onDidChangeActivePanel((id) => {
+      if (id === 'terminal') void this.ensureInitialized();
+    });
 
     context.commands.register(
       CommandIds.TerminalToggle,
-      () => context.layout.showPanelView('terminal'),
+      () => this.revealTerminal(),
       'Terminal: Toggle',
     );
-    context.commands.register(CommandIds.TerminalNew, () => void this.newTerminal(), 'Terminal: New Terminal');
+    context.commands.register(CommandIds.TerminalNew, () => void this.requestNewTerminal(), 'Terminal: New Terminal');
     context.commands.register(
       CommandIds.TerminalNewProfile,
-      () => void this.pickShell(),
+      () => void this.revealAndPickShell(),
       'Terminal: New Terminal (Select Shell)…',
     );
     context.commands.register(
       CommandIds.TerminalNewAt,
       (cwd?: string) => {
-        context.layout.showPanelView('terminal');
-        void this.newTerminal(undefined, typeof cwd === 'string' ? cwd : undefined);
+        void this.newTerminalAt(typeof cwd === 'string' ? cwd : undefined);
       },
       'Terminal: New Terminal Here',
     );
@@ -148,12 +155,42 @@ export class TerminalModule implements IModule {
     this.themeObserver = new MutationObserver(() => this.applyTerminalTheme());
     this.themeObserver.observe(document.documentElement, { attributes: true, attributeFilter: ['data-theme'] });
 
-    // Discovery + the first terminal, then the self-test (which inspects live
-    // groups) once that has settled.
-    void (async () => {
-      await this.init();
-      await selfTestCoordinator.run('terminal', () => this.maybeSelfTest());
-    })();
+    void selfTestCoordinator.run('terminal', () => this.maybeSelfTest());
+  }
+
+  private ensureInitialized(): Promise<void> {
+    if (this.initialized) return Promise.resolve();
+    if (!this.initPromise) {
+      this.initPromise = this.init().then(() => {
+        this.initialized = true;
+      });
+    }
+    return this.initPromise;
+  }
+
+  private revealTerminal(): void {
+    this.context.layout.showPanelView('terminal');
+  }
+
+  private async requestNewTerminal(): Promise<void> {
+    const alreadyInitialized = this.initialized;
+    this.revealTerminal();
+    await this.ensureInitialized();
+    if (alreadyInitialized) await this.newTerminal();
+  }
+
+  private async revealAndPickShell(): Promise<void> {
+    this.revealTerminal();
+    await this.ensureInitialized();
+    await this.pickShell();
+  }
+
+  private async newTerminalAt(cwd?: string): Promise<void> {
+    const alreadyInitialized = this.initialized;
+    if (!alreadyInitialized && !this.initPromise) this.pendingInitialCwd = cwd;
+    this.revealTerminal();
+    await this.ensureInitialized();
+    if (alreadyInitialized) await this.newTerminal(undefined, cwd);
   }
 
   deactivate(): void {
@@ -180,8 +217,9 @@ export class TerminalModule implements IModule {
     if (saved && saved.groups.length > 0) {
       await this.restoreLayout(saved);
     } else {
-      await this.newTerminal();
+      await this.newTerminal(undefined, this.pendingInitialCwd);
     }
+    this.pendingInitialCwd = undefined;
   }
 
   /** Recreate tabs/panes from a persisted layout with fresh shell sessions. */
@@ -742,6 +780,7 @@ export class TerminalModule implements IModule {
       enabled = false;
     }
     if (!enabled) return;
+    await this.ensureInitialized();
     const log = (message: string): void => console.info(`[selftest] ${message}`);
 
     // Shell discovery over IPC returns concrete, launchable profiles.

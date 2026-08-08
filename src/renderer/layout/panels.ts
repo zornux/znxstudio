@@ -21,7 +21,7 @@ export interface PanelDescriptor {
  * only this small classic set shows up front; every other panel lives in the
  * searchable "+" overflow until the user opens it. Nothing is unregistered.
  */
-export const DEFAULT_PANELS = ['terminal', 'diagnostics', 'output', 'debug', 'log'];
+export const DEFAULT_PANELS = ['diagnostics', 'output', 'debug', 'log'];
 
 export interface PanelPreferences {
   /** Panel ids in the order the user wants their tabs. Unlisted ids keep registration order, after these. */

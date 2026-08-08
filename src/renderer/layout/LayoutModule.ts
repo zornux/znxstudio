@@ -43,6 +43,7 @@ import { formatRecentWorkspaces, pruneRecentWorkspaces } from '../editor/unsaved
 
 const LAYOUT_SETTING = 'znxstudio.layout';
 const PANELS_SETTING = 'znxstudio.layout.panels';
+const OPTIONAL_TERMINAL_MIGRATION = 'znxstudio.layout.optionalTerminal.v1';
 /** Where the layout is stashed when zen mode is entered, so leaving restores it. */
 const ZEN_SNAPSHOT_SETTING = 'znxstudio.layout.preZen';
 
@@ -71,6 +72,18 @@ export class LayoutModule implements IModule, LayoutService {
 
     this.current = parseLayout(this.settings?.get<unknown>(LAYOUT_SETTING, DEFAULT_LAYOUT));
     this.panelPreferences = parsePanelPreferences(this.settings?.get<unknown>(PANELS_SETTING, DEFAULT_PANEL_PREFERENCES));
+    // Terminal used to be a default panel, and activating it automatically put
+    // it in `opened`. Remove that legacy auto-open once so it becomes genuinely
+    // opt-in; future explicit opens continue to persist normally.
+    if (!this.settings?.get<boolean>(OPTIONAL_TERMINAL_MIGRATION, false)) {
+      this.panelPreferences = {
+        ...this.panelPreferences,
+        opened: (this.panelPreferences.opened ?? []).filter((id) => id !== 'terminal'),
+        active: this.panelPreferences.active === 'terminal' ? null : this.panelPreferences.active,
+      };
+      this.settings?.set(PANELS_SETTING, this.panelPreferences);
+      this.settings?.set(OPTIONAL_TERMINAL_MIGRATION, true);
+    }
 
     const register = (id: string, run: () => void, title: string) => context.commands.register(id, run, title);
     register(CommandIds.LayoutToggleSideBar, () => this.update(toggleSideBar(this.current)), 'View: Toggle Side Bar');

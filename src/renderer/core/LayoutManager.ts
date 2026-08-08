@@ -74,7 +74,9 @@ export class LayoutManager {
     root.classList.add('znxstudio-workbench');
     root.innerHTML = `
       <div class="znxstudio-titlebar" role="banner">
-        <span class="znxstudio-titlebar-brand">ZnxStudio</span>
+        <span class="znxstudio-titlebar-brand znxstudio-wordmark" aria-label="ZnxStudio">
+          <span class="znxstudio-wordmark-core" aria-hidden="true">Znx</span><span class="znxstudio-wordmark-studio" aria-hidden="true">Studio</span><span class="znxstudio-wordmark-accent" aria-hidden="true"></span>
+        </span>
         <div class="znxstudio-menubar" data-role="menubar" role="menubar" aria-label="Main Menu"></div>
       </div>
       <div class="znxstudio-body">
@@ -894,9 +896,9 @@ export class LayoutManager {
     this.panelTabs.set(view.id, { tab, view: container, title: view.title });
     this.ensureOverflowButton();
 
-    if (this.activePanel === null) this.showPanelView(view.id);
-    // Modules register their panels long after the layout module loaded its
-    // preferences, so tell it a new one exists and let it re-apply them.
+    // Registration only contributes the view; it must not activate it. The
+    // layout owner applies persisted/default preferences below, while a user
+    // action can explicitly reveal an optional panel such as Terminal.
     for (const handler of this.panelAddedHandlers) handler(view.id);
   }
 

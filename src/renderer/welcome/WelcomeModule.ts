@@ -30,7 +30,9 @@ export class WelcomeModule implements IModule {
     // duplicated here.
     view.innerHTML = `
       <div class="znxstudio-welcome-inner">
-        <h1 class="znxstudio-welcome-title">ZnxStudio</h1>
+        <h1 class="znxstudio-welcome-title znxstudio-wordmark" aria-label="ZnxStudio">
+          <span class="znxstudio-wordmark-core" aria-hidden="true">Znx</span><span class="znxstudio-wordmark-studio" aria-hidden="true">Studio</span><span class="znxstudio-wordmark-accent" aria-hidden="true"></span>
+        </h1>
         <div class="znxstudio-welcome-actions">
           <button class="znxstudio-welcome-btn primary" data-cmd="create">＋  New Project</button>
           <button class="znxstudio-welcome-btn" data-cmd="folder">🗂  Open Folder</button>

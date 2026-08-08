@@ -243,10 +243,10 @@ describe('bottom-panel container (UX-2)', () => {
 
   test('only the default classic set shows as tabs; the long tail is overflow', () => {
     const strip = stripPanels(PANELS, DEFAULT_PANEL_PREFERENCES).map((p) => p.id);
-    expect(strip).toEqual(['terminal', 'diagnostics']); // the two defaults present in this set
+    expect(strip).toEqual(['diagnostics']);
     const overflow = overflowPanels(PANELS, DEFAULT_PANEL_PREFERENCES).map((p) => p.id);
-    expect(overflow).toEqual(['security-scan', 'cpu-profiler', 'ai-review']);
-    expect(DEFAULT_PANELS).toContain('terminal');
+    expect(overflow).toEqual(['terminal', 'security-scan', 'cpu-profiler', 'ai-review']);
+    expect(DEFAULT_PANELS.includes('terminal')).toBe(false);
   });
 
   test('opening a non-default panel adds it to the strip; closing returns it to overflow', () => {
@@ -260,9 +260,9 @@ describe('bottom-panel container (UX-2)', () => {
   });
 
   test('closing a DEFAULT panel records it as hidden (still reachable via overflow)', () => {
-    const closed = closePanel(DEFAULT_PANEL_PREFERENCES, 'terminal');
-    expect(inStrip(closed, 'terminal')).toBe(false);
-    expect(overflowPanels(PANELS, closed).map((p) => p.id)).toContain('terminal');
+    const closed = closePanel(DEFAULT_PANEL_PREFERENCES, 'diagnostics');
+    expect(inStrip(closed, 'diagnostics')).toBe(false);
+    expect(overflowPanels(PANELS, closed).map((p) => p.id)).toContain('diagnostics');
   });
 
   test('last-active is remembered and cleared when its tab closes', () => {
@@ -273,8 +273,8 @@ describe('bottom-panel container (UX-2)', () => {
 });
 
 describe('resolveActivePanel', () => {
-  test('keeps the preferred panel when it is still visible', () => {
-    expect(resolveActivePanel(PANELS, DEFAULT_PANEL_PREFERENCES, 'terminal')).toBe('terminal');
+  test('ignores a preferred panel that was never opened', () => {
+    expect(resolveActivePanel(stripPanels(PANELS, DEFAULT_PANEL_PREFERENCES), DEFAULT_PANEL_PREFERENCES, 'terminal')).toBe('output');
   });
 
   test('falls to the first visible panel when the preferred one was hidden', () => {

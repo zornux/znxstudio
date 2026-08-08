@@ -32,9 +32,9 @@ export interface WorkspaceDef {
 }
 
 export const WORKSPACES: WorkspaceDef[] = [
-  { id: 'code', label: 'Code', activity: 'explorer', panels: ['terminal', 'diagnostics', 'output'], focus: 'terminal' },
+  { id: 'code', label: 'Code', activity: 'explorer', panels: ['diagnostics', 'output'], focus: 'diagnostics' },
   {
-    id: 'debugging', label: 'Debugging', activity: 'run-debug', panels: ['debug', 'diagnostics', 'terminal'], focus: 'debug',
+    id: 'debugging', label: 'Debugging', activity: 'run-debug', panels: ['debug', 'diagnostics'], focus: 'debug',
     toolbar: [
       { icon: '▷', label: 'Start', command: CommandIds.DebugStart },
       { icon: '■', label: 'Stop', command: CommandIds.DebugStop },
