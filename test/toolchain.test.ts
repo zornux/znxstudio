@@ -347,7 +347,7 @@ describe('toolchain — compatibility evaluation (IL-E)', () => {
   });
 
   test('the compatibility matrix declares the current generation', () => {
-    expect(COMPATIBILITY_MATRIX[0]).toEqual({ znxstudio: '0.1', cli: '1.x', lsp: '1.x', dap: '1.x', projectManifest: '1.x' });
+    expect(COMPATIBILITY_MATRIX[0]).toEqual({ znxstudio: '1.0', cli: '1.x', lsp: '1.x', dap: '1.x', projectManifest: '1.x' });
   });
 });
 

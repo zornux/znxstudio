@@ -41,6 +41,8 @@ export class ExtensionsManagerModule implements IModule {
   private remoteLoading = false;
   private remoteError = '';
   private searchTimer: ReturnType<typeof setTimeout> | undefined;
+  /** Monotonic id so an out-of-order search response can't overwrite newer results. */
+  private searchSeq = 0;
   /** Persistent shell elements — kept stable so typing never rebuilds the search box. */
   private searchInput?: HTMLInputElement;
   private listEl?: HTMLElement;
@@ -142,17 +144,25 @@ export class ExtensionsManagerModule implements IModule {
   }
 
   private async runRemoteSearch(): Promise<void> {
+    // Guard against out-of-order responses: only the latest search may update the results.
+    const seq = ++this.searchSeq;
+    const forQuery = this.query;
     this.remoteLoading = true;
     this.remoteError = '';
     this.render();
     try {
-      this.remoteResults = await this.marketplace.search(this.query);
+      const results = await this.marketplace.search(forQuery);
+      if (seq !== this.searchSeq) return; // a newer search superseded this one
+      this.remoteResults = results;
     } catch (error) {
+      if (seq !== this.searchSeq) return;
       this.remoteResults = [];
       this.remoteError = (error as Error).message;
     } finally {
-      this.remoteLoading = false;
-      this.render();
+      if (seq === this.searchSeq) {
+        this.remoteLoading = false;
+        this.render();
+      }
     }
   }
 
@@ -192,11 +202,19 @@ export class ExtensionsManagerModule implements IModule {
     const toggle = document.createElement('button');
     toggle.className = 'znxstudio-btn-small';
     toggle.textContent = info.enabled ? 'Disable' : 'Enable';
-    toggle.addEventListener('click', () => void this.marketplace.setRemoteEnabled(info.id, !info.enabled));
+    toggle.addEventListener('click', () => {
+      this.marketplace.setRemoteEnabled(info.id, !info.enabled).catch((error: unknown) =>
+        this.context.layout.showToast(`Could not update extension: ${(error as Error).message}`, 'error'),
+      );
+    });
     const uninstall = document.createElement('button');
     uninstall.className = 'znxstudio-btn-small';
     uninstall.textContent = 'Uninstall';
-    uninstall.addEventListener('click', () => void this.marketplace.uninstall(info.id));
+    uninstall.addEventListener('click', () => {
+      this.marketplace.uninstall(info.id).catch((error: unknown) =>
+        this.context.layout.showToast(`Uninstall failed: ${(error as Error).message}`, 'error'),
+      );
+    });
     actions.append(toggle, uninstall);
     row.appendChild(actions);
     return row;

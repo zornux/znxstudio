@@ -141,7 +141,7 @@ export class FullStackModule implements IModule {
 
   private async hasWebIndex(root: string): Promise<boolean> {
     try {
-      const web = `${root.replace(/[\\/]+$/, '')}\\web`;
+      const web = `${root.replace(/[\\/]+$/, '')}/web`;
       const inner = await window.znxstudio.fs.readDirectory(web);
       return inner.some((n) => n.name === 'index.html');
     } catch {

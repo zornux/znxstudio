@@ -127,7 +127,7 @@ export class DeploymentModule implements IModule, DeploymentService {
   async saveArtifact(relPath: string, content: string): Promise<ArtifactSaveResult> {
     const root = this.workspace.currentFolder();
     if (!root) return { ok: false, error: 'Open a folder to save deployment artifacts.' };
-    const abs = `${root}/${relPath}`.replace(/\//g, '\\');
+    const abs = `${root.replace(/[\\/]+$/, '')}/${relPath}`;
     try {
       await window.znxstudio.fs.writeFile(abs, content);
       this.moduleContext.layout.showToast(`Saved ${relPath}.`, 'success');

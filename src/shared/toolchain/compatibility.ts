@@ -90,5 +90,5 @@ export interface CompatibilityRow {
  * speaks generation 1 on every surface.
  */
 export const COMPATIBILITY_MATRIX: CompatibilityRow[] = [
-  { znxstudio: '0.1', cli: '1.x', lsp: '1.x', dap: '1.x', projectManifest: '1.x' },
+  { znxstudio: '1.0', cli: '1.x', lsp: '1.x', dap: '1.x', projectManifest: '1.x' },
 ];

@@ -129,7 +129,7 @@ export class DocsViewerModule implements IModule, DocsService {
    */
   private absolute(source: DocsSource, path: string): string {
     if (!source.root) throw new Error('This document has no folder on disk.');
-    return `${source.root.replace(/[\\/]+$/, '')}/${path}`.replace(/\//g, '\\');
+    return `${source.root.replace(/[\\/]+$/, '')}/${path}`;
   }
 
   private titleOf(markdown: string, fallback: string): string {

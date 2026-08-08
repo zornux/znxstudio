@@ -192,8 +192,10 @@ export class ExtensionsModule implements IModule {
   private async uninstallRemote(id: string): Promise<void> {
     const record = this.remote.get(id);
     if (!record) return;
-    record.disposable?.dispose();
+    // Remove from disk FIRST; only mutate in-memory state once persistence succeeds, so a
+    // failed uninstall leaves memory and disk consistent (and the error propagates).
     await window.znxstudio.marketplace.uninstall(record.summary.publisherHandle, record.summary.slug, record.summary.version);
+    record.disposable?.dispose();
     this.remote.delete(id);
     this.fireChange();
     this.marketplaceEmitter.fire();
@@ -203,6 +205,9 @@ export class ExtensionsModule implements IModule {
   private async setRemoteEnabled(id: string, enabled: boolean): Promise<void> {
     const record = this.remote.get(id);
     if (!record || record.summary.enabled === enabled) return;
+    // Persist the flag first; only apply/dispose contributions if the write succeeds, so a
+    // failed persist can't leave the UI and install.json disagreeing.
+    await window.znxstudio.marketplace.setEnabled(record.summary.publisherHandle, record.summary.slug, record.summary.version, enabled);
     if (enabled) {
       if (record.extension) record.disposable = applyContributions(this.context, record.extension);
     } else {
@@ -210,7 +215,6 @@ export class ExtensionsModule implements IModule {
       record.disposable = undefined;
     }
     record.summary.enabled = enabled;
-    await window.znxstudio.marketplace.setEnabled(record.summary.publisherHandle, record.summary.slug, record.summary.version, enabled);
     this.marketplaceEmitter.fire();
   }
 

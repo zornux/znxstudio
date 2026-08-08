@@ -123,9 +123,11 @@ export class MarketplaceRegistryService {
         }
         const contentLength = Number(res.headers.get('content-length') ?? '0');
         if (contentLength && contentLength > MAX_RESPONSE_BYTES) throw new Error('Response too large.');
+        // Surface the HTTP status first — an error response with an HTML body should report
+        // "HTTP 500", not a misleading "unexpected content-type".
+        if (!res.ok) throw new Error(`Marketplace HTTP ${res.status}.`);
         const ctype = res.headers.get('content-type') ?? '';
         if (!/json/i.test(ctype)) throw new Error(`Unexpected content-type: ${ctype || 'none'}`);
-        if (!res.ok) throw new Error(`Marketplace HTTP ${res.status}.`);
         const text = await res.text();
         if (text.length > MAX_RESPONSE_BYTES) throw new Error('Response too large.');
         return text;

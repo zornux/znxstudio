@@ -86,7 +86,7 @@ export class PreviewModule implements IModule {
       const top = await window.znxstudio.fs.readDirectory(root);
       if (top.some((n) => n.name === 'index.html')) return root;
       if (top.some((n) => n.name === 'web')) {
-        const web = `${root.replace(/[\\/]+$/, '')}\\web`;
+        const web = `${root.replace(/[\\/]+$/, '')}/web`;
         const inner = await window.znxstudio.fs.readDirectory(web).catch(() => []);
         if (inner.some((n) => n.name === 'index.html')) return web;
       }

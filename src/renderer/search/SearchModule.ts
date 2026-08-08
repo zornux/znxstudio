@@ -169,21 +169,26 @@ export class SearchModule implements IModule {
     this.renderMessage('Searching…');
     this.excluded.clear();
 
-    if (this.mode === 'symbols') {
-      const result = await window.znxstudio.search.symbols({ root, query });
-      this.renderSymbols(result.symbols, result.truncated);
-      return;
-    }
+    try {
+      if (this.mode === 'symbols') {
+        const result = await window.znxstudio.search.symbols({ root, query });
+        this.renderSymbols(result.symbols, result.truncated);
+        return;
+      }
 
-    const opts = { caseSensitive: this.caseSensitive, wholeWord: this.wholeWord, isRegex: this.isRegex };
-    const replacement = this.replaceInput?.value ?? '';
-    if (replacement) {
-      const preview = await window.znxstudio.search.previewReplace({ root, query, replacement, ...opts });
-      this.lastPreview = preview.files;
-      this.renderReplacePreview(preview.files, preview.totalMatches, preview.truncated);
-    } else {
-      const result = await window.znxstudio.search.text({ root, query, ...opts });
-      this.renderText(result.files, result.totalMatches, result.truncated);
+      const opts = { caseSensitive: this.caseSensitive, wholeWord: this.wholeWord, isRegex: this.isRegex };
+      const replacement = this.replaceInput?.value ?? '';
+      if (replacement) {
+        const preview = await window.znxstudio.search.previewReplace({ root, query, replacement, ...opts });
+        this.lastPreview = preview.files;
+        this.renderReplacePreview(preview.files, preview.totalMatches, preview.truncated);
+      } else {
+        const result = await window.znxstudio.search.text({ root, query, ...opts });
+        this.renderText(result.files, result.totalMatches, result.truncated);
+      }
+    } catch (error) {
+      // Never leave the panel stuck on "Searching…" or drop an unhandled rejection.
+      this.renderMessage(`Search failed: ${(error as Error).message}`);
     }
   }
 
@@ -361,9 +366,14 @@ export class SearchModule implements IModule {
     let filesChanged = openEdited;
     let replacements = 0;
     if (closed.length) {
-      const result = await window.znxstudio.search.applyReplace({ root, query, replacement, ...opts, files: closed });
-      filesChanged += result.filesChanged;
-      replacements += result.replacements;
+      try {
+        const result = await window.znxstudio.search.applyReplace({ root, query, replacement, ...opts, files: closed });
+        filesChanged += result.filesChanged;
+        replacements += result.replacements;
+      } catch (error) {
+        this.context.layout.showToast(`Replace failed: ${(error as Error).message}`, 'error');
+        return;
+      }
     }
 
     this.context.layout.showToast(

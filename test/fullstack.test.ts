@@ -40,13 +40,16 @@ describe('isFullStackWorkspace', () => {
 
 describe('resolveFullStack', () => {
   test('backend is src/main.zx; frontend is web/ when it has an index', () => {
-    const layout = resolveFullStack('C:\\proj', true);
-    expect(layout.backendEntry).toBe('C:\\proj\\src\\main.zx');
-    expect(layout.frontendDir).toBe('C:\\proj\\web');
+    // Subpaths use forward slashes so the layout is correct on every OS (Windows accepts /).
+    const layout = resolveFullStack('/home/u/proj', true);
+    expect(layout.backendEntry).toBe('/home/u/proj/src/main.zx');
+    expect(layout.frontendDir).toBe('/home/u/proj/web');
+    // A Windows-style root keeps its drive but still joins subpaths with /.
+    expect(resolveFullStack('C:\\proj', true).backendEntry).toBe('C:\\proj/src/main.zx');
   });
 
   test('frontend falls back to the root without a web index', () => {
-    expect(resolveFullStack('C:\\proj\\', false).frontendDir).toBe('C:\\proj');
+    expect(resolveFullStack('/home/u/proj/', false).frontendDir).toBe('/home/u/proj');
   });
 });
 

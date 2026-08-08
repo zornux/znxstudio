@@ -25,8 +25,8 @@ export function isFullStackWorkspace(info: WorkspaceInfo | null): boolean {
 export function resolveFullStack(root: string, webHasIndex: boolean): FullStackLayout {
   const base = root.replace(/[\\/]+$/, '');
   return {
-    backendEntry: `${base}\\src\\main.zx`,
-    frontendDir: webHasIndex ? `${base}\\web` : base,
+    backendEntry: `${base}/src/main.zx`,
+    frontendDir: webHasIndex ? `${base}/web` : base,
   };
 }
 

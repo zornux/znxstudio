@@ -29,7 +29,7 @@ function fakes(artifact: MarketplaceArtifact): { installer: ExtensionInstaller; 
     save: async (e: InstalledExtension) => void saved.push(e),
     remove: async () => undefined,
     setEnabled: async () => undefined,
-    list: async () => [],
+    list: async () => saved,
   } as unknown as InstalledExtensionsStore;
   return { installer: new ExtensionInstaller(registry, store, 'https://marketplace.zornux.com'), saved };
 }
@@ -88,5 +88,28 @@ describe('ExtensionInstaller — transactional install', () => {
     // Marketplace says the publisher is "attacker" but the manifest says "zornux".
     expect(await throws(() => installer.install('attacker', 'midnight', '1.0.0'))).toBe(true);
     expect(saved).toHaveLength(0);
+  });
+
+  test('loadEnabled round-trips a theme whose id contains a dot (no id mangling)', async () => {
+    const manifest = { ...VALID_MANIFEST, contributes: { themes: [{ id: 'dark.blue', label: 'Dark Blue', type: 'dark', colors: { 'editor.background': '#101018' } }] } };
+    const { installer } = fakes(artifactFor(manifest));
+    const installed = await installer.install('zornux', 'midnight', '1.0.0');
+    expect(installed.contributions.themes[0].id).toBe('zornux.midnight.dark.blue');
+    // After a restart, revalidation must yield the SAME theme id (regression: it became .blue).
+    const loaded = await installer.loadEnabled();
+    expect(loaded.apply).toHaveLength(1);
+    expect(loaded.apply[0].contributions.themes[0].id).toBe('zornux.midnight.dark.blue');
+    expect(loaded.quarantined).toHaveLength(0);
+  });
+
+  test('loadEnabled quarantines an incompatible persisted extension instead of crashing', async () => {
+    const { installer, saved } = fakes(artifactFor(VALID_MANIFEST));
+    await installer.install('zornux', 'midnight', '1.0.0');
+    // Corrupt the stored engine range so revalidation fails on the current SDK.
+    saved[0].extension.engines.znxstudio = '>=99.0.0';
+    const loaded = await installer.loadEnabled();
+    expect(loaded.apply).toHaveLength(0);
+    expect(loaded.quarantined).toHaveLength(1);
+    expect(loaded.quarantined[0].id).toBe('zornux.midnight');
   });
 });
