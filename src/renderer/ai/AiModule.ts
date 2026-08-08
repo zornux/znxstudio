@@ -119,6 +119,10 @@ export class AiModule implements IModule, AiService {
   /* ----- the common interface ----- */
   async complete(messages: AiMessage[], options?: AiRequestOptions): Promise<AiCompletionResult> {
     const config = this.applyOptions(this.config(), options);
+    const blocker = this.readiness();
+    if (blocker) {
+      return { ok: false, text: '', provider: config.provider, model: resolveModel(config), error: blocker };
+    }
     const withSystem = this.ensureSystem(messages, options?.system);
     try {
       return await window.znxstudio.ai.complete({ config, messages: withSystem });
@@ -134,6 +138,11 @@ export class AiModule implements IModule, AiService {
     options?: AiRequestOptions,
   ): () => void {
     const config = this.applyOptions(this.config(), options);
+    const blocker = this.readiness();
+    if (blocker) {
+      callbacks.onDone({ ok: false, text: '', provider: config.provider, model: resolveModel(config), error: blocker });
+      return () => undefined;
+    }
     const withSystem = this.ensureSystem(messages, options?.system);
     try {
       return window.znxstudio.ai.completeStream({ config, messages: withSystem }, callbacks);

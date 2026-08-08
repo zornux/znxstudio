@@ -66,10 +66,19 @@ export class RefactorModule implements IModule {
     for (const action of REFACTOR_ACTIONS) {
       const item = document.createElement('li');
       item.className = 'znxstudio-ai-action';
+      item.tabIndex = 0;
+      item.setAttribute('role', 'button');
       item.innerHTML = `<strong>${action.label}</strong><span>${action.description}</span>`;
-      item.addEventListener('click', () => {
+      const choose = (): void => {
         this.close();
         void this.runAction(action, code, selections);
+      };
+      item.addEventListener('click', choose);
+      item.addEventListener('keydown', (event) => {
+        if (event.key === 'Enter' || event.key === ' ') {
+          event.preventDefault();
+          choose();
+        }
       });
       list.appendChild(item);
     }
@@ -191,9 +200,13 @@ export class RefactorModule implements IModule {
     });
     const box = document.createElement('div');
     box.className = 'znxstudio-ai-modal-box';
+    box.setAttribute('role', 'dialog');
+    box.setAttribute('aria-modal', 'true');
     const heading = document.createElement('div');
     heading.className = 'znxstudio-ai-modal-title';
+    heading.id = `znxstudio-ai-modal-title-${Date.now()}`;
     heading.textContent = title;
+    box.setAttribute('aria-labelledby', heading.id);
     box.appendChild(heading);
     overlay.appendChild(box);
     this.overlay = overlay;

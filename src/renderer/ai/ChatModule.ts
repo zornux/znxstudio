@@ -49,7 +49,7 @@ export class ChatModule implements IModule {
       onSelect: () => this.reveal(),
     });
     context.commands.register(CommandIds.AiChatShow, () => this.reveal(), 'AI: Chat');
-    context.commands.register(CommandIds.AiChatClear, () => this.clear(), 'AI: Clear Chat');
+    context.commands.register(CommandIds.AiChatClear, () => this.clearAndReveal(), 'AI: New Chat');
 
     this.ai.onDidChangeConfig(() => this.render());
     this.render();
@@ -65,6 +65,11 @@ export class ChatModule implements IModule {
   private clear(): void {
     this.session.reset();
     this.render();
+  }
+
+  private clearAndReveal(): void {
+    this.clear();
+    this.reveal();
   }
 
   private render(): void {
@@ -91,6 +96,11 @@ export class ChatModule implements IModule {
 
     if (!this.ai.isEnabled()) {
       this.root.appendChild(this.disabledState());
+      return;
+    }
+    const blocker = this.ai.readiness();
+    if (blocker) {
+      this.root.appendChild(this.configurationState(blocker));
       return;
     }
 
@@ -159,6 +169,24 @@ export class ChatModule implements IModule {
     button.textContent = 'Choose a provider';
     button.addEventListener('click', () => this.ai.openSettings());
     empty.appendChild(button);
+    return empty;
+  }
+
+  private configurationState(message: string): HTMLElement {
+    const empty = document.createElement('div');
+    empty.className = 'znxstudio-chat-empty';
+    const title = document.createElement('p');
+    const strong = document.createElement('strong');
+    strong.textContent = 'AI needs configuration.';
+    title.appendChild(strong);
+    const detail = document.createElement('p');
+    detail.className = 'znxstudio-muted';
+    detail.textContent = message;
+    const button = document.createElement('button');
+    button.className = 'znxstudio-btn';
+    button.textContent = 'Review AI settings';
+    button.addEventListener('click', () => this.ai.openSettings());
+    empty.append(title, detail, button);
     return empty;
   }
 

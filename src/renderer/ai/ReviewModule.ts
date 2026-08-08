@@ -193,7 +193,17 @@ export class ReviewModule implements IModule {
         body.appendChild(detail);
       }
       row.append(icon, line, body);
-      row.addEventListener('click', () => this.editor.revealPosition(Math.max(0, finding.line - 1), 0));
+      row.tabIndex = 0;
+      row.setAttribute('role', 'button');
+      row.setAttribute('aria-label', `Line ${finding.line}: ${finding.title}`);
+      const reveal = (): void => this.editor.revealPosition(Math.max(0, finding.line - 1), 0);
+      row.addEventListener('click', reveal);
+      row.addEventListener('keydown', (event) => {
+        if (event.key === 'Enter' || event.key === ' ') {
+          event.preventDefault();
+          reveal();
+        }
+      });
       this.panel.appendChild(row);
     }
   }
