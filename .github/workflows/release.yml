@@ -126,6 +126,18 @@ jobs:
         env:
           GPG_PRIVATE_KEY: ${{ secrets.GPG_PRIVATE_KEY }}
         run: |
+          # Use an isolated, throwaway keyring so nothing leaks into the runner's
+          # default GNUPGHOME; the path is exported so the signing step reuses it.
+          GNUPGHOME="$(mktemp -d)"
+          chmod 700 "$GNUPGHOME"
+          echo "GNUPGHOME=$GNUPGHOME" >> "$GITHUB_ENV"
+          export GNUPGHOME
+          # A CI runner has no TTY, so the passphrase must arrive over the loopback
+          # pinentry. The agent refuses that unless allow-loopback-pinentry is set —
+          # without it, `gpg --detach-sign` dies with "Too much data for IPC layer".
+          printf 'allow-loopback-pinentry\n' > "$GNUPGHOME/gpg-agent.conf"
+          printf 'pinentry-mode loopback\n' > "$GNUPGHOME/gpg.conf"
+          gpgconf --kill gpg-agent || true
           echo "$GPG_PRIVATE_KEY" | base64 -d | gpg --batch --import
           gpg --list-secret-keys --keyid-format long
 
@@ -150,9 +162,13 @@ jobs:
           cat SHA256SUMS.txt || true
           if [ "$HAS_GPG" = "true" ]; then
             KEY="${GPG_KEY_ID:-release@znxstudio.dev}"
-            gpg --batch --pinentry-mode loopback --passphrase "$GPG_PASSPHRASE" \
-              --local-user "$KEY" --armor --detach-sign --output SHA256SUMS.txt.asc SHA256SUMS.txt
+            # Feed the passphrase on fd 0 (not a --passphrase arg) so it never lands
+            # in the process table; loopback pinentry was enabled at import time.
+            printf '%s' "$GPG_PASSPHRASE" | gpg --batch --yes --pinentry-mode loopback \
+              --passphrase-fd 0 --local-user "$KEY" --armor --detach-sign \
+              --output SHA256SUMS.txt.asc SHA256SUMS.txt
             gpg --armor --export "$KEY" > znxstudio-signing-public.asc
+            gpg --verify SHA256SUMS.txt.asc SHA256SUMS.txt
             echo "Signed the release manifest with $KEY."
           else
             echo "::warning::GPG_PRIVATE_KEY not set — Linux artifacts are UNSIGNED."
