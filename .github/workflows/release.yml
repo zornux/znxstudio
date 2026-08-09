@@ -22,8 +22,8 @@ jobs:
       prerelease: ${{ steps.policy.outputs.prerelease }}
       update_channel: ${{ steps.policy.outputs.update_channel }}
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
         with:
           node-version: 20
           cache: npm
@@ -89,10 +89,10 @@ jobs:
     needs: validate
     runs-on: windows-latest
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
         with: { node-version: 20, cache: npm }
-      - uses: actions/setup-dotnet@v4
+      - uses: actions/setup-dotnet@v5
         with: { dotnet-version: '8.0.x' }
       - run: dotnet tool install --global sign --version 0.9.1-beta.26371.2
       - run: npm ci
@@ -121,7 +121,7 @@ jobs:
       - name: Generate checksums
         shell: bash
         run: cd release && sha512sum *.exe > SHA512SUMS.txt
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v6
         with:
           name: znxstudio-windows
           path: |
@@ -136,10 +136,10 @@ jobs:
     needs: validate
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
         with: { node-version: 20, cache: npm }
-      - uses: actions/setup-dotnet@v4
+      - uses: actions/setup-dotnet@v5
         with: { dotnet-version: '8.0.x' }
       - run: sudo apt-get update && sudo apt-get install -y rpm
       - run: npm ci
@@ -181,7 +181,7 @@ jobs:
             gpg --armor --export "$KEY" > znxstudio-signing-public.asc
             gpg --verify SHA256SUMS.txt.asc SHA256SUMS.txt
           fi
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v6
         with:
           name: znxstudio-linux
           path: |
@@ -200,7 +200,7 @@ jobs:
     needs: [validate, windows, linux]
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/download-artifact@v4
+      - uses: actions/download-artifact@v7
         with: { path: artifacts }
       - name: Attach signed manifests to the existing release
         env:
