@@ -8,6 +8,7 @@ import {
 import { selfTestCoordinator } from '../core/SelfTestCoordinator';
 import type { IModule, ModuleContext } from '../core/Module';
 import { CommandIds } from '../commands/CommandIds';
+import { joinPath } from '../explorer/paths';
 import { renderAiMarkdown } from './aiMarkdown';
 import {
   buildDebugMessages,
@@ -206,7 +207,7 @@ export class DebugAssistModule implements IModule {
       const compiler = this.context.services.tryGet<CompilerService>(ServiceKeys.Compiler);
       const info = compiler ? await compiler.info() : null;
       if (compiler && info?.available && info.path && tempDir) {
-        const file = `${tempDir}\\znxstudio-debugai-selftest.zx`;
+        const file = joinPath(tempDir, 'znxstudio-debugai-selftest.zx');
         const bad = 'function add with a, b\n    give back a + b\nend\n'; // `add` is reserved → ZX0110
         await window.znxstudio.fs.writeFile(file, bad);
         const result = await compiler.check({ uri: `file:///${file.replace(/\\/g, '/')}`, path: file, source: bad, isDirty: false, workspaceRoot: tempDir });

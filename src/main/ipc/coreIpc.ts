@@ -1,4 +1,6 @@
 import { app, BrowserWindow, dialog, ipcMain, shell } from 'electron';
+import { existsSync } from 'node:fs';
+import { resolve } from 'node:path';
 import { IpcChannels } from '../../shared/ipc';
 import { isSafeExternalUrl } from '../../shared/security';
 import { FileSystemService } from '../services/FileSystemService';
@@ -6,6 +8,31 @@ import { createMainWindow } from '../AppWindow';
 import { sharedWorkspaceTrust } from '../services/WorkspaceTrustService';
 import { confineToRoots } from '../util/pathBoundary';
 import { isSelfTest } from '../util/selftest';
+
+/**
+ * The cross-platform root of the Zornux example programs the headless self-tests
+ * read from. `ZORNUX_EXAMPLES_DIR` wins (CI can point it anywhere); otherwise a
+ * sibling `xojin/examples` next to the app root — how a dev checkout is laid out.
+ * Empty string when neither exists, so self-tests skip instead of failing on a
+ * hardcoded path that only resolves on one machine.
+ */
+function resolveExamplesDir(): string {
+  // An explicit override is authoritative — used as-is when it exists, and NOT
+  // silently replaced by the sibling fallback when it doesn't (so CI can force
+  // "no examples" to exercise the self-tests' skip/temp-fixture paths).
+  const override = process.env.ZORNUX_EXAMPLES_DIR;
+  if (override !== undefined) return existsSync(override) ? override : '';
+  const sibling = resolve(app.getAppPath(), '..', 'xojin', 'examples');
+  return existsSync(sibling) ? sibling : '';
+}
+
+/** The Zoijs docs project root (env override, else a sibling checkout), or '' — see {@link resolveExamplesDir}. */
+function resolveZoijsDocsDir(): string {
+  const override = process.env.ZORNUX_ZOIJS_DOCS_DIR;
+  if (override !== undefined) return existsSync(override) ? override : '';
+  const sibling = resolve(app.getAppPath(), '..', 'Xornux frontend documentation');
+  return existsSync(sibling) ? sibling : '';
+}
 
 /**
  * Reads ZORNUX_SELFTEST_CONCURRENCY into a positive integer (default 1). Any
@@ -50,6 +77,8 @@ export function registerCoreIpc(): void {
     selftestConcurrency: selfTestConcurrency(),
     tempDir: app.getPath('temp'),
     homeDir: app.getPath('home'),
+    examplesDir: resolveExamplesDir(),
+    zoijsDocsDir: resolveZoijsDocsDir(),
   }));
 
   ipcMain.handle(IpcChannels.ShellOpenExternal, async (_event, url: string) => {

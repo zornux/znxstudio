@@ -9,6 +9,7 @@ import { Emitter } from '../core/Emitter';
 import { selfTestCoordinator } from '../core/SelfTestCoordinator';
 import type { IModule, ModuleContext } from '../core/Module';
 import { CommandIds } from '../commands/CommandIds';
+import { joinPath } from '../explorer/paths';
 import { classifyLink, headingSlug, inlineText, parseMarkdown, renderMarkdown, resolveDocPath } from './markdown';
 import { PRODUCT_GUIDE } from './productGuide';
 
@@ -259,12 +260,12 @@ export class DocsViewerModule implements IModule, DocsService {
     const log = (message: string) => console.info(`[selftest] ${message}`);
 
     try {
-      const root = `${tempDir}\\znxstudio-docs-selftest`;
+      const root = joinPath(tempDir, 'znxstudio-docs-selftest');
       await window.znxstudio.fs.writeFile(
-        `${root}\\index.md`,
+        joinPath(root, 'index.md'),
         '# Index\n\nSee [the guide](guide/intro.md).\n\n[evil](javascript:alert(1))\n',
       );
-      await window.znxstudio.fs.writeFile(`${root}\\guide\\intro.md`, '# Intro\n\nBack to [index](../index.md).\n');
+      await window.znxstudio.fs.writeFile(joinPath(joinPath(root, 'guide'), 'intro.md'), '# Intro\n\nBack to [index](../index.md).\n');
 
       const source = { label: 'Self-test', root };
       await this.openFile(source, 'index.md');

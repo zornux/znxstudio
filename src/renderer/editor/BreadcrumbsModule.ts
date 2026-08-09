@@ -12,6 +12,7 @@ import {
   symbolsAtDepth,
   type BreadcrumbSegment,
 } from './breadcrumbs';
+import { examplePath, examplesParent } from '../core/selftestFixtures';
 
 /** Built-in Monaco folding actions surfaced as ZnxStudio commands. */
 const FOLD_ACTIONS = {
@@ -247,8 +248,12 @@ export class BreadcrumbsModule implements IModule {
 
     // Prove the trail against REAL document symbols of a real xojin file (via the
     // language service's symbol provider — LSP if up, TS fallback otherwise).
-    const root = 'C:\\Studio Apps\\xojin';
-    const path = `${root}\\examples\\classes.zx`;
+    const path = await examplePath('classes.zx');
+    if (!path) {
+      log('breadcrumbs REAL: skipped (no examples root)');
+      return;
+    }
+    const root = await examplesParent();
     try {
       const managed = await this.documents.open(path);
       const service = this.registry.get(managed.languageId);

@@ -9,6 +9,7 @@ import {
   type ProjectReferenceGraph,
   type ProjectReferencesService,
 } from './projectReferences';
+import { examplePath } from '../core/selftestFixtures';
 
 /**
  * Loads each open project's `zornux.project` manifest and resolves the reference
@@ -65,9 +66,15 @@ export class ProjectReferencesModule implements IModule, ProjectReferencesServic
 
     try {
       // Real internal-reference pair: greeter-app depends on the Greetings library.
+      const appDir = await examplePath('registry', 'app');
+      const libDir = await examplePath('registry', 'greetings');
+      if (!appDir || !libDir) {
+        log('projectRefs: skipped (no examples root)');
+        return;
+      }
       const [app, lib] = await Promise.all([
-        window.znxstudio.workspace.load('C:\\Studio Apps\\xojin\\examples\\registry\\app'),
-        window.znxstudio.workspace.load('C:\\Studio Apps\\xojin\\examples\\registry\\greetings'),
+        window.znxstudio.workspace.load(appDir),
+        window.znxstudio.workspace.load(libDir),
       ]);
       const graph = await this.graphFor([app, lib]);
       const names = graph.nodes.map((node) => `${baseName(node.root)}→${node.name}`).join(', ');

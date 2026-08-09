@@ -7,8 +7,10 @@ import {
   type QuickPickService,
 } from '../core/Contracts';
 import { selfTestCoordinator } from '../core/SelfTestCoordinator';
+import { examplePath } from '../core/selftestFixtures';
 import type { IModule, ModuleContext } from '../core/Module';
 import { CommandIds } from '../commands/CommandIds';
+import { joinPath } from '../explorer/paths';
 import {
   generateMigration,
   parseDbStatus,
@@ -323,8 +325,13 @@ export class MigrationsModule implements IModule {
       const compiler = this.context.services.tryGet<CompilerService>(ServiceKeys.Compiler);
       const info = compiler ? await compiler.info() : null;
       if (info?.available && info.path && tempDir) {
-        const original = await window.znxstudio.fs.readFile('C:\\Studio Apps\\xojin\\examples\\data\\migrations.zx');
-        const copy = `${tempDir}\\znxstudio-mig.zx`;
+        const example = await examplePath('data', 'migrations.zx');
+        if (!example) {
+          log('migrations REAL: no examples root — skipped');
+          return;
+        }
+        const original = await window.znxstudio.fs.readFile(example);
+        const copy = joinPath(tempDir, 'znxstudio-mig.zx');
         await window.znxstudio.fs.writeFile(copy, original);
         const statusOut = await captureTask(`"${info.path}" db status "${copy}"`, tempDir);
         const parsed = parseDbStatus(statusOut.output);

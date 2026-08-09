@@ -5,6 +5,7 @@ import {
   type DatabaseService,
 } from '../core/Contracts';
 import { selfTestCoordinator } from '../core/SelfTestCoordinator';
+import { examplePath } from '../core/selftestFixtures';
 import type { IModule, ModuleContext } from '../core/Module';
 import { CommandIds } from '../commands/CommandIds';
 import { joinPath } from '../explorer/paths';
@@ -210,7 +211,12 @@ export class DataBrowserModule implements IModule {
       const compiler = this.context.services.tryGet<CompilerService>(ServiceKeys.Compiler);
       const info = compiler ? await compiler.info() : null;
       if (info?.available && info.path && tempDir) {
-        const source = await window.znxstudio.fs.readFile('C:\\Studio Apps\\xojin\\examples\\data\\advanced_queries.zx');
+        const example = await examplePath('data', 'advanced_queries.zx');
+        if (!example) {
+          log('databrowser REAL: no examples root — skipped');
+          return;
+        }
+        const source = await window.znxstudio.fs.readFile(example);
         const schema = buildSchema(source).find((d) => d.name === 'Db');
         const columns = (schema?.tables.find((t) => t.table === 'People')?.columns ?? [])
           .filter((c) => !c.isPrivate)

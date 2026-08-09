@@ -16,6 +16,7 @@ import { DocumentManager, type ManagedDocument } from '../DocumentManager';
 import { LanguageRegistry } from '../LanguageRegistry';
 import { LspLanguageClient } from './LspLanguageClient';
 import { toPlatformDiagnostics } from './lspDiagnostics';
+import { examplePath, tempPath } from '../../core/selftestFixtures';
 import {
   LIVE_SECURITY_CAVEAT,
   buildConfigurationChange,
@@ -327,7 +328,11 @@ export class LspModule implements IModule {
 
       // 1) Live diagnostics through the ENGINE: open a real doc with a static
       //    error; the server's push must land in the compiler source.
-      const errPath = 'C:\\Users\\jerem\\AppData\\Local\\Temp\\znxstudio-lspb-broken.zx';
+      const errPath = await tempPath('znxstudio-lspb-broken.zx');
+      if (!errPath) {
+        log('lsp: no temp dir; skipping LSP-B checks');
+        return;
+      }
       await window.znxstudio.fs.writeFile(errPath, 'show "unterminated\n');
       const errDoc = await this.documents.open(errPath);
       const lspDiags = await this.waitFor(
@@ -373,7 +378,12 @@ export class LspModule implements IModule {
         );
       }
       // Open a file with functions and exercise hover + LSP-D providers against it.
-      const fnDoc = await this.documents.open('C:\\Studio Apps\\xojin\\examples\\functions.zx');
+      const fnPath = await examplePath('functions.zx');
+      if (!fnPath) {
+        log('lsp functions.zx: skipped (no examples root)');
+        return;
+      }
+      const fnDoc = await this.documents.open(fnPath);
       if (zornux?.hover) {
         const hover = await zornux.hover.provideHover(fnDoc.document, { line: 12, character: 6 }); // "greet(" call
         log(`lsp hover via service: ${hover ? `contents="${(hover.contents[0] ?? '').replace(/\n/g, ' ').slice(0, 50)}"` : 'null'}`);
@@ -419,7 +429,11 @@ export class LspModule implements IModule {
       this.documents.close(fnDoc.uri);
 
       // LSP-E: formatting via the service — a misformatted doc must yield edits.
-      const fmtPath = 'C:\\Users\\jerem\\AppData\\Local\\Temp\\znxstudio-lspe-fmt.zx';
+      const fmtPath = await tempPath('znxstudio-lspe-fmt.zx');
+      if (!fmtPath) {
+        log('lsp: no temp dir; skipping LSP-E formatting');
+        return;
+      }
       await window.znxstudio.fs.writeFile(fmtPath, 'function greet with name\ngive back "hi"\nend\n');
       const fmtDoc = await this.documents.open(fmtPath);
       if (zornux?.formatter) {

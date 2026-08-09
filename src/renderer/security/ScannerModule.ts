@@ -4,6 +4,7 @@ import type { IModule, ModuleContext } from '../core/Module';
 import { CommandIds } from '../commands/CommandIds';
 import { findingsToDecorations, type Confidence, type SecurityFinding, type SecuritySeverity } from './findings';
 import { filterFindings, groupByFile, presentCategories, scanSummary, summaryLine, type ScanFilter } from './scanner';
+import { joinPath } from '../explorer/paths';
 
 const DECORATION_OWNER = 'security.scan';
 const SEVERITIES: SecuritySeverity[] = ['Critical', 'Error', 'Warning', 'Info'];
@@ -248,7 +249,7 @@ export class ScannerModule implements IModule {
       // One program that trips FOUR different rules at once: an unsafe API, a
       // never-closed connection, an unguarded state-changing route, and an
       // unencoded reflection of request data.
-      const file = `${tempDir}\\znxstudio-security-scan.zx`;
+      const file = joinPath(tempDir, 'znxstudio-security-scan.zx');
       await window.znxstudio.fs.writeFile(
         file,
         [

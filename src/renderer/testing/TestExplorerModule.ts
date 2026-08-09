@@ -10,6 +10,7 @@ import { selfTestCoordinator } from '../core/SelfTestCoordinator';
 import type { IModule, ModuleContext } from '../core/Module';
 import { CommandIds } from '../commands/CommandIds';
 import { captureTask } from '../database/runCapture';
+import { joinPath } from '../explorer/paths';
 import {
   buildTestArgs,
   classifyTestFile,
@@ -617,7 +618,7 @@ export class TestExplorerModule implements IModule {
       const compiler = this.context.services.tryGet<CompilerService>(ServiceKeys.Compiler);
       const info = compiler ? await compiler.info() : null;
       if (info?.available && info.path && tempDir) {
-        const file = `${tempDir}\\znxstudio-tests.zx`;
+        const file = joinPath(tempDir, 'znxstudio-tests.zx');
         await window.znxstudio.fs.writeFile(file, 'test "p1"\n    expect 1 to equal 1\nend\ntest "f1"\n    expect 1 to equal 2\nend\ntest "p2"\n    expect 2 to equal 2\nend\n');
 
         const base = parseTestResult((await captureTask(`"${info.path}" test "${file}" ${buildTestArgs({ engine: 'interpreter', failFast: false })}`, tempDir)).output);
@@ -635,7 +636,7 @@ export class TestExplorerModule implements IModule {
         }
 
         // Integration context: a restrict-guarded test fails without a role, passes with it.
-        const guarded = `${tempDir}\\znxstudio-guarded.zx`;
+        const guarded = joinPath(tempDir, 'znxstudio-guarded.zx');
         await window.znxstudio.fs.writeFile(
           guarded,
           'policy CanEdit\n    require role "Editor"\nend\nfunction edit\n    restrict to policy CanEdit otherwise give back "denied"\n    give back "edited"\nend\ntest "editor can edit"\n    expect edit() to equal "edited"\nend\n',

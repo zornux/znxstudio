@@ -5,6 +5,7 @@ import { LanguageServiceKeys, type DocumentSymbol } from '../language/api';
 import type { DocumentManager } from '../language/DocumentManager';
 import type { LanguageRegistry } from '../language/LanguageRegistry';
 import { SYMBOL_ICON } from '../ui/symbolIcons';
+import { examplePath } from '../core/selftestFixtures';
 
 /**
  * Outline panel. Shows the document symbols for the active document by asking
@@ -82,7 +83,12 @@ export class OutlineModule implements IModule {
     try {
       const titles = [...document.querySelectorAll('.znxstudio-explorer-cs-title')].map((el) => el.textContent);
       const editor = this.context.services.tryGet<EditorService>(ServiceKeys.Editor);
-      const files = (await window.znxstudio.search.files('C:\\Studio Apps\\xojin\\examples')).filter((f) =>
+      const examples = await examplePath();
+      if (!examples) {
+        log('explorersections REAL: skipped (no examples root)');
+        return;
+      }
+      const files = (await window.znxstudio.search.files(examples)).filter((f) =>
         f.endsWith('.zx'),
       );
       let openRows = 0;

@@ -1,7 +1,9 @@
 import { ServiceKeys, type InputBoxService, type WorkspaceService } from '../core/Contracts';
 import { selfTestCoordinator } from '../core/SelfTestCoordinator';
+import { examplePath, tempPath } from '../core/selftestFixtures';
 import type { IModule, ModuleContext } from '../core/Module';
 import { CommandIds } from '../commands/CommandIds';
+import { joinPath } from '../explorer/paths';
 import {
   parsePackageInfo,
   parseRegistryList,
@@ -527,14 +529,22 @@ export class PackageManagerModule implements IModule {
         return;
       }
       const compilerPath = info.path;
-      const temp = 'C:\\Users\\jerem\\AppData\\Local\\Temp\\znxstudio-pkg-5e';
-      const proj = `${temp}\\proj`;
+      const temp = await tempPath('znxstudio-pkg-5e');
+      if (!temp) {
+        log('package-manager: no temp dir — skipping');
+        return;
+      }
+      const proj = joinPath(temp, 'proj');
       // A fresh store per run so publish always writes cleanly (a folder registry
       // rejects a duplicate version with ZX1411). PublishLocal creates the folder.
-      const store = `${temp}\\store-${Date.now()}`;
-      const greetings = 'C:\\Studio Apps\\xojin\\examples\\registry\\greetings';
+      const store = joinPath(temp, `store-${Date.now()}`);
+      const greetings = await examplePath('registry', 'greetings');
+      if (!greetings) {
+        log('package-manager: no examples root — skipping');
+        return;
+      }
 
-      await window.znxstudio.fs.writeFile(`${proj}\\zornux.project`, 'name = pkg5e-selftest\nversion = 0.1.0\n');
+      await window.znxstudio.fs.writeFile(joinPath(proj, 'zornux.project'), 'name = pkg5e-selftest\nversion = 0.1.0\n');
 
       // Publish the real Greetings 1.0.0 into a local folder registry.
       const published = await window.znxstudio.packages.query({ command: 'publish', cwd: proj, args: [greetings, '--local', store], compilerPath });

@@ -18,6 +18,7 @@ import { LanguageServiceKeys } from '../language/api';
 import type { OffsetEdit } from '../collab/ot';
 import type { DocumentManager, ManagedDocument } from '../language/DocumentManager';
 import { selfTestCoordinator } from '../core/SelfTestCoordinator';
+import { examplePath, tempZx } from '../core/selftestFixtures';
 import { showModal } from '../ui/modal';
 import { DEFAULT_FONT_SIZE } from '../settings/SettingsSchema';
 import { diskConflictPreview, resolveSaveAsTarget } from './conflictRecovery';
@@ -1283,11 +1284,20 @@ export class EditorModule implements IModule, EditorService {
     const log = (message: string) => console.info(`[selftest] ${message}`);
 
     try {
-      const files = (await window.znxstudio.search.files('C:\\Studio Apps\\xojin\\examples')).filter((f) =>
-        f.endsWith('.zx'),
-      );
+      // Two openable .zx programs, cross-platform: prefer real Zornux examples,
+      // else self-contained temp files so editortoolbar + stress still run on CI
+      // (which has no examples checkout) instead of being skipped.
+      const root = await examplePath();
+      let files = root
+        ? (await window.znxstudio.search.files(root)).filter((f) => f.endsWith('.zx'))
+        : [];
       if (files.length < 2) {
-        log(`editortabs REAL DOM: skipped (need 2 .zx files, found ${files.length})`);
+        const a = await tempZx('editor-a.zx', 'create greeting = "hello"\nshow greeting\n');
+        const b = await tempZx('editor-b.zx', 'create total = 1 + 2\nshow total\n');
+        files = [a, b].filter(Boolean);
+      }
+      if (files.length < 2) {
+        log(`editortabs REAL DOM: skipped (could not obtain 2 .zx files)`);
         return;
       }
       const [a, b] = files;
@@ -1307,15 +1317,24 @@ export class EditorModule implements IModule, EditorService {
       const afterClose = this.tabsBar.querySelectorAll('.znxstudio-editor-tab').length;
 
       const sticky = this.editor.getOption(monaco.editor.EditorOption.stickyScroll) as { enabled: boolean };
-      const toolbar = [...document.querySelectorAll('.znxstudio-editor-actions .znxstudio-editor-action')].map((b) =>
-        b.getAttribute('aria-label'),
-      );
       log(
         `editortabs REAL DOM: previewReuse(${afterSecondPreview}=1) permanentTabs=${permanentCount} ` +
           `previewSeen=${previewCount} pinned=${pinned} afterClose=${afterClose} sticky=${sticky?.enabled} ` +
           `minimap=${this.editor.getOption(monaco.editor.EditorOption.minimap).enabled}`,
       );
-      log(`editortoolbar REAL DOM: actions=[${toolbar.join(', ')}]`);
+      // The toolbar shows Run + Debug directly and folds Stop/Build/Rebuild into a
+      // "More" overflow menu; open it so the self-test reports the FULL action set
+      // rather than the two visible buttons plus the overflow toggle.
+      const MORE_LABEL = 'More run and build actions';
+      const actionButtons = [...document.querySelectorAll('.znxstudio-editor-actions .znxstudio-editor-action')];
+      const direct = actionButtons.map((b) => b.getAttribute('aria-label') ?? '').filter((a) => a !== MORE_LABEL);
+      const moreButton = actionButtons.find((b) => b.getAttribute('aria-label') === MORE_LABEL) as HTMLElement | undefined;
+      moreButton?.click();
+      const overflow = [...document.querySelectorAll('.znxstudio-menu .znxstudio-menu-item')].map((el) =>
+        (el.textContent ?? '').trim(),
+      );
+      document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
+      log(`editortoolbar REAL DOM: actions=[${[...direct, ...overflow].join(', ')}]`);
 
       // 20E: stress the tab renderer with far more tabs than a human opens.
       const savedTabs = this.tabsState;

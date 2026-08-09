@@ -386,9 +386,9 @@ export class ApiReferenceModule implements IModule, ApiReferenceService {
       }
 
       // A real, documented library — written to OS temp, never a repo.
-      const source = `${tempDir}\\znxstudio-apidocs-src`;
+      const source = joinPath(tempDir, 'znxstudio-apidocs-src');
       await window.znxstudio.fs.writeFile(
-        `${source}\\shop.zx`,
+        joinPath(source, 'shop.zx'),
         [
           'module Shop',
           '',
@@ -406,7 +406,7 @@ export class ApiReferenceModule implements IModule, ApiReferenceService {
         ].join('\n'),
       );
 
-      const output = `${tempDir}\\znxstudio-apidocs-out`;
+      const output = joinPath(tempDir, 'znxstudio-apidocs-out');
       this.options = { ...DEFAULT_DOC_OPTIONS };
       const generated = await this.run(source, output, false);
       if (generated?.ok) {
@@ -417,7 +417,7 @@ export class ApiReferenceModule implements IModule, ApiReferenceService {
             `[${summary.files.join(', ')}]`,
         );
         log(`api reference REAL coverage: undocumented=[${coverage.undocumented.join(', ')}] wouldFail=${coverage.wouldFail}`);
-        const page = await window.znxstudio.fs.readFile(`${output}\\modules\\Shop.md`);
+        const page = await window.znxstudio.fs.readFile(joinPath(joinPath(output, 'modules'), 'Shop.md'));
         log(`api reference REAL page: Shop.md has "Parameters"=${page.includes('**Parameters**')} "Returns"=${page.includes('**Returns**')}`);
       }
 

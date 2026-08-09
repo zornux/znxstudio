@@ -5,6 +5,7 @@ import { CommandIds } from '../commands/CommandIds';
 import { captureFocus, markCombobox, markDialog, markListbox, markOption, setActiveDescendant } from '../ui/ariaListbox';
 import { fuzzyFilter } from './fuzzy';
 import { claimOverlay } from '../ui/overlayCoordinator';
+import { examplePath } from '../core/selftestFixtures';
 
 /**
  * Quick Open (Phase 7J). A Ctrl+P fuzzy file finder over the workspace. Loads the
@@ -228,8 +229,12 @@ export class QuickOpenModule implements IModule {
     if (!enabled) return;
     const log = (message: string) => console.info(`[selftest] ${message}`);
 
+    const root = await examplePath();
+    if (!root) {
+      log('quickopen self-test skipped: examples root unavailable');
+      return;
+    }
     try {
-      const root = 'C:\\Studio Apps\\xojin\\examples';
       const files = await window.znxstudio.search.files(root);
       log(`quickopen listFiles(examples): count=${files.length}`);
       const relative = (path: string) => path.slice(root.length + 1).replace(/\\/g, '/');

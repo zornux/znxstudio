@@ -1,6 +1,7 @@
 import * as monaco from 'monaco-editor';
 import { ServiceKeys, type EditorService, type StatusService, type WorkspaceService } from '../core/Contracts';
 import { selfTestCoordinator } from '../core/SelfTestCoordinator';
+import { zoijsDocsPath, zoijsDocsRoot } from '../core/selftestFixtures';
 import type { IModule, ModuleContext } from '../core/Module';
 import { LanguageServiceKeys, type DiagnosticSink } from '../language/api';
 import { DiagnosticSources } from '../language/diagnosticSources';
@@ -712,18 +713,19 @@ export class ZoijsModule implements IModule {
 
     // Real Zoijs source from the docs site — detection, analysis, component scan.
     try {
-      const real = await window.znxstudio.fs.readFile('C:\\Studio Apps\\Xornux frontend documentation\\app\\layout.js');
+      if (!(await zoijsDocsRoot())) throw new Error('no docs root');
+      const real = await window.znxstudio.fs.readFile(await zoijsDocsPath('app', 'layout.js'));
       const diags = analyzeZoijs(real);
       const comps = scanZoijsComponents(real);
       const rgraph = analyzeReactiveGraph(real);
       log(`zoijs real(layout.js): isZoijs=${isZoijsSource(real)} bytes=${real.length} diagnostics=${diags.length} components=[${comps.map((c) => c.name).join(', ')}]`);
       log(`zoijs real(layout.js) reactivity: states=[${rgraph.values.filter((v) => v.kind === 'state').map((v) => v.name).join(', ')}] effects=${rgraph.effects.length}`);
-      const home = await window.znxstudio.fs.readFile('C:\\Studio Apps\\Xornux frontend documentation\\app\\pages\\home.js');
+      const home = await window.znxstudio.fs.readFile(await zoijsDocsPath('app', 'pages', 'home.js'));
       const homeComps = scanZoijsComponents(home);
       log(`zoijs real(home.js): components=${homeComps.length} first=${homeComps[0]?.name ?? '-'} caseDiags=${analyzeZoijsComponents(home).length}`);
 
       // 6E: routes from the real routes.js.
-      const routesFile = await window.znxstudio.fs.readFile('C:\\Studio Apps\\Xornux frontend documentation\\app\\routes.js');
+      const routesFile = await window.znxstudio.fs.readFile(await zoijsDocsPath('app', 'routes.js'));
       const routes = scanRoutes(routesFile);
       const dyn = routes.filter((r) => r.dynamic).length;
       const notFound = routes.filter((r) => r.notFound).length;
@@ -742,7 +744,7 @@ export class ZoijsModule implements IModule {
 
     // 6F: DevTools — (a) conformance to the real inspector hook's callback set.
     try {
-      const dtSrc = await window.znxstudio.fs.readFile('C:\\Studio Apps\\Xornux frontend documentation\\vendor\\zoijs\\core\\reactivity\\devtools.js');
+      const dtSrc = await window.znxstudio.fs.readFile(await zoijsDocsPath('vendor', 'zoijs', 'core', 'reactivity', 'devtools.js'));
       const called = [...new Set([...dtSrc.matchAll(/inspector\.(\w+)/g)].map((m) => m[1]))].sort();
       const impl = [...BRIDGE_CALLBACKS].sort();
       const missing = called.filter((c) => !impl.includes(c));

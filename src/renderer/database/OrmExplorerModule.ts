@@ -1,5 +1,6 @@
 import { ServiceKeys, type EditorService, type StatusService } from '../core/Contracts';
 import { selfTestCoordinator } from '../core/SelfTestCoordinator';
+import { examplePath } from '../core/selftestFixtures';
 import type { IModule, ModuleContext } from '../core/Module';
 import { CommandIds } from '../commands/CommandIds';
 import { LanguageServiceKeys } from '../language/api';
@@ -156,7 +157,12 @@ export class OrmExplorerModule implements IModule {
     const log = (message: string) => console.info(`[selftest] ${message}`);
 
     try {
-      const source = await window.znxstudio.fs.readFile('C:\\Studio Apps\\xojin\\examples\\data\\user_crud.zx');
+      const path = await examplePath('data', 'user_crud.zx');
+      if (!path) {
+        log('orm skipped (no examples root)');
+        return;
+      }
+      const source = await window.znxstudio.fs.readFile(path);
       const analysis = analyzeOrm(source);
       const users = analysis.tables.find((t) => t.table === 'Users');
       log(`orm user_crud: ops=${analysis.operations.length} tables=${analysis.tables.length} Users(C=${users?.creates} R=${users?.reads} D=${users?.deletes} from=${users?.from}) diagnostics=${analysis.diagnostics.length}`);

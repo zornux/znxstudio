@@ -8,6 +8,7 @@ import { Emitter } from '../core/Emitter';
 import { selfTestCoordinator } from '../core/SelfTestCoordinator';
 import type { IModule, ModuleContext } from '../core/Module';
 import { CommandIds } from '../commands/CommandIds';
+import { joinPath } from '../explorer/paths';
 import { VerificationRunner } from './runner';
 import {
   EMPTY_PACK,
@@ -32,8 +33,13 @@ import {
   type Tutorial,
 } from './learning';
 
-/** Where the shipped curriculum lives on this workstation. Overridable. */
-export const DEFAULT_PACK_PATH = 'C:\\Studio Apps\\ZnxStudio learning center';
+/**
+ * The learning pack folder. There is no cross-platform bundled default (the old
+ * value was one developer's Windows path), so it defaults to empty and the user
+ * points `docs.learning.path` at a pack folder — the center degrades gracefully
+ * with a clear prompt until then.
+ */
+export const DEFAULT_PACK_PATH = '';
 export const PACK_PATH_SETTING = 'docs.learning.path';
 export const PROGRESS_SETTING = 'docs.learning.progress';
 
@@ -126,7 +132,8 @@ export class LearningCenterModule implements IModule, LearningService {
     const root = this.settings?.get<string>(PACK_PATH_SETTING, DEFAULT_PACK_PATH) ?? DEFAULT_PACK_PATH;
     let text: string;
     try {
-      text = await window.znxstudio.fs.readFile(`${root}\\${PACK_MANIFEST}`);
+      if (!root) throw new Error('no learning pack path configured');
+      text = await window.znxstudio.fs.readFile(joinPath(root, PACK_MANIFEST));
     } catch {
       this.packRoot = null;
       this.loaded = EMPTY_PACK;

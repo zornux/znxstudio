@@ -5,8 +5,10 @@ import {
   type DatabaseService,
 } from '../core/Contracts';
 import { selfTestCoordinator } from '../core/SelfTestCoordinator';
+import { examplePath } from '../core/selftestFixtures';
 import type { IModule, ModuleContext } from '../core/Module';
 import { CommandIds } from '../commands/CommandIds';
+import { joinPath } from '../explorer/paths';
 import { buildRunExpression, parseQuery, validateQuery } from './queryModel';
 import { buildProfileProgram, clampIterations, parseProfile, perQueryMicros } from './profiler';
 import { captureTask } from './runCapture';
@@ -175,7 +177,7 @@ export class QueryProfilerModule implements IModule {
 
     const program = buildProfileProgram(source, buildRunExpression(query), iterations);
     const tempDir = (await window.znxstudio.app.getInfo()).tempDir;
-    const file = `${tempDir}\\znxstudio-profile.zx`;
+    const file = joinPath(tempDir, 'znxstudio-profile.zx');
     try {
       await window.znxstudio.fs.writeFile(file, program);
     } catch (error) {
@@ -267,9 +269,14 @@ export class QueryProfilerModule implements IModule {
       const compiler = this.context.services.tryGet<CompilerService>(ServiceKeys.Compiler);
       const info = compiler ? await compiler.info() : null;
       if (info?.available && info.path && tempDir) {
-        const source = await window.znxstudio.fs.readFile('C:\\Studio Apps\\xojin\\examples\\data\\advanced_queries.zx');
+        const example = await examplePath('data', 'advanced_queries.zx');
+        if (!example) {
+          log('profiler REAL: no examples root — skipped');
+          return;
+        }
+        const source = await window.znxstudio.fs.readFile(example);
         const runExpr = buildRunExpression(parseQuery('find count from Db.People where age is greater than 18'));
-        const file = `${tempDir}\\znxstudio-profile.zx`;
+        const file = joinPath(tempDir, 'znxstudio-profile.zx');
         await window.znxstudio.fs.writeFile(file, buildProfileProgram(source, runExpr, 2000));
         for (const engine of ENGINES) {
           const { output } = await captureTask(`"${info.path}" ${engine.command} "${file}"`, tempDir);

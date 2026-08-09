@@ -5,6 +5,7 @@ import { CommandIds } from '../commands/CommandIds';
 import { LanguageServiceKeys } from '../language/api';
 import type { DocumentManager } from '../language/DocumentManager';
 import { dependents, generateMock, parseComponents, type Component } from './mocking';
+import { examplePath } from '../core/selftestFixtures';
 
 const KIND_ICON: Record<string, string> = { repository: 'R', service: 'S', application: 'A' };
 
@@ -161,8 +162,13 @@ export class MockingModule implements IModule {
     if (!enabled) return;
     const log = (message: string) => console.info(`[selftest] ${message}`);
 
+    const servicePath = await examplePath('enterprise', 'user_service.zx');
+    if (!servicePath) {
+      log('mocking self-test skipped: examples root unavailable');
+      return;
+    }
     try {
-      const source = await window.znxstudio.fs.readFile('C:\\Studio Apps\\xojin\\examples\\enterprise\\user_service.zx');
+      const source = await window.znxstudio.fs.readFile(servicePath);
       const components = parseComponents(source);
       log(`mocking parse: [${components.map((c) => `${c.kind}:${c.name}(fns=${c.functions.length},uses=[${c.uses.join('+')}])`).join(' ')}]`);
 

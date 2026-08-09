@@ -8,6 +8,7 @@ import { selfTestCoordinator } from '../core/SelfTestCoordinator';
 import type { IModule, ModuleContext } from '../core/Module';
 import { CommandIds } from '../commands/CommandIds';
 import { captureTask } from '../database/runCapture';
+import { joinPath } from '../explorer/paths';
 import { buildTestArgs, parseTestResult, type TestRunResult } from '../testing/testModel';
 import { findDeclaration } from './docs';
 import {
@@ -114,7 +115,7 @@ export class TestGenModule implements IModule {
 
     this.phase = 'running';
     this.render();
-    const file = `${tempDir}\\znxstudio-aigen-tests.zx`;
+    const file = joinPath(tempDir, 'znxstudio-aigen-tests.zx');
     const program = composeTestProgram(this.source, this.testSource);
     await window.znxstudio.fs.writeFile(file, program);
     const { output } = await captureTask(`"${info.path}" test "${file}" ${buildTestArgs({ engine: 'interpreter', failFast: false })}`, tempDir);
@@ -230,7 +231,7 @@ export class TestGenModule implements IModule {
       const compiler = this.context.services.tryGet<CompilerService>(ServiceKeys.Compiler);
       const info = compiler ? await compiler.info() : null;
       if (info?.available && info.path && tempDir) {
-        const file = `${tempDir}\\znxstudio-aigen-selftest.zx`;
+        const file = joinPath(tempDir, 'znxstudio-aigen-selftest.zx');
         await window.znxstudio.fs.writeFile(file, composeTestProgram('function combine with a, b\n    give back a + b\nend', extracted));
         const { output } = await captureTask(`"${info.path}" test "${file}" ${buildTestArgs({ engine: 'interpreter', failFast: false })}`, tempDir);
         const parsed = parseTestResult(output);

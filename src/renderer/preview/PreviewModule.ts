@@ -1,10 +1,9 @@
 import { ServiceKeys, type StatusService, type WorkspaceService } from '../core/Contracts';
 import { selfTestCoordinator } from '../core/SelfTestCoordinator';
+import { zoijsDocsPath, zoijsDocsRoot } from '../core/selftestFixtures';
 import type { IModule, ModuleContext } from '../core/Module';
 import { CommandIds } from '../commands/CommandIds';
 import { injectPreviewHtml } from '../../shared/zoijsPreview';
-
-const DOCS_SITE = 'C:\\Studio Apps\\Xornux frontend documentation';
 
 /**
  * Live Preview (Phase 6G). Serves the workspace over a local static http server
@@ -163,7 +162,12 @@ export class PreviewModule implements IModule {
     let started: { ok: boolean; url?: string } = { ok: false };
     try {
       // Serve the real docs site (it has a working import map + vendored Zoijs).
-      started = await window.znxstudio.preview.start(DOCS_SITE);
+      const docsSite = await zoijsDocsRoot();
+      if (!docsSite) {
+        log('preview start(docs-site): skipped (no docs root)');
+        return;
+      }
+      started = await window.znxstudio.preview.start(docsSite);
       log(`preview start(docs-site): ok=${started.ok} url=${started.url ?? '-'}`);
       if (!started.ok || !started.url) return;
       const base = started.url;
@@ -171,7 +175,7 @@ export class PreviewModule implements IModule {
       // Robust proof: the server injects the DevTools bridge into the REAL docs
       // index.html exactly as it serves it (same pure function). fs read works;
       // a file:// renderer cannot fetch() http.
-      const realIndex = await window.znxstudio.fs.readFile(`${DOCS_SITE}\\index.html`);
+      const realIndex = await window.znxstudio.fs.readFile(await zoijsDocsPath('index.html'));
       const injected = injectPreviewHtml(realIndex);
       log(`preview inject(real docs index): bridge=${injected.includes('attachInspector')} devtoolsMap=${injected.includes('@zoijs/core/devtools')} grew=${injected.length > realIndex.length}`);
 

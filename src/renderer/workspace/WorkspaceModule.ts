@@ -14,6 +14,7 @@ import { CommandIds } from '../commands/CommandIds';
 import type { WorkspaceInfo, WorkspaceType } from '../../shared/types';
 import { addRecentWorkspace } from '../editor/unsavedGuard';
 import { WorkspaceFolderSet } from './workspaceFolders';
+import { examplePath } from '../core/selftestFixtures';
 
 const TYPE_LABELS: Record<WorkspaceType, string> = {
   'zornux-api': 'Zornux API',
@@ -291,8 +292,12 @@ export class WorkspaceModule implements IModule, WorkspaceService {
     try {
       // Non-invasive: load two real folders and exercise the multi-root set
       // WITHOUT mutating the live workspace (no events, no LSP churn).
-      const dirA = 'C:\\Studio Apps\\xojin\\examples\\oop';
-      const dirB = 'C:\\Studio Apps\\xojin\\examples\\web';
+      const dirA = await examplePath('oop');
+      const dirB = await examplePath('web');
+      if (!dirA || !dirB) {
+        log('workspace self-test skipped: examples root unavailable');
+        return;
+      }
       const [infoA, infoB] = await Promise.all([
         window.znxstudio.workspace.load(dirA),
         window.znxstudio.workspace.load(dirB),
@@ -301,7 +306,7 @@ export class WorkspaceModule implements IModule, WorkspaceService {
       set.set([infoA]);
       const added = set.add(infoB);
       const dup = set.add(infoA); // already present → refresh, not add
-      const owner = set.containing(`${dirA}\\shapes.zx`);
+      const owner = set.containing(await examplePath('oop', 'shapes.zx'));
       log(
         `workspace multi-root: folders=${set.list().length} added=${added} dupRejected=${!dup} primary=${baseName(set.primary()?.root ?? '')} containing(oop file)=${owner ? baseName(owner.root) : 'none'}`,
       );

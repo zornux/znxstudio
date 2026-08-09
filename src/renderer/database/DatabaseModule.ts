@@ -8,6 +8,7 @@ import {
 } from '../core/Contracts';
 import { Emitter } from '../core/Emitter';
 import { selfTestCoordinator } from '../core/SelfTestCoordinator';
+import { examplesRoot } from '../core/selftestFixtures';
 import type { IModule, ModuleContext } from '../core/Module';
 import { CommandIds } from '../commands/CommandIds';
 import { describeTarget, isFileBackedProvider } from './databaseModel';
@@ -291,7 +292,11 @@ export class DatabaseModule implements IModule, DatabaseService {
 
     // Real workspace discovery via the 7A search + parse.
     try {
-      const root = 'C:\\Studio Apps\\xojin\\examples';
+      const root = await examplesRoot();
+      if (!root) {
+        log('database discover(examples): skipped (no examples root)');
+        return;
+      }
       const result = await window.znxstudio.search.text({ root, query: '^database\\s+\\w', isRegex: true });
       const conns: DiscoveredConnection[] = [];
       for (const file of result.files) {

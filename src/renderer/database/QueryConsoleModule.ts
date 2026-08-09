@@ -5,8 +5,10 @@ import {
   type DatabaseService,
 } from '../core/Contracts';
 import { selfTestCoordinator } from '../core/SelfTestCoordinator';
+import { examplePath } from '../core/selftestFixtures';
 import type { IModule, ModuleContext } from '../core/Module';
 import { CommandIds } from '../commands/CommandIds';
+import { joinPath } from '../explorer/paths';
 import { buildRunExpression, parseQuery, validateQuery } from './queryModel';
 import { captureTask } from './runCapture';
 
@@ -186,7 +188,7 @@ export class QueryConsoleModule implements IModule {
   ): Promise<{ ok: boolean; text: string }> {
     const tempDir = (await window.znxstudio.app.getInfo()).tempDir;
     const program = `${source}\nshow "__ZQ__" + text(${buildRunExpression(query)})\n`;
-    const file = `${tempDir}\\znxstudio-query.zx`;
+    const file = joinPath(tempDir, 'znxstudio-query.zx');
     try {
       await window.znxstudio.fs.writeFile(file, program);
     } catch (error) {
@@ -239,7 +241,12 @@ export class QueryConsoleModule implements IModule {
       const compiler = this.context.services.tryGet<CompilerService>(ServiceKeys.Compiler);
       const cinfo = compiler ? await compiler.info() : null;
       if (cinfo?.available && cinfo.path && tempDir) {
-        const source = await window.znxstudio.fs.readFile('C:\\Studio Apps\\xojin\\examples\\data\\advanced_queries.zx');
+        const example = await examplePath('data', 'advanced_queries.zx');
+        if (!example) {
+          log('query run: no examples root — skipped');
+          return;
+        }
+        const source = await window.znxstudio.fs.readFile(example);
         const result = await this.execute(source, q, cinfo.path);
         log(`query run(adults, advanced_queries): ${result.ok ? result.text : 'FAILED ' + result.text}`);
       } else {

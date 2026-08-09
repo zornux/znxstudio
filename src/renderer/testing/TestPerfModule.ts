@@ -8,6 +8,7 @@ import { selfTestCoordinator } from '../core/SelfTestCoordinator';
 import type { IModule, ModuleContext } from '../core/Module';
 import { CommandIds } from '../commands/CommandIds';
 import { captureTask } from '../database/runCapture';
+import { joinPath } from '../explorer/paths';
 import { buildTestArgs, parseTestResult, type TestRunResult } from './testModel';
 import { compareEngines, overBudget, perfStats, type EngineComparison } from './perf';
 
@@ -282,7 +283,7 @@ export class TestPerfModule implements IModule {
       const compiler = this.context.services.tryGet<CompilerService>(ServiceKeys.Compiler);
       const info = compiler ? await compiler.info() : null;
       if (info?.available && info.path && tempDir) {
-        const file = `${tempDir}\\znxstudio-perf.zx`;
+        const file = joinPath(tempDir, 'znxstudio-perf.zx');
         await window.znxstudio.fs.writeFile(file, 'test "a"\n    expect round(3.7) to equal 4\nend\ntest "b"\n    expect 2 + 3 to equal 5\nend\ntest "c"\n    expect 4 * 5 to equal 20\nend\n');
         const i = await this.runEngine(info.path, file, 'interpreter');
         const v = await this.runEngine(info.path, file, 'vm');

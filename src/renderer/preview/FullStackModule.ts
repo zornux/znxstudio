@@ -4,9 +4,9 @@ import type { IModule, ModuleContext } from '../core/Module';
 import { CommandIds } from '../commands/CommandIds';
 import type { Unsubscribe } from '../../shared/types';
 import { backendUsesServe, buildProxy, isFullStackWorkspace, parseServeLine, resolveFullStack } from './fullstack';
+import { examplePath, examplesParent } from '../core/selftestFixtures';
 
 const BACKEND_ID = 'fullstack-backend';
-const SERVICE_ROUTE = 'C:\\Studio Apps\\xojin\\examples\\debug\\service_route.zx';
 
 /**
  * Full-Stack orchestration (Phase 6H, the Zoijs capstone). One command runs the
@@ -244,6 +244,12 @@ export class FullStackModule implements IModule {
         log('fullstack backend skipped: compiler unavailable');
         return;
       }
+      const serviceRoute = await examplePath('debug', 'service_route.zx');
+      const cwd = await examplesParent();
+      if (!serviceRoute) {
+        log('fullstack backend skipped: examples root unavailable');
+        return;
+      }
       let endpoint: string | null = null;
       const routes: string[] = [];
       let buffer = '';
@@ -258,7 +264,7 @@ export class FullStackModule implements IModule {
           if (p.route) routes.push(`${p.route.method} ${p.route.path}`);
         }
       });
-      void window.znxstudio.task.run({ id: 'fullstack-selftest', command: `"${compiler.path}" serve "${SERVICE_ROUTE}"`, cwd: 'C:\\Studio Apps\\xojin' });
+      void window.znxstudio.task.run({ id: 'fullstack-selftest', command: `"${compiler.path}" serve "${serviceRoute}"`, cwd });
       for (let i = 0; i < 40 && !endpoint; i += 1) await new Promise((r) => setTimeout(r, 250));
       window.znxstudio.task.kill('fullstack-selftest');
       sub();

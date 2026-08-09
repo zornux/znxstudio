@@ -5,8 +5,10 @@ import {
   type WorkspaceService,
 } from '../core/Contracts';
 import { selfTestCoordinator } from '../core/SelfTestCoordinator';
+import { tempPath } from '../core/selftestFixtures';
 import type { IModule, ModuleContext } from '../core/Module';
 import { CommandIds } from '../commands/CommandIds';
+import { joinPath } from '../explorer/paths';
 import {
   mergeTasks,
   parsePackageScripts,
@@ -198,18 +200,22 @@ export class TasksModule implements IModule {
 
     // Pure discovery over real files in an ISOLATED temp dir (pre-created by the
     // harness — fs.writeFile can't mkdir), then RUN a real task through the service.
-    const tmp = 'C:\\Users\\jerem\\AppData\\Local\\Temp\\znxstudio-7g';
+    const tmp = await tempPath('znxstudio-7g');
+    if (!tmp) {
+      log('tasks self-test skipped (no temp dir)');
+      return;
+    }
     try {
       await window.znxstudio.fs.writeFile(
-        `${tmp}\\package.json`,
+        joinPath(tmp, 'package.json'),
         JSON.stringify({ scripts: { build: 'tsc', test: 'jest', dev: 'vite' } }),
       );
       await window.znxstudio.fs.writeFile(
-        `${tmp}\\znxstudio.tasks.json`,
+        joinPath(tmp, 'znxstudio.tasks.json'),
         JSON.stringify({ tasks: [{ label: 'deploy', command: 'echo deploy' }, { label: 'build', command: 'custom build', group: 'build' }] }),
       );
-      const pkg = parsePackageScripts(await window.znxstudio.fs.readFile(`${tmp}\\package.json`));
-      const explicit = parseTasksFile(await window.znxstudio.fs.readFile(`${tmp}\\znxstudio.tasks.json`));
+      const pkg = parsePackageScripts(await window.znxstudio.fs.readFile(joinPath(tmp, 'package.json')));
+      const explicit = parseTasksFile(await window.znxstudio.fs.readFile(joinPath(tmp, 'znxstudio.tasks.json')));
       const merged = mergeTasks(explicit, pkg);
       log(`tasks discover: total=${merged.length} labels=[${merged.map((t) => t.label).join(',')}] buildCmd="${merged.find((t) => t.label === 'build')?.command}" buildSrc=${merged.find((t) => t.label === 'build')?.source}`);
       log(`tasks classify: dev=${merged.find((t) => t.label === 'dev')?.group} test=${merged.find((t) => t.label === 'test')?.group}`);

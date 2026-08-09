@@ -11,6 +11,7 @@ import { CommandIds } from '../commands/CommandIds';
 import { LanguageServiceKeys } from '../language/api';
 import type { DocumentManager } from '../language/DocumentManager';
 import { captureTask } from '../database/runCapture';
+import { joinPath } from '../explorer/paths';
 import { buildTestArgs, parseTestBlocks, parseTestResult } from './testModel';
 import { totalDuration } from './testModel';
 import { isWatchable, RunHistory } from './continuous';
@@ -288,7 +289,7 @@ export class ContinuousTestModule implements IModule {
       const info = compiler ? await compiler.info() : null;
       if (info?.available && info.path && tempDir) {
         const run = new RunHistory();
-        const file = `${tempDir}\\znxstudio-watch.zx`;
+        const file = joinPath(tempDir, 'znxstudio-watch.zx');
         await window.znxstudio.fs.writeFile(file, 'test "t"\n    expect 1 + 1 to equal 2\nend\n');
         let parsed = parseTestResult((await captureTask(`"${info.path}" test "${file}" ${buildTestArgs({ engine: 'interpreter', failFast: false })}`, tempDir)).output);
         if (parsed) run.push({ file, total: parsed.total, passed: parsed.passed, failed: parsed.failed, durationMs: totalDuration(parsed) });

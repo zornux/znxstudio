@@ -15,6 +15,7 @@ import {
   summarizeProjectMap,
   type ProjectMap,
 } from './architecture';
+import { examplePath } from '../core/selftestFixtures';
 
 const MAX_FILES = 80;
 
@@ -199,7 +200,11 @@ export class ArchitectureModule implements IModule {
 
     // REAL scan of the actual example project (read-only) — proves the map on real files.
     try {
-      const root = 'C:\\Studio Apps\\xojin\\examples';
+      const root = await examplePath();
+      if (!root) {
+        log('arch REAL: skipped (no examples root)');
+        return;
+      }
       const files = (await window.znxstudio.search.files(root)).filter((f) => f.toLowerCase().endsWith('.zx'));
       const rootLen = root.length + 1;
       const scanned: { file: string; text: string }[] = [];

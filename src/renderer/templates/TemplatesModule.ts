@@ -1,5 +1,6 @@
 import { ServiceKeys, type EditorService, type InputBoxService } from '../core/Contracts';
 import { selfTestCoordinator } from '../core/SelfTestCoordinator';
+import { tempPath } from '../core/selftestFixtures';
 import type { IModule, ModuleContext } from '../core/Module';
 import { CommandIds } from '../commands/CommandIds';
 import { PROJECT_TEMPLATES, findTemplate, renderTemplate, type ProjectTemplate } from '../../shared/templates';
@@ -161,7 +162,11 @@ export class TemplatesModule implements IModule {
       }
       // Unique name per run so `zornux init` never hits an existing project.
       const name = `tmpl-selftest-${Date.now()}`;
-      const location = 'C:\\Users\\jerem\\AppData\\Local\\Temp\\znxstudio-5g';
+      const location = await tempPath('znxstudio-5g');
+      if (!location) {
+        log('templates: scaffold skipped (no temp dir)');
+        return;
+      }
 
       const cli = findTemplate('zornux-cli')!;
       const rendered = renderTemplate(cli, name);

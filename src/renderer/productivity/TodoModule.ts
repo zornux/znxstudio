@@ -3,6 +3,7 @@ import { selfTestCoordinator } from '../core/SelfTestCoordinator';
 import type { IModule, ModuleContext } from '../core/Module';
 import { CommandIds } from '../commands/CommandIds';
 import { parseTaskTag, TASK_TAG_REGEX, type TaskTag } from './todoScan';
+import { examplePath } from '../core/selftestFixtures';
 
 interface TodoEntry {
   tag: TaskTag;
@@ -217,8 +218,12 @@ export class TodoModule implements IModule {
     log(`todo parse('aTODOx = 1') → ${parseTaskTag('const aTODOx = 1')}`);
 
     // Real workspace scan via the 7A text search, then parse.
+    const root = await examplePath();
+    if (!root) {
+      log('todo scan skipped: examples root unavailable');
+      return;
+    }
     try {
-      const root = 'C:\\Studio Apps\\xojin\\examples';
       const result = await window.znxstudio.search.text({ root, query: TASK_TAG_REGEX, isRegex: true, caseSensitive: true });
       let parsed = 0;
       const tags = new Set<string>();

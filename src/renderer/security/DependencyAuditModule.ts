@@ -281,7 +281,7 @@ export class DependencyAuditModule implements IModule {
   private async openManifest(line = 1): Promise<void> {
     const root = this.workspace?.currentFolder();
     if (!root || !this.editor) return;
-    await this.editor.revealLocation(`file:///${`${root}\\${PROJECT_FILE}`.replace(/\\/g, '/')}`, line - 1, 0);
+    await this.editor.revealLocation(`file:///${joinPath(root, PROJECT_FILE).replace(/\\/g, '/')}`, line - 1, 0);
   }
 
   private async createFeed(): Promise<void> {

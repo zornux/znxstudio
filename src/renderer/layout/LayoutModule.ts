@@ -1063,7 +1063,9 @@ export class LayoutModule implements IModule, LayoutService {
     i18n.setLocale('pseudo');
     viewButton?.click(); // reopen the View menu — its builder pulls strings through t()
     const firstItem = document.querySelector('.znxstudio-menu .znxstudio-menu-item')?.textContent ?? '';
-    const externalized = firstItem.startsWith('⟦');
+    // A checked menu item renders a leading state glyph (e.g. "✓") before its
+    // label, so assert the pseudo-locale marker is PRESENT rather than at index 0.
+    const externalized = firstItem.includes('⟦');
     viewButton?.click();
     i18n.setLocale(prevLocale);
     log(`i18n REAL DOM: locales=[${i18n.locales().join(',')}] pseudoViewItem="${firstItem}" externalized=${externalized}`);

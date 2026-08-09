@@ -6,6 +6,7 @@ import { LanguageServiceKeys } from '../language/api';
 import type { DocumentManager, ManagedDocument } from '../language/DocumentManager';
 import { isSymbolScannable, scanSymbols, type SymbolKind } from '../../shared/symbolScan';
 import { computeMetrics, type FileMetrics, type Rating } from './metrics';
+import { examplePath } from '../core/selftestFixtures';
 
 const RATING_CLASS: Record<Rating, string> = { A: 'a', B: 'b', C: 'c', D: 'd' };
 
@@ -163,7 +164,11 @@ export class MetricsModule implements IModule {
     const log = (message: string) => console.info(`[selftest] ${message}`);
 
     try {
-      const path = 'C:\\Studio Apps\\xojin\\examples\\classes.zx';
+      const path = await examplePath('classes.zx');
+      if (!path) {
+        log('metrics: skipped (no examples root)');
+        return;
+      }
       const text = await window.znxstudio.fs.readFile(path);
       const metrics = computeMetrics(text, 'zornux');
       log(`metrics classes.zx: total=${metrics.total} code=${metrics.code} comment=${metrics.comment} cc=${metrics.cyclomatic} nesting=${metrics.maxNesting} mi=${metrics.maintainability} rating=${metrics.rating}`);
@@ -172,7 +177,7 @@ export class MetricsModule implements IModule {
       const functions = symbols.filter((s) => s.kind === 'function').length;
       log(`metrics classes.zx symbols: classes=${classes} functions=${functions}`);
 
-      const cond = await window.znxstudio.fs.readFile('C:\\Studio Apps\\xojin\\examples\\conditionals.zx');
+      const cond = await window.znxstudio.fs.readFile(await examplePath('conditionals.zx'));
       const condMetrics = computeMetrics(cond, 'zornux');
       log(`metrics conditionals.zx: cc=${condMetrics.cyclomatic} (if/else-if/and) code=${condMetrics.code}`);
 

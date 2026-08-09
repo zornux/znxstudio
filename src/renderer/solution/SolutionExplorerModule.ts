@@ -5,6 +5,8 @@ import { CommandIds } from '../commands/CommandIds';
 import type { WorkspaceType } from '../../shared/types';
 import { buildSolution, type Solution, type SolutionProject } from './solutionModel';
 import type { ProjectReferenceGraph, ProjectReferencesService, ResolvedReference } from './projectReferences';
+import { examplePath, examplesParent } from '../core/selftestFixtures';
+import { joinPath } from '../explorer/paths';
 
 const TYPE_LABEL: Record<WorkspaceType, string> = {
   'zornux-api': 'Zornux API',
@@ -467,9 +469,15 @@ export class SolutionExplorerModule implements IModule {
     try {
       // Build a solution from two real folders (non-invasive; the live workspace
       // is untouched — see WorkspaceModule's self-test for the same approach).
+      const rootDir = await examplesParent();
+      const webDir = await examplePath('web');
+      if (!rootDir || !webDir) {
+        log('solution: skipped (no examples root)');
+        return;
+      }
       const [infoA, infoB] = await Promise.all([
-        window.znxstudio.workspace.load('C:\\Studio Apps\\xojin'),
-        window.znxstudio.workspace.load('C:\\Studio Apps\\xojin\\examples\\web'),
+        window.znxstudio.workspace.load(rootDir),
+        window.znxstudio.workspace.load(webDir),
       ]);
       const solution = buildSolution([infoA, infoB]);
       log(
@@ -488,13 +496,17 @@ export class SolutionExplorerModule implements IModule {
       // registry — and which, verified, writes no lockfile on failure.
       const info = await window.znxstudio.compiler.info();
       if (info.available) {
-        const tempDir = 'C:\\Users\\jerem\\AppData\\Local\\Temp';
-        await window.znxstudio.fs.writeFile(`${tempDir}\\zornux.project`, 'name = znxstudio-pkg-selftest\nversion = 0.1.0\n');
+        const tempDir = (await window.znxstudio.app.getInfo()).tempDir;
+        if (!tempDir) {
+          log('solution: skipped (no temp dir)');
+          return;
+        }
+        await window.znxstudio.fs.writeFile(joinPath(tempDir, 'zornux.project'), 'name = znxstudio-pkg-selftest\nversion = 0.1.0\n');
         const ok = await window.znxstudio.packages.run({ command: 'restore', cwd: tempDir, args: [], compilerPath: info.path });
         log(`packages restore(temp, no deps): success=${ok.success} msg="${ok.message.slice(0, 40)}"`);
         const bad = await window.znxstudio.packages.run({
           command: 'restore',
-          cwd: 'C:\\Studio Apps\\xojin\\examples\\registry\\app',
+          cwd: await examplePath('registry', 'app'),
           args: [],
           compilerPath: info.path,
         });

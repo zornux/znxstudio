@@ -13,6 +13,7 @@ import { selfTestCoordinator } from '../core/SelfTestCoordinator';
 import type { IModule, ModuleContext } from '../core/Module';
 import { CommandIds } from '../commands/CommandIds';
 import { captureTask } from '../database/runCapture';
+import { joinPath } from '../explorer/paths';
 import { formatStack, gcSummary, hasAllocationStacks, topAllocationSites } from './allocations';
 import {
   buildProfileArgs,
@@ -255,7 +256,7 @@ export class PerformanceModule implements IModule, ProfilerService {
         log('perf REAL: compiler unavailable — skipped');
         return;
       }
-      const file = `${tempDir}\\znxstudio-perf-selftest.zx`;
+      const file = joinPath(tempDir, 'znxstudio-perf-selftest.zx');
       await window.znxstudio.fs.writeFile(
         file,
         'function compute_rate with n\n    create total = 0\n    create i = 0\n    while i is less than n\n        total = total + i * 2\n        i = i + 1\n    end\n    give back total\nend\n\nfunction calculate_tax with amount\n    give back compute_rate(amount) * 2\nend\n\nshow calculate_tax(20000)\n',

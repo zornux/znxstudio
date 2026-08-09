@@ -3,6 +3,7 @@ import { selfTestCoordinator } from '../core/SelfTestCoordinator';
 import type { IModule, ModuleContext } from '../core/Module';
 import { CommandIds } from '../commands/CommandIds';
 import { analyzeCoverage, type CoverageReport } from './coverage';
+import { examplePath } from '../core/selftestFixtures';
 
 const MAX_FILES = 400;
 
@@ -260,13 +261,18 @@ export class CoverageModule implements IModule {
     log(`coverage crafted: ${report.percent}% covered=${report.covered}/${report.total} uncovered=[${report.functions.filter((f) => !f.covered).map((f) => f.name).join(',')}] (add is transitive via helper)`);
 
     // Real: coverage across xojin/examples/tests.
+    const dir = await examplePath('tests');
+    if (!dir) {
+      log('coverage REAL skipped: examples root unavailable');
+      return;
+    }
     try {
-      const dir = 'C:\\Studio Apps\\xojin\\examples\\tests';
       const names = ['web_tests.zx', 'security_tests.zx', 'math_tests.zx', 'text_tests.zx'];
       const real: { file: string; text: string }[] = [];
       for (const name of names) {
         try {
-          real.push({ file: `${dir}\\${name}`, text: await window.znxstudio.fs.readFile(`${dir}\\${name}`) });
+          const path = await examplePath('tests', name);
+          real.push({ file: path, text: await window.znxstudio.fs.readFile(path) });
         } catch {
           /* skip */
         }

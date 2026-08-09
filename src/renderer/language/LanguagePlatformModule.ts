@@ -18,6 +18,7 @@ import { ToolchainClient } from '../toolchain/ToolchainClient';
 import { enabledCapabilities, supports } from '../../shared/toolchain/negotiation';
 import { evaluateToolchain } from '../../shared/toolchain/compatibility';
 import { editorMode } from '../../shared/toolchain/offline';
+import { examplePath, examplesParent } from '../core/selftestFixtures';
 import { toPlatformDiagnostics } from '../compiler/compilerDiagnostics';
 import { fastHash } from '../../shared/hash';
 import { LanguageServiceKeys, type LanguageActivationContext, type TextDocument } from './api';
@@ -658,16 +659,21 @@ export class LanguagePlatformModule implements IModule {
         );
 
         // Build an on-disk invalid example → structured build diagnostics (no artifact side-effect).
-        const build = await this.compiler.build({
-          path: 'C:\\Studio Apps\\xojin\\examples\\invalid\\missing_end.zx',
-          workspaceRoot: 'C:\\Studio Apps\\xojin',
-          compilerPath: this.compilerPathOverride(),
-        });
-        log(
-          `compiler build: available=${build.available} ran=${build.ran} ok=${build.ok} outcome=${build.outcome} ` +
-            `diags=${build.diagnostics.length} → ${build.diagnostics.map((d) => d.code).join(', ') || 'none'} ` +
-            `artifact=${build.artifact ?? 'none'} (${build.durationMs.toFixed(1)}ms)`,
-        );
+        const buildPath = await examplePath('invalid', 'missing_end.zx');
+        if (buildPath) {
+          const build = await this.compiler.build({
+            path: buildPath,
+            workspaceRoot: await examplesParent(),
+            compilerPath: this.compilerPathOverride(),
+          });
+          log(
+            `compiler build: available=${build.available} ran=${build.ran} ok=${build.ok} outcome=${build.outcome} ` +
+              `diags=${build.diagnostics.length} → ${build.diagnostics.map((d) => d.code).join(', ') || 'none'} ` +
+              `artifact=${build.artifact ?? 'none'} (${build.durationMs.toFixed(1)}ms)`,
+          );
+        } else {
+          log('compiler build: skipped (no examples root)');
+        }
 
         const profile = await this.compiler.profile();
         log(

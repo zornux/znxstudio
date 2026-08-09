@@ -3,6 +3,7 @@ import { selfTestCoordinator } from '../core/SelfTestCoordinator';
 import type { IModule, ModuleContext } from '../core/Module';
 import { CommandIds } from '../commands/CommandIds';
 import { parseSuppressions, unjustifiedSuppressions } from './suppression';
+import { joinPath } from '../explorer/paths';
 import {
   buildPosture,
   postureVerdict,
@@ -107,7 +108,7 @@ export class SecurityDashboardModule implements IModule {
       projectName: root.split(/[\\/]/).filter(Boolean).pop(),
       generatedAt: new Date().toISOString(),
     });
-    const path = `${root}\\${REPORT_FILE}`;
+    const path = joinPath(root, REPORT_FILE);
     try {
       await window.znxstudio.fs.writeFile(path, markdown);
       await this.editor?.openFile(path);

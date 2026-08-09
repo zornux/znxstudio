@@ -1,5 +1,6 @@
 import { ServiceKeys, type EditorService, type ProfileService } from '../core/Contracts';
 import { selfTestCoordinator } from '../core/SelfTestCoordinator';
+import { tempPath } from '../core/selftestFixtures';
 import type { IModule, ModuleContext } from '../core/Module';
 import { CommandIds } from '../commands/CommandIds';
 import { PROJECT_TEMPLATES } from '../../shared/templates';
@@ -373,7 +374,12 @@ export class WizardsModule implements IModule {
       log(`wizard after template: canAdvance=${wizard.canAdvance()} advanced=${wizard.next()}`);
 
       const name = `wiz-selftest-${Date.now()}`;
-      wizard.update({ name, location: 'C:\\Users\\jerem\\AppData\\Local\\Temp\\znxstudio-5h' });
+      const location = await tempPath('znxstudio-5h');
+      if (!location) {
+        log('wizards: skipped (no temp dir)');
+        return;
+      }
+      wizard.update({ name, location });
       log(`wizard details: error=${wizard.error() ?? 'none'} advanced=${wizard.next()}`);
       wizard.update({ dependencies: ['MissingPkg@1.0.0'] });
       log(`wizard deps: error=${wizard.error() ?? 'none'} advanced=${wizard.next()}`);

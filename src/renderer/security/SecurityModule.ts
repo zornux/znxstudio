@@ -17,6 +17,7 @@ import { CommandIds } from '../commands/CommandIds';
 import { captureTask } from '../database/runCapture';
 import { LIVE_SECURITY_CAVEAT } from '../language/lsp/lspSecurity';
 import { ADVISORY_FEED_FILE } from './advisories';
+import { joinPath } from '../explorer/paths';
 import {
   blocksBuild,
   buildSecurityArgs,
@@ -134,7 +135,7 @@ export class SecurityModule implements IModule, SecurityService {
   private async advisoryFeed(): Promise<string | null> {
     const root = this.workspace?.currentFolder();
     if (!root) return null;
-    const path = `${root}\\${ADVISORY_FEED_FILE}`;
+    const path = joinPath(root, ADVISORY_FEED_FILE);
     try {
       await window.znxstudio.fs.readFile(path);
       return path;
@@ -332,7 +333,7 @@ export class SecurityModule implements IModule, SecurityService {
       const version = (await captureTask(`"${info.path}" --version`, tempDir)).output.trim();
       log(`security REAL compiler: ${version} (--security needs >= 1.0.0-rc.3)`);
 
-      const secretFile = `${tempDir}\\znxstudio-security-secret.zx`;
+      const secretFile = joinPath(tempDir, 'znxstudio-security-secret.zx');
       await window.znxstudio.fs.writeFile(secretFile, 'import crypto\nshow crypto.hmac("s3cr3t-signing-key", "message")\n');
       const secret = await this.scanFile(secretFile);
       const first = secret?.findings[0];
@@ -341,12 +342,12 @@ export class SecurityModule implements IModule, SecurityService {
           `${first?.code}/${first?.severity}/${first?.confidence} @${first?.startLine}:${first?.startColumn} category=${first?.category}`,
       );
 
-      const cleanFile = `${tempDir}\\znxstudio-security-clean.zx`;
+      const cleanFile = joinPath(tempDir, 'znxstudio-security-clean.zx');
       await window.znxstudio.fs.writeFile(cleanFile, 'create total = 0\nrepeat 3 times\n    total = total + 1\nend\nshow total\n');
       const clean = await this.scanFile(cleanFile);
       log(`security REAL clean: analyzed=${clean?.analyzed} findings=${clean?.findings.length} (expect analyzed=true findings=0)`);
 
-      const brokenFile = `${tempDir}\\znxstudio-security-broken.zx`;
+      const brokenFile = joinPath(tempDir, 'znxstudio-security-broken.zx');
       await window.znxstudio.fs.writeFile(brokenFile, 'create x = \n');
       const broken = await this.scanFile(brokenFile);
       log(

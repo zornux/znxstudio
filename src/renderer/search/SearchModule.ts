@@ -9,6 +9,8 @@ import { buildSearchRegex } from '../../shared/textSearch';
 import { expandReplacement, replaceAll } from '../../shared/textReplace';
 import type { ReplaceFileResult, SearchFileResult, SearchSymbolHit } from '../../shared/types';
 import { SYMBOL_ICON } from '../ui/symbolIcons';
+import { examplePath, tempPath } from '../core/selftestFixtures';
+import { joinPath } from '../explorer/paths';
 
 /** Grow a search textarea to fit its content, up to a few rows, then scroll. */
 const SEARCH_FIELD_MAX_HEIGHT = 120;
@@ -545,7 +547,11 @@ export class SearchModule implements IModule {
     if (!enabled) return;
     const log = (message: string) => console.info(`[selftest] ${message}`);
 
-    const root = 'C:\\Studio Apps\\xojin\\examples';
+    const root = await examplePath();
+    if (!root) {
+      log('search self-test skipped: examples root unavailable');
+      return;
+    }
     try {
       const text = await window.znxstudio.search.text({ root, query: 'publish', wholeWord: true });
       const first = text.files[0];
@@ -564,18 +570,22 @@ export class SearchModule implements IModule {
 
       // 7B: preview + apply replace in an ISOLATED temp dir (never the repo).
       // fs.writeFile can't mkdir — the dir is pre-created by the harness.
-      const tmp = 'C:\\Users\\jerem\\AppData\\Local\\Temp\\znxstudio-7b';
-      await window.znxstudio.fs.writeFile(`${tmp}\\sample.zx`, 'create x = 1\ncreate y = 2\n');
+      const tmp = await tempPath('znxstudio-7b');
+      if (!tmp) {
+        log('search replace skipped (no temp dir)');
+        return;
+      }
+      await window.znxstudio.fs.writeFile(joinPath(tmp, 'sample.zx'), 'create x = 1\ncreate y = 2\n');
       const preview = await window.znxstudio.search.previewReplace({ root: tmp, query: 'create', replacement: 'make' });
       log(`replace preview: files=${preview.files.length} matches=${preview.totalMatches} newLine="${preview.files[0]?.matches[0]?.newText ?? '-'}"`);
       const applied = await window.znxstudio.search.applyReplace({ root: tmp, query: 'create', replacement: 'make' });
-      const after = await window.znxstudio.fs.readFile(`${tmp}\\sample.zx`);
+      const after = await window.znxstudio.fs.readFile(joinPath(tmp, 'sample.zx'));
       log(`replace apply: filesChanged=${applied.filesChanged} replacements=${applied.replacements} content="${after.replace(/\n/g, '\\n')}"`);
 
       // Regex replace with a capture group.
-      await window.znxstudio.fs.writeFile(`${tmp}\\sample.zx`, 'create alpha = 1\n');
+      await window.znxstudio.fs.writeFile(joinPath(tmp, 'sample.zx'), 'create alpha = 1\n');
       const rx = await window.znxstudio.search.applyReplace({ root: tmp, query: 'create (\\w+)', replacement: 'let $1', isRegex: true });
-      const rxAfter = await window.znxstudio.fs.readFile(`${tmp}\\sample.zx`);
+      const rxAfter = await window.znxstudio.fs.readFile(joinPath(tmp, 'sample.zx'));
       log(`replace regex($1): filesChanged=${rx.filesChanged} content="${rxAfter.trim()}"`);
     } catch (error) {
       log(`search self-test failed: ${(error as Error).message}`);

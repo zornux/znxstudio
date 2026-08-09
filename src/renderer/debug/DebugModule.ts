@@ -30,6 +30,7 @@ import type {
   WorkspaceInfo,
 } from '../../shared/types';
 import { dottedExpressionAt } from './hoverExpression';
+import { examplePath, examplesParent, tempPath } from '../core/selftestFixtures';
 
 interface StackFrame {
   id: number;
@@ -1123,6 +1124,12 @@ export class DebugModule implements IModule, DebuggerService {
       } catch (error) {
         logline(`debugger REAL exception filters failed: ${(error as Error).message}`);
       }
+      const workspaceRoot = await examplesParent();
+      const program = await examplePath('conditionals.zx');
+      if (!program) {
+        logline('debugger: examples root unavailable, skipping DAP session');
+        return;
+      }
       const events: string[] = [];
       let resolveDone: () => void = () => undefined;
       const done = new Promise<void>((resolve) => (resolveDone = resolve));
@@ -1131,11 +1138,10 @@ export class DebugModule implements IModule, DebuggerService {
         if (event.event === 'terminated') resolveDone();
       });
 
-      const program = 'C:\\Studio Apps\\xojin\\examples\\conditionals.zx';
       const result = await window.znxstudio.debug.start({
         program,
         compilerPath: info.path,
-        workspaceRoot: 'C:\\Studio Apps\\xojin',
+        workspaceRoot,
         // Breakpoint on line 5 (inside the if, after `age` is created) → the run
         // must stop with `age` in scope.
         breakpoints: [{ path: program, lines: [{ line: 5 }] }],
@@ -1220,7 +1226,7 @@ export class DebugModule implements IModule, DebuggerService {
         const tcpResult = await window.znxstudio.debug.start({
           program,
           compilerPath: info.path,
-          workspaceRoot: 'C:\\Studio Apps\\xojin',
+          workspaceRoot,
           transport: 'tcp',
           breakpoints: [{ path: program, lines: [{ line: 5 }] }],
         });
@@ -1267,7 +1273,11 @@ export class DebugModule implements IModule, DebuggerService {
       }
 
       // Phase 4H: a runtime error (undefined variable) must break with reason=exception.
-      const excFile = 'C:\\Users\\jerem\\AppData\\Local\\Temp\\znxstudio-exc-selftest.zx';
+      const excFile = await tempPath('znxstudio-exc-selftest.zx');
+      if (!excFile) {
+        logline('debugger exception skipped (no temp dir)');
+        return;
+      }
       await window.znxstudio.fs.writeFile(excFile, 'show missing_variable\n');
       let excReason = '';
       let excDescription = '';

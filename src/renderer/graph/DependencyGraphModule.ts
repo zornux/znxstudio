@@ -11,6 +11,7 @@ import {
 } from '../core/Contracts';
 import type { IModule, ModuleContext } from '../core/Module';
 import { selfTestCoordinator } from '../core/SelfTestCoordinator';
+import { examplePath } from '../core/selftestFixtures';
 import { CommandIds } from '../commands/CommandIds';
 import type { WorkspaceInfo } from '../../shared/types';
 import type { CompilerDiagnostic } from '../../shared/compilerProtocol';
@@ -342,7 +343,11 @@ export class DependencyGraphModule implements IModule, DependencyGraphService {
     if (!enabled) return;
     const log = (message: string) => console.info(`[selftest] ${message}`);
     try {
-      const dir = 'C:\\Studio Apps\\xojin\\examples\\modules';
+      const dir = await examplePath('modules');
+      if (!dir) {
+        log('dependency-graph: skipped (no examples root)');
+        return;
+      }
       const snapshot = await window.znxstudio.graph.build({ root: dir, sourceDir: dir });
       const mathPath = snapshot.moduleToFile['Math'];
       log(

@@ -727,17 +727,17 @@ export class SourceControlModule implements IModule, SourceControlService {
 
     // REAL git on a throwaway temp repo (never touches user repos).
     try {
-      const repo = `${tempDir}\\znxstudio-scm-${Date.now()}`;
+      const repo = joinPath(tempDir, `znxstudio-scm-${Date.now()}`);
       const run = (args: string[], cwd = repo) => window.znxstudio.git.exec({ args, cwd });
       await window.znxstudio.git.exec({ args: ['init', '-q', repo], cwd: tempDir }); // creates + inits the dir
       await run(['config', 'user.email', 'selftest@znxstudio.dev']);
       await run(['config', 'user.name', 'ZnxStudio Selftest']);
-      await window.znxstudio.fs.writeFile(`${repo}\\hello.zx`, 'function main\n    print "hi"\nend\n');
+      await window.znxstudio.fs.writeFile(joinPath(repo, 'hello.zx'), 'function main\n    print "hi"\nend\n');
       const before = parseStatus((await run(['status', '--porcelain=v1'])).stdout);
       await run(['add', '-A']);
       const afterStage = parseStatus((await run(['status', '--porcelain=v1'])).stdout);
       const commit = await run(['commit', '-m', 'initial']);
-      await window.znxstudio.fs.writeFile(`${repo}\\hello.zx`, 'function main\n    print "hello"\nend\n');
+      await window.znxstudio.fs.writeFile(joinPath(repo, 'hello.zx'), 'function main\n    print "hello"\nend\n');
       const afterEdit = parseStatus((await run(['status', '--porcelain=v1'])).stdout);
       const branch = (await run(['rev-parse', '--abbrev-ref', 'HEAD'])).stdout.trim();
       log(`scm REAL: untrackedBefore=${before.some((e) => e.type === 'untracked')} stagedAfterAdd=${afterStage.filter((e) => e.staged).length} committed=${commit.code === 0} modifiedAfterEdit=${afterEdit.some((e) => e.type === 'modified' && e.unstaged)} branch=${branch}`);
@@ -755,7 +755,7 @@ export class SourceControlModule implements IModule, SourceControlService {
       log(`scm REAL pr: parsed=${samplePrs.length} first=#${samplePrs[0]?.number}/${samplePrs[0]?.author} ghInstalled=${ghVersion.code === 0} prUrl=${prUrl}`);
 
       // 12D — create a REAL merge conflict and resolve it.
-      const cfile = `${repo}\\conflict.zx`;
+      const cfile = joinPath(repo, 'conflict.zx');
       await window.znxstudio.fs.writeFile(cfile, 'line1\nshared\nline3\n');
       await run(['add', '-A']);
       await run(['commit', '-m', 'base']);

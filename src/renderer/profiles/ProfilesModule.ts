@@ -11,6 +11,7 @@ import { selfTestCoordinator } from '../core/SelfTestCoordinator';
 import type { IModule, ModuleContext } from '../core/Module';
 import { CommandIds } from '../commands/CommandIds';
 import { normalizeRoot } from '../workspace/workspaceFolders';
+import { examplePath } from '../core/selftestFixtures';
 import {
   ENVIRONMENT_PROFILES,
   isEnvironmentProfile,
@@ -419,8 +420,12 @@ export class ProfilesModule implements IModule, ProfileService {
       }
       // Run `config show/validate` against the real config example (declares an
       // `AppConfig` with a redacted secret) for two profiles.
-      const root = 'C:\\Studio Apps\\xojin\\examples\\configuration';
-      const entry = `${root}\\app_config.zx`;
+      const root = await examplePath('configuration');
+      if (!root) {
+        log('profiles: examples root unavailable, skipping config run');
+        return;
+      }
+      const entry = await examplePath('configuration', 'app_config.zx');
       for (const profile of ['development', 'production'] as EnvironmentProfile[]) {
         const shown = await window.znxstudio.config.query({ subcommand: 'show', file: entry, profile, cwd: root, compilerPath: info.path });
         const parsedShow = parseConfigShow(shown.exitCode, shown.stdout, shown.stderr);

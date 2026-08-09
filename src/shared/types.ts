@@ -49,6 +49,19 @@ export interface AppInfo {
   tempDir: string;
   /** User home directory — used to read ~/.ssh/config for remote envs (13F). */
   homeDir: string;
+  /**
+   * Cross-platform root of the Zornux example programs the headless self-tests
+   * read from. Resolved from ZORNUX_EXAMPLES_DIR, else a sibling `xojin/examples`
+   * next to the app; empty string when unavailable (self-tests then skip rather
+   * than fail on a hardcoded, platform-specific path).
+   */
+  examplesDir: string;
+  /**
+   * Cross-platform root of the Zoijs frontend documentation project the preview /
+   * Zoijs self-tests read from. Resolved from ZORNUX_ZOIJS_DOCS_DIR, else a sibling
+   * `Xornux frontend documentation` next to the app; '' when unavailable.
+   */
+  zoijsDocsDir: string;
 }
 
 /* ----- Project model ----- */

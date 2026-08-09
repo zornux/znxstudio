@@ -2,6 +2,7 @@ import { ServiceKeys, type SecurityService, type WorkspaceService } from '../cor
 import { selfTestCoordinator } from '../core/SelfTestCoordinator';
 import type { IModule, ModuleContext } from '../core/Module';
 import { CommandIds } from '../commands/CommandIds';
+import { joinPath } from '../explorer/paths';
 import type { SecuritySeverity } from './findings';
 import {
   DEFAULT_SETTINGS,
@@ -65,7 +66,7 @@ export class SecurityRulesModule implements IModule {
 
   private projectPath(): string | null {
     const root = this.workspace?.currentFolder();
-    return root ? `${root}\\${PROJECT_FILE}` : null;
+    return root ? joinPath(root, PROJECT_FILE) : null;
   }
 
   private async load(): Promise<void> {
@@ -299,9 +300,9 @@ export class SecurityRulesModule implements IModule {
     if (!this.security) return;
     try {
       const info = await window.znxstudio.app.getInfo();
-      const dir = `${info.tempDir}\\znxstudio-secrules`;
-      const program = `${dir}\\flow.zx`;
-      const project = `${dir}\\${PROJECT_FILE}`;
+      const dir = joinPath(info.tempDir, 'znxstudio-secrules');
+      const program = joinPath(dir, 'flow.zx');
+      const project = joinPath(dir, PROJECT_FILE);
 
       // Trips ZX3704 (injection, Error) and ZX3706 (web, Warning) — one rule at
       // each end of the profile shift.
