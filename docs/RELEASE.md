@@ -69,6 +69,12 @@ signing for tags, derives stable/prerelease classification, and packages all
   three operating systems. Set repository variable `ZORNUX_REF` to the exact
   40-character commit from `zornux/zornux` that the release must bundle.
 
+  The pin is what the IDE's language behavior comes from: diagnostics,
+  completion, hover, the outline, and formatting are the bundled `zornux lsp`,
+  not a ZnxStudio reimplementation. A language fix therefore reaches users only
+  when this pin moves — so when a Zornux release changes what the editor
+  reports, move `ZORNUX_REF` in the same release that claims the change.
+
 Published releases are assembled as drafts and made visible only after every
 platform succeeds. Rerunning a failed draft clears stale assets; rerunning an
 already-published tag is rejected to prevent partial live replacement.
