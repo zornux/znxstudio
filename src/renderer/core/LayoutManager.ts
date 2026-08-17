@@ -32,6 +32,7 @@ export interface ActivityItem {
   label: string;
   icon: string;
   onSelect: () => void;
+  pinByDefault?: boolean;
 }
 
 export interface PanelView {
@@ -406,6 +407,10 @@ export class LayoutManager {
   /* ----- Activity bar (UX-1: curated — 5 defaults, the rest in a grouped overflow) ----- */
   addActivityItem(item: ActivityItem): void {
     this.activityItems.set(item.id, item);
+    if (item.pinByDefault && !this.activityCuration.pinned.includes(item.id)) {
+      this.activityCuration = pinItem(this.activityCuration, item.id);
+      this.saveCuration();
+    }
     this.renderActivityBar();
   }
 

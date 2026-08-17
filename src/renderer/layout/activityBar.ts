@@ -29,6 +29,8 @@ export const ACTIVITY_GROUP: Record<string, string> = {
   packages: 'Project',
   solution: 'Project',
   profiles: 'Project',
+  android: 'Mobile',
+  'znxstudio.designer': 'Mobile',
 };
 
 /** Group display order in the overflow menu. */

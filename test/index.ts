@@ -168,6 +168,7 @@ import './i18nformat.test';
 import './fssecurity.test';
 import './zornuxRuntime.test';
 import './mobile.test';
+import './designer.test';
 import { runAll } from './harness';
 
 console.log('\nZornux language front-end — test suite');

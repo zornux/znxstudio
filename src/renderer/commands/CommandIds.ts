@@ -281,6 +281,17 @@ export const CommandIds = {
   MobileViewGenerated: 'znxstudio.mobile.viewGenerated',
   MobileProjectSettings: 'znxstudio.mobile.projectSettings',
   MobileRestart: 'znxstudio.mobile.restart',
+  DesignerOpen: 'znxstudio.designer.open',
+  DesignerClose: 'znxstudio.designer.close',
+  DesignerUndo: 'znxstudio.designer.undo',
+  DesignerRedo: 'znxstudio.designer.redo',
+  DesignerDelete: 'znxstudio.designer.delete',
+  DesignerCopy: 'znxstudio.designer.copy',
+  DesignerPaste: 'znxstudio.designer.paste',
+  DesignerDuplicate: 'znxstudio.designer.duplicate',
+  DesignerSelectAll: 'znxstudio.designer.selectAll',
+  DesignerAddScreen: 'znxstudio.designer.addScreen',
+  DesignerToggleSource: 'znxstudio.designer.toggleSource',
 } as const;
 
 export type CommandId = (typeof CommandIds)[keyof typeof CommandIds];

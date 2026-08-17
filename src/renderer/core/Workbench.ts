@@ -92,6 +92,7 @@ import { TemplatesModule } from '../templates/TemplatesModule';
 import { WizardsModule } from '../wizards/WizardsModule';
 import { RunBuildModule } from '../run/RunBuildModule';
 import { MobileModule } from '../mobile/MobileModule';
+import { DesignerModule } from '../designer/DesignerModule';
 import { SettingsModule } from '../settings/SettingsModule';
 import { LayoutModule } from '../layout/LayoutModule';
 import { KeybindingsModule } from '../keybindings/KeybindingsModule';
@@ -266,6 +267,7 @@ export class Workbench {
       new TerminalModule(),
       new RunBuildModule(),
       new MobileModule(),
+      new DesignerModule(),
       new CommandPaletteModule(),
       new SearchEverywhereModule(),
       new KeybindingsModule(),

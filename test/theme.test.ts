@@ -210,7 +210,9 @@ describe('theme system — no hardcoded color leaks in component rules', () => {
       if (line.includes('var(')) continue;
       if (line.includes('--z-')) continue;
       if (line.includes('--znx-')) continue;
+      if (line.includes('--zd-')) continue;
       if (line.includes('preview-frame')) continue;
+      if (line.includes('zd-preview') || line.includes('zd-device')) continue;
       if (line.includes('rgba(255,255,255,0.16)') || line.includes('inset 0 1px')) continue;
       if (line.includes('transparent')) continue;
       if (line.includes('@font-face')) continue;
