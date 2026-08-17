@@ -79,7 +79,10 @@ jobs:
               exit 1
             fi
             gh release view "$GITHUB_REF_NAME" --repo "$GITHUB_REPOSITORY" --json assets --jq '.assets[].name' | while IFS= read -r asset; do
-              [ -z "$asset" ] || gh release delete-asset "$GITHUB_REF_NAME" "$asset" --yes --repo "$GITHUB_REPOSITORY"
+              [ -z "$asset" ] && continue
+              if ! gh release delete-asset "$GITHUB_REF_NAME" "$asset" --yes --repo "$GITHUB_REPOSITORY" 2>/dev/null; then
+                echo "::warning::Asset '$asset' already removed — skipping."
+              fi
             done
           else
             gh release create "$GITHUB_REF_NAME" "${args[@]}"
@@ -214,5 +217,19 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          find artifacts -type f \( -name 'SHA*SUMS.txt*' -o -name 'znxstudio-signing-public.asc' \) -print0 | xargs -0 gh release upload "$GITHUB_REF_NAME" --clobber --repo "$GITHUB_REPOSITORY"
+          uploaded=0
+          while IFS= read -r -d '' file; do
+            for attempt in 1 2 3; do
+              if gh release upload "$GITHUB_REF_NAME" "$file" --clobber --repo "$GITHUB_REPOSITORY"; then
+                uploaded=$((uploaded + 1))
+                break
+              fi
+              echo "::warning::Upload attempt $attempt failed for $(basename "$file"), retrying..."
+              sleep $((attempt * 2))
+            done
+          done < <(find artifacts -type f \( -name 'SHA*SUMS.txt*' -o -name 'znxstudio-signing-public.asc' \) -print0)
+          if [ "$uploaded" -eq 0 ]; then
+            echo "::error::No manifest files were uploaded."
+            exit 1
+          fi
           gh release edit "$GITHUB_REF_NAME" --repo "$GITHUB_REPOSITORY" --draft=false --prerelease=${{ needs.validate.outputs.prerelease }}
