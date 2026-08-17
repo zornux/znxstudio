@@ -166,6 +166,13 @@ export const IpcChannels = {
   MobileRunStart: 'mobile:run-start',
   MobileRunStop: 'mobile:run-stop',
   MobileRunStatus: 'mobile:run-status',
+  MobileDebugStart: 'mobile:debug-start',
+  MobileDebugStop: 'mobile:debug-stop',
+  MobileDebugStatus: 'mobile:debug-status',
+  MobileDebugEvent: 'mobile:debug-event',
+  MobileTestRun: 'mobile:test-run',
+  MobileTestStop: 'mobile:test-stop',
+  MobileTestResult: 'mobile:test-result',
 
   // Language server (LSP)
   LspStart: 'lsp:start',

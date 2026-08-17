@@ -13,7 +13,9 @@ import type {
   CollabPeerJoinedEvent,
   CollabPeerLeftEvent,
   CollabClosedEvent,
+  MobileDebugEvent,
   MobileLogEvent,
+  MobileTestReport,
   Unsubscribe,
   ZnxStudioApi,
 } from '../shared/types';
@@ -241,6 +243,13 @@ const api: ZnxStudioApi = {
     runStop: () => ipcRenderer.invoke(IpcChannels.MobileRunStop),
     status: () => ipcRenderer.invoke(IpcChannels.MobileRunStatus),
     onLogs: (callback) => subscribe<MobileLogEvent>(IpcChannels.MobileLogs, callback),
+    debugStart: (config) => ipcRenderer.invoke(IpcChannels.MobileDebugStart, config),
+    debugStop: () => ipcRenderer.invoke(IpcChannels.MobileDebugStop),
+    debugStatus: () => ipcRenderer.invoke(IpcChannels.MobileDebugStatus),
+    onDebugEvent: (callback) => subscribe<MobileDebugEvent>(IpcChannels.MobileDebugEvent, callback),
+    testRun: (config) => ipcRenderer.invoke(IpcChannels.MobileTestRun, config),
+    testStop: () => ipcRenderer.invoke(IpcChannels.MobileTestStop),
+    onTestResult: (callback) => subscribe<MobileTestReport>(IpcChannels.MobileTestResult, callback),
   },
 };
 

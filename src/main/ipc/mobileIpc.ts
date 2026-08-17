@@ -1,5 +1,6 @@
 import { ipcMain } from 'electron';
 import { IpcChannels } from '../../shared/ipc';
+import type { MobileDebugConfig, MobileTestConfig } from '../../shared/types';
 import { MobileService } from '../services/MobileService';
 import { sharedWorkspaceTrust } from '../services/WorkspaceTrustService';
 
@@ -37,4 +38,23 @@ export function registerMobileIpc(): void {
     mobile.runStop();
   });
   ipcMain.handle(IpcChannels.MobileRunStatus, () => mobile.status());
+
+  // Mobile debug channels require trust.
+  ipcMain.handle(IpcChannels.MobileDebugStart, (event, config: MobileDebugConfig) => {
+    trust.assertTrusted('Mobile Debug');
+    mobile.debugStart(config, event.sender);
+  });
+  ipcMain.handle(IpcChannels.MobileDebugStop, () => {
+    mobile.debugStop();
+  });
+  ipcMain.handle(IpcChannels.MobileDebugStatus, () => mobile.debugStatus());
+
+  // Mobile test channels require trust.
+  ipcMain.handle(IpcChannels.MobileTestRun, (event, config: MobileTestConfig) => {
+    trust.assertTrusted('Mobile Test');
+    return mobile.testRun(config, event.sender);
+  });
+  ipcMain.handle(IpcChannels.MobileTestStop, () => {
+    mobile.testStop();
+  });
 }

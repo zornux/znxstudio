@@ -6,7 +6,7 @@ import {
 } from '../core/Contracts';
 import type { IModule, ModuleContext } from '../core/Module';
 import { CommandIds } from '../commands/CommandIds';
-import type { AndroidDevice, AndroidEmulator, MobileDoctorResult } from '../../shared/types';
+import type { AndroidDevice, AndroidEmulator, MobileDebugEvent, MobileDoctorResult, MobileTestReport } from '../../shared/types';
 
 /**
  * Mobile development module for Android. Surfaces device management, doctor
@@ -23,9 +23,14 @@ export class MobileModule implements IModule {
   private selectedDeviceId: string | null = null;
   private doctorResult: MobileDoctorResult | null = null;
   private logsUnsubscribe: (() => void) | null = null;
+  private debugEventUnsubscribe: (() => void) | null = null;
+  private testResultUnsubscribe: (() => void) | null = null;
   private sideBarEl: HTMLDivElement | null = null;
   private logOutputEl: HTMLPreElement | null = null;
+  private debugStatusEl: HTMLDivElement | null = null;
+  private testResultsEl: HTMLDivElement | null = null;
   private activityItemRegistered = false;
+  private lastTestReport: MobileTestReport | null = null;
 
   activate(context: ModuleContext): void {
     this.context = context;
@@ -36,6 +41,10 @@ export class MobileModule implements IModule {
     context.commands.register(CommandIds.MobileRunStart, () => this.runStart(), 'Mobile: Run on Device');
     context.commands.register(CommandIds.MobileRunStop, () => this.runStop(), 'Mobile: Stop');
     context.commands.register(CommandIds.MobileRefreshDevices, () => this.refreshDevices(), 'Mobile: Refresh Devices');
+    context.commands.register(CommandIds.MobileDebugStart, () => this.debugStart(), 'Mobile: Debug on Device');
+    context.commands.register(CommandIds.MobileDebugStop, () => this.debugStop(), 'Mobile: Stop Debug');
+    context.commands.register(CommandIds.MobileTestRun, () => this.testRun(), 'Mobile: Run Tests');
+    context.commands.register(CommandIds.MobileTestStop, () => this.testStop(), 'Mobile: Stop Tests');
 
     // Enablement: mobile commands only make sense for mobile workspaces.
     const workspace = context.services.get<WorkspaceService>(ServiceKeys.Workspace);
@@ -46,7 +55,11 @@ export class MobileModule implements IModule {
           id === CommandIds.MobileDoctor ||
           id === CommandIds.MobileRunStart ||
           id === CommandIds.MobileRunStop ||
-          id === CommandIds.MobileRefreshDevices
+          id === CommandIds.MobileRefreshDevices ||
+          id === CommandIds.MobileDebugStart ||
+          id === CommandIds.MobileDebugStop ||
+          id === CommandIds.MobileTestRun ||
+          id === CommandIds.MobileTestStop
         ) {
           return this.isMobileWorkspace();
         }
@@ -66,6 +79,19 @@ export class MobileModule implements IModule {
       this.appendLog(event.line);
     });
     context.subscriptions.push({ dispose: () => this.logsUnsubscribe?.() });
+
+    // Subscribe to mobile debug events.
+    this.debugEventUnsubscribe = window.znxstudio.mobile.onDebugEvent((event) => {
+      this.handleDebugEvent(event);
+    });
+    context.subscriptions.push({ dispose: () => this.debugEventUnsubscribe?.() });
+
+    // Subscribe to mobile test results.
+    this.testResultUnsubscribe = window.znxstudio.mobile.onTestResult((report) => {
+      this.lastTestReport = report;
+      this.renderTestResults();
+    });
+    context.subscriptions.push({ dispose: () => this.testResultUnsubscribe?.() });
   }
 
   /** Add the Android Activity Bar item on first detection of a mobile workspace. */
@@ -125,6 +151,30 @@ export class MobileModule implements IModule {
     const stopBtn = this.createButton('Stop', () => this.runStop());
     runSection.appendChild(runBtn);
     runSection.appendChild(stopBtn);
+
+    // Section: Debug
+    const debugSection = this.createSection('Debug', view);
+    const debugStartBtn = this.createButton('Debug on Device', () => this.debugStart());
+    const debugStopBtn = this.createButton('Stop Debug', () => this.debugStop());
+    debugSection.appendChild(debugStartBtn);
+    debugSection.appendChild(debugStopBtn);
+    const debugStatus = document.createElement('div');
+    debugStatus.className = 'znxstudio-mobile-debug-status';
+    debugStatus.setAttribute('data-role', 'debug-status');
+    this.debugStatusEl = debugStatus;
+    debugSection.appendChild(debugStatus);
+
+    // Section: Tests
+    const testSection = this.createSection('Tests', view);
+    const testRunBtn = this.createButton('Run Tests', () => this.testRun());
+    const testStopBtn = this.createButton('Stop Tests', () => this.testStop());
+    testSection.appendChild(testRunBtn);
+    testSection.appendChild(testStopBtn);
+    const testResults = document.createElement('div');
+    testResults.className = 'znxstudio-mobile-test-results';
+    testResults.setAttribute('data-role', 'test-results');
+    this.testResultsEl = testResults;
+    testSection.appendChild(testResults);
 
     // Section: Logs
     const logSection = this.createSection('Logs', view);
@@ -355,6 +405,155 @@ export class MobileModule implements IModule {
       this.status()?.setItem('mobile.status', { text: 'mobile: stopped', side: 'right', priority: 29, autoHideMs: 4000 });
     } catch (error) {
       this.context.layout.showToast(`Failed to stop mobile run: ${(error as Error).message}`, 'error');
+    }
+  }
+
+  /* ----- Debug ----- */
+
+  private async debugStart(): Promise<void> {
+    const workspace = this.context.services.tryGet<WorkspaceService>(ServiceKeys.Workspace);
+    const info = workspace?.currentWorkspace();
+    if (!info) {
+      this.context.layout.showToast('Open a mobile project first.', 'error');
+      return;
+    }
+
+    let deviceId = this.selectedDeviceId;
+    if (!deviceId) {
+      await this.refreshDevices();
+      const available = this.devices.filter((d) => d.status === 'device');
+      if (available.length === 0) {
+        this.context.layout.showToast('No connected Android devices. Connect one or start an emulator.', 'error');
+        return;
+      }
+      deviceId = available[0].id;
+      this.selectedDeviceId = deviceId;
+    }
+
+    this.status()?.setItem('mobile.debug', { text: 'mobile: debug launching', side: 'right', priority: 30 });
+
+    try {
+      await window.znxstudio.mobile.debugStart({ deviceId, workspaceRoot: info.root });
+    } catch (error) {
+      this.context.layout.showToast(`Mobile debug failed: ${(error as Error).message}`, 'error');
+      this.status()?.setItem('mobile.debug', { text: 'mobile: debug error', side: 'right', priority: 30, autoHideMs: 4000 });
+    }
+  }
+
+  private async debugStop(): Promise<void> {
+    try {
+      await window.znxstudio.mobile.debugStop();
+      this.status()?.setItem('mobile.debug', { text: 'mobile: debug stopped', side: 'right', priority: 30, autoHideMs: 4000 });
+    } catch (error) {
+      this.context.layout.showToast(`Failed to stop debug: ${(error as Error).message}`, 'error');
+    }
+  }
+
+  private handleDebugEvent(event: MobileDebugEvent): void {
+    const statusEl = this.debugStatusEl;
+    if (!statusEl) return;
+
+    switch (event.type) {
+      case 'stopped':
+        this.status()?.setItem('mobile.debug', { text: `mobile: debug paused ${event.file ?? ''}:${event.line ?? ''}`, side: 'right', priority: 30 });
+        statusEl.textContent = `Stopped at ${event.file ?? '?'}:${event.line ?? '?'} (${event.reason ?? 'breakpoint'})`;
+        break;
+      case 'continued':
+        this.status()?.setItem('mobile.debug', { text: 'mobile: debug running', side: 'right', priority: 30 });
+        statusEl.textContent = 'Running';
+        break;
+      case 'terminated':
+        this.status()?.setItem('mobile.debug', { text: 'mobile: debug ended', side: 'right', priority: 30, autoHideMs: 4000 });
+        statusEl.textContent = 'Session ended';
+        break;
+      case 'output':
+        this.appendLog(event.message ?? '');
+        break;
+    }
+  }
+
+  /* ----- Tests ----- */
+
+  private async testRun(): Promise<void> {
+    const workspace = this.context.services.tryGet<WorkspaceService>(ServiceKeys.Workspace);
+    const info = workspace?.currentWorkspace();
+    if (!info) {
+      this.context.layout.showToast('Open a mobile project first.', 'error');
+      return;
+    }
+
+    this.status()?.setItem('mobile.test', { text: 'mobile: testing', side: 'right', priority: 28 });
+
+    try {
+      const report = await window.znxstudio.mobile.testRun({
+        workspaceRoot: info.root,
+        deviceId: this.selectedDeviceId ?? undefined,
+      });
+      this.lastTestReport = report;
+      this.renderTestResults();
+
+      const summary = `Tests: ${report.passed} passed, ${report.failed} failed`;
+      this.status()?.setItem('mobile.test', {
+        text: `mobile: ${summary}`,
+        side: 'right',
+        priority: 28,
+        autoHideMs: 8000,
+      });
+
+      const output = this.context.services.tryGet<OutputService>(ServiceKeys.Output);
+      if (output) {
+        output.show();
+        output.appendLine('--- Mobile Tests (Android) ---');
+        for (const result of report.results) {
+          output.appendLine(`  ${result.passed ? 'PASS' : 'FAIL'} ${result.name}${result.message ? `: ${result.message}` : ''}`);
+        }
+        output.appendLine(summary);
+      }
+    } catch (error) {
+      this.context.layout.showToast(`Mobile test failed: ${(error as Error).message}`, 'error');
+      this.status()?.setItem('mobile.test', { text: 'mobile: test error', side: 'right', priority: 28, autoHideMs: 4000 });
+    }
+  }
+
+  private async testStop(): Promise<void> {
+    try {
+      await window.znxstudio.mobile.testStop();
+      this.status()?.setItem('mobile.test', { text: 'mobile: tests stopped', side: 'right', priority: 28, autoHideMs: 4000 });
+    } catch (error) {
+      this.context.layout.showToast(`Failed to stop tests: ${(error as Error).message}`, 'error');
+    }
+  }
+
+  private renderTestResults(): void {
+    const container = this.testResultsEl ?? this.sideBarEl?.querySelector('[data-role="test-results"]');
+    if (!container) return;
+    container.innerHTML = '';
+
+    if (!this.lastTestReport) {
+      const hint = document.createElement('div');
+      hint.textContent = 'Run tests to see results.';
+      hint.style.opacity = '0.6';
+      hint.style.fontSize = '12px';
+      hint.style.padding = '4px 0';
+      container.appendChild(hint);
+      return;
+    }
+
+    const report = this.lastTestReport;
+    const summary = document.createElement('div');
+    summary.style.fontSize = '12px';
+    summary.style.padding = '4px 0';
+    summary.style.fontWeight = 'bold';
+    summary.textContent = `${report.passed} passed, ${report.failed} failed, ${report.skipped} skipped`;
+    container.appendChild(summary);
+
+    for (const result of report.results) {
+      const row = document.createElement('div');
+      row.style.fontSize = '12px';
+      row.style.padding = '1px 0';
+      row.textContent = `${result.passed ? 'OK' : 'FAIL'} ${result.name}`;
+      if (result.message) row.title = result.message;
+      container.appendChild(row);
     }
   }
 

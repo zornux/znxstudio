@@ -719,6 +719,50 @@ export interface MobileLogEvent {
   line: string;
 }
 
+export interface MobileDebugConfig {
+  deviceId: string;
+  workspaceRoot: string;
+}
+
+export interface MobileDebugStatus {
+  active: boolean;
+  deviceId: string | null;
+  state: 'idle' | 'launching' | 'running' | 'stopped' | 'terminated' | 'error';
+}
+
+export interface MobileDebugEvent {
+  type: 'stopped' | 'continued' | 'terminated' | 'output';
+  file?: string;
+  line?: number;
+  reason?: string;
+  screenName?: string;
+  message?: string;
+}
+
+export interface MobileTestConfig {
+  workspaceRoot: string;
+  filter?: string;
+  deviceId?: string;
+  verbose?: boolean;
+}
+
+export interface MobileTestResultItem {
+  name: string;
+  passed: boolean;
+  message?: string;
+  file?: string;
+  line?: number;
+  durationMs?: number;
+}
+
+export interface MobileTestReport {
+  passed: number;
+  failed: number;
+  skipped: number;
+  durationMs: number;
+  results: MobileTestResultItem[];
+}
+
 /**
  * The typed surface exposed to the renderer via `window.znxstudio`.
  * This is the ONLY channel the renderer uses to reach the OS/filesystem.
@@ -954,5 +998,12 @@ export interface ZnxStudioApi {
     runStop(): Promise<void>;
     status(): Promise<MobileRunStatus>;
     onLogs(callback: (event: MobileLogEvent) => void): Unsubscribe;
+    debugStart(config: MobileDebugConfig): Promise<void>;
+    debugStop(): Promise<void>;
+    debugStatus(): Promise<MobileDebugStatus>;
+    onDebugEvent(callback: (event: MobileDebugEvent) => void): Unsubscribe;
+    testRun(config: MobileTestConfig): Promise<MobileTestReport>;
+    testStop(): Promise<void>;
+    onTestResult(callback: (result: MobileTestReport) => void): Unsubscribe;
   };
 }

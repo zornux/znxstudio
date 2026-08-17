@@ -255,6 +255,10 @@ export const CommandIds = {
   MobileRunStart: 'znxstudio.mobile.runStart',
   MobileRunStop: 'znxstudio.mobile.runStop',
   MobileRefreshDevices: 'znxstudio.mobile.refreshDevices',
+  MobileDebugStart: 'znxstudio.mobile.debugStart',
+  MobileDebugStop: 'znxstudio.mobile.debugStop',
+  MobileTestRun: 'znxstudio.mobile.testRun',
+  MobileTestStop: 'znxstudio.mobile.testStop',
 } as const;
 
 export type CommandId = (typeof CommandIds)[keyof typeof CommandIds];
