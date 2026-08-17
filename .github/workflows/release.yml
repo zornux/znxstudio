@@ -71,22 +71,20 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          args=(--repo "$GITHUB_REPOSITORY" --title "$GITHUB_REF_NAME" --generate-notes --draft)
-          if gh release view "$GITHUB_REF_NAME" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
-            draft="$(gh release view "$GITHUB_REF_NAME" --repo "$GITHUB_REPOSITORY" --json isDraft --jq .isDraft)"
-            if [ "$draft" != true ]; then
-              echo "::error::Release $GITHUB_REF_NAME is already published. Refusing a non-atomic overwrite."
-              exit 1
-            fi
-            gh release view "$GITHUB_REF_NAME" --repo "$GITHUB_REPOSITORY" --json assets --jq '.assets[].name' | while IFS= read -r asset; do
-              [ -z "$asset" ] && continue
-              if ! gh release delete-asset "$GITHUB_REF_NAME" "$asset" --yes --repo "$GITHUB_REPOSITORY" 2>/dev/null; then
-                echo "::warning::Asset '$asset' already removed — skipping."
-              fi
-            done
-          else
-            gh release create "$GITHUB_REF_NAME" "${args[@]}"
+          repo="$GITHUB_REPOSITORY"
+          tag="$GITHUB_REF_NAME"
+
+          # If a published (non-draft) release already exists, refuse to overwrite.
+          if gh release view "$tag" --repo "$repo" --json isDraft --jq .isDraft 2>/dev/null | grep -q false; then
+            echo "::error::Release $tag is already published. Refusing a non-atomic overwrite."
+            exit 1
           fi
+
+          # Clean slate: delete any leftover draft release (idempotent).
+          gh release delete "$tag" --repo "$repo" --yes --cleanup-tag=false 2>/dev/null || true
+
+          # Create a fresh draft release.
+          gh release create "$tag" --repo "$repo" --title "$tag" --generate-notes --draft
 
   windows:
     name: package (windows)
