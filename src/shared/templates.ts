@@ -45,6 +45,8 @@ function scriptsFor(type: WorkspaceType): Record<string, string> {
   switch (type) {
     case 'zornux-api':
       return { run: 'zornux run src/main.zx' };
+    case 'zornux-mobile':
+      return { run: 'zornux mobile run android', build: 'zornux mobile build android' };
     case 'zornux-zoijs-fullstack':
       return { run: 'zornux run src/main.zx', serve: 'python3 -m http.server 8000 --directory web' };
     case 'zoijs-frontend':
@@ -58,6 +60,8 @@ function scriptsFor(type: WorkspaceType): Record<string, string> {
 function workspaceDirsFor(type: WorkspaceType): { sourceDirs: string[]; generatedDirs: string[]; configFiles: string[] } {
   const configFiles = ['znxstudio.project.json'];
   switch (type) {
+    case 'zornux-mobile':
+      return { sourceDirs: ['.'], generatedDirs: ['.zornux'], configFiles: ['zornux.project', ...configFiles] };
     case 'zornux-zoijs-fullstack':
       return { sourceDirs: ['src', 'web'], generatedDirs: ['dist'], configFiles };
     case 'zoijs-frontend':
@@ -132,6 +136,56 @@ const zoijsIndexHtml = (mainSrc: string): string =>
   '  </body>\n</html>\n';
 
 export const PROJECT_TEMPLATES: readonly ProjectTemplate[] = [
+  {
+    id: 'zornux-mobile-blank',
+    label: 'Zornux Mobile Application',
+    description: 'A Zornux Mobile Android application with a single screen.',
+    icon: '📱',
+    type: 'zornux-mobile',
+    runZornuxInit: false,
+    files: [
+      {
+        path: 'zornux.project',
+        content:
+          'name = ${name}\nversion = 0.1.0\ntype = mobile\nentry = main.zx\n\n' +
+          'android.application_id = com.example.${name}\nandroid.min_sdk = 24\nandroid.target_sdk = 34\n',
+      },
+      {
+        path: 'main.zx',
+        content:
+          'mobile app "${name}"\n\nscreen Home\n    state greeting = "Hello from ${name}!"\n\n' +
+          '    column\n        text greeting\n    end\nend\n\nstart with Home\n',
+      },
+      { path: 'znxstudio.project.json', content: '${znxstudio-mobile}' },
+    ],
+  },
+  {
+    id: 'zornux-mobile-nav',
+    label: 'Zornux Mobile Navigation',
+    description: 'A Zornux Mobile Android application with two screens and navigation.',
+    icon: '📱',
+    type: 'zornux-mobile',
+    runZornuxInit: false,
+    files: [
+      {
+        path: 'zornux.project',
+        content:
+          'name = ${name}\nversion = 0.1.0\ntype = mobile\nentry = main.zx\n\n' +
+          'android.application_id = com.example.${name}\nandroid.min_sdk = 24\nandroid.target_sdk = 34\n',
+      },
+      {
+        path: 'main.zx',
+        content:
+          'mobile app "${name}"\n\nscreen Home\n    state greeting = "Welcome to ${name}!"\n\n' +
+          '    column\n        text greeting\n\n        button "Go to Details"\n' +
+          '            when tapped\n                go to Details\n            end\n        end\n' +
+          '    end\nend\n\nscreen Details\n    column\n        text "Details Screen"\n\n' +
+          '        button "Go Back"\n            when tapped\n                go back\n            end\n' +
+          '        end\n    end\nend\n\nstart with Home\n',
+      },
+      { path: 'znxstudio.project.json', content: '${znxstudio-mobile}' },
+    ],
+  },
   {
     id: 'zornux-empty',
     label: 'Empty Zornux Project',
@@ -214,6 +268,7 @@ export function findTemplate(id: string): ProjectTemplate | undefined {
 export function renderTemplate(template: ProjectTemplate, name: string): RenderedTemplate {
   const macros: Record<string, string> = {
     'znxstudio-api': znxstudioManifest(name, 'zornux-api', ['zornux'], []),
+    'znxstudio-mobile': znxstudioManifest(name, 'zornux-mobile', ['zornux'], []),
     'znxstudio-fullstack': znxstudioManifest(name, 'zornux-zoijs-fullstack', ['zornux', 'javascript'], ['zoijs']),
     'znxstudio-zoijs': znxstudioManifest(name, 'zoijs-frontend', ['javascript'], ['zoijs']),
   };

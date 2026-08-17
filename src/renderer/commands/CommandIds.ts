@@ -259,6 +259,19 @@ export const CommandIds = {
   MobileDebugStop: 'znxstudio.mobile.debugStop',
   MobileTestRun: 'znxstudio.mobile.testRun',
   MobileTestStop: 'znxstudio.mobile.testStop',
+  MobileSelectDevice: 'znxstudio.mobile.selectDevice',
+  MobileStartEmulator: 'znxstudio.mobile.startEmulator',
+  MobileProfileStart: 'znxstudio.mobile.profileStart',
+  MobileProfileStop: 'znxstudio.mobile.profileStop',
+  MobileBuildApk: 'znxstudio.mobile.buildApk',
+  MobileBuildAab: 'znxstudio.mobile.buildAab',
+  MobileReleaseCheck: 'znxstudio.mobile.releaseCheck',
+  MobileClean: 'znxstudio.mobile.clean',
+  MobileToolchainSetup: 'znxstudio.mobile.toolchainSetup',
+  MobileSdkManager: 'znxstudio.mobile.sdkManager',
+  MobileViewGenerated: 'znxstudio.mobile.viewGenerated',
+  MobileProjectSettings: 'znxstudio.mobile.projectSettings',
+  MobileRestart: 'znxstudio.mobile.restart',
 } as const;
 
 export type CommandId = (typeof CommandIds)[keyof typeof CommandIds];

@@ -173,6 +173,26 @@ export const IpcChannels = {
   MobileTestRun: 'mobile:test-run',
   MobileTestStop: 'mobile:test-stop',
   MobileTestResult: 'mobile:test-result',
+  MobileProfileStart: 'mobile:profile-start',
+  MobileProfileStop: 'mobile:profile-stop',
+  MobileProfileEvent: 'mobile:profile-event',
+  MobileBuildApk: 'mobile:build-apk',
+  MobileBuildAab: 'mobile:build-aab',
+  MobileBuildStop: 'mobile:build-stop',
+  MobileBuildProgress: 'mobile:build-progress',
+  MobileReleaseCheck: 'mobile:release-check',
+  MobileClean: 'mobile:clean',
+  MobileSessionState: 'mobile:session-state',
+  MobileProjectConfig: 'mobile:project-config',
+  MobileProjectConfigUpdate: 'mobile:project-config-update',
+
+  // Android Toolchain management
+  AndroidToolchainStatus: 'toolchain:android-status',
+  AndroidToolchainSetup: 'toolchain:android-setup',
+  AndroidToolchainSetupProgress: 'toolchain:android-setup-progress',
+  AndroidToolchainSdkList: 'toolchain:android-sdk-list',
+  AndroidToolchainSdkInstall: 'toolchain:android-sdk-install',
+  AndroidToolchainUpdate: 'toolchain:android-update',
 
   // Language server (LSP)
   LspStart: 'lsp:start',

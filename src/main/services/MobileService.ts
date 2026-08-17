@@ -1,13 +1,22 @@
 import { execFile, spawn, type ChildProcess } from 'node:child_process';
+import { readFile, writeFile } from 'node:fs/promises';
 import type { WebContents } from 'electron';
 import { IpcChannels } from '../../shared/ipc';
 import type {
   AndroidDevice,
   AndroidEmulator,
+  AndroidProjectConfig,
+  MobileBuildConfig,
+  MobileBuildResult,
   MobileDebugConfig,
   MobileDebugStatus,
   MobileDoctorResult,
+  MobileProfileConfig,
+  MobileProfileMetric,
+  MobileProfileReport,
+  MobileReleaseCheckResult,
   MobileRunStatus,
+  MobileSessionState,
   MobileTestConfig,
   MobileTestReport,
 } from '../../shared/types';
@@ -39,6 +48,13 @@ export class MobileService {
   private debugSender: WebContents | null = null;
   private testProcess: ChildProcess | null = null;
   private testSender: WebContents | null = null;
+  private profileProcess: ChildProcess | null = null;
+  private profileSender: WebContents | null = null;
+  private profileMetrics: MobileProfileMetric[] = [];
+  private buildProcess: ChildProcess | null = null;
+  private buildSender: WebContents | null = null;
+  private sessionState: MobileSessionState = 'idle';
+  private generation = 0;
 
   /** List connected Android devices (physical + running emulators). */
   async devices(): Promise<AndroidDevice[]> {
@@ -123,6 +139,8 @@ export class MobileService {
     this.runProcess = child;
     this.runDeviceId = deviceId;
     this.logSender = sender;
+    const gen = ++this.generation;
+    this.setSessionState('running', sender);
 
     const emitLog = (line: string) => {
       if (this.logSender && !this.logSender.isDestroyed()) {
@@ -143,8 +161,11 @@ export class MobileService {
     child.on('error', (error) => emitLog(`[error] ${error.message}`));
     child.on('close', (code) => {
       emitLog(`[process exited with code ${code ?? '—'}]`);
-      this.runProcess = null;
-      this.runDeviceId = null;
+      if (this.generation === gen) {
+        this.runProcess = null;
+        this.runDeviceId = null;
+        this.setSessionState(code === 0 ? 'idle' : 'failed');
+      }
     });
   }
 
@@ -153,16 +174,17 @@ export class MobileService {
     const child = this.runProcess;
     if (!child) return;
 
+    ++this.generation;
     this.runProcess = null;
     this.runDeviceId = null;
+    this.setSessionState('stopping');
 
     if (process.platform === 'win32' && child.pid !== undefined) {
-      execFile('taskkill', ['/pid', String(child.pid), '/T', '/F'], () => {
-        /* best-effort */
-      });
+      execFile('taskkill', ['/pid', String(child.pid), '/T', '/F'], () => {});
     } else {
       child.kill();
     }
+    this.setSessionState('idle');
   }
 
   /** Current run status. */
@@ -188,6 +210,8 @@ export class MobileService {
     this.debugDeviceId = config.deviceId;
     this.debugState = 'launching';
     this.debugSender = sender;
+    const gen = ++this.generation;
+    this.setSessionState('debugging', sender);
 
     const emitEvent = (type: string, data?: Record<string, unknown>) => {
       if (this.debugSender && !this.debugSender.isDestroyed()) {
@@ -231,12 +255,18 @@ export class MobileService {
     child.on('error', (error) => {
       this.debugState = 'error';
       emitEvent('output', { message: `[error] ${error.message}` });
+      if (this.generation === gen) {
+        this.setSessionState('failed');
+      }
     });
     child.on('close', (code) => {
       this.debugState = 'terminated';
       emitEvent('terminated', { message: `exited with code ${code ?? '—'}` });
-      this.debugProcess = null;
-      this.debugDeviceId = null;
+      if (this.generation === gen) {
+        this.debugProcess = null;
+        this.debugDeviceId = null;
+        this.setSessionState(code === 0 ? 'idle' : 'failed');
+      }
     });
   }
 
@@ -245,6 +275,7 @@ export class MobileService {
     const child = this.debugProcess;
     if (!child) return;
 
+    ++this.generation;
     this.debugProcess = null;
     this.debugDeviceId = null;
     this.debugState = 'idle';
@@ -254,6 +285,7 @@ export class MobileService {
     } else {
       child.kill();
     }
+    this.setSessionState('idle');
   }
 
   /** Current debug status. */
@@ -269,13 +301,35 @@ export class MobileService {
   async testRun(config: MobileTestConfig, sender: WebContents): Promise<MobileTestReport> {
     this.testStop();
     this.testSender = sender;
+    const gen = ++this.generation;
+    this.setSessionState('testing', sender);
 
     const args = ['mobile', 'test', 'android', '--json'];
     if (config.filter) args.push('--filter', config.filter);
     if (config.deviceId) args.push('--device', config.deviceId);
     if (config.verbose) args.push('--verbose');
 
-    const { code, stdout, stderr } = await this.execWithTimeout(args, config.workspaceRoot, TEST_TIMEOUT_MS);
+    let code: number | null = null;
+    let stdout = '';
+    let stderr = '';
+
+    try {
+      const result = await this.execWithTimeout(args, config.workspaceRoot, TEST_TIMEOUT_MS);
+      code = result.code;
+      stdout = result.stdout;
+      stderr = result.stderr;
+    } catch (err) {
+      if (this.generation === gen) this.setSessionState('failed');
+      return {
+        passed: 0,
+        failed: 1,
+        skipped: 0,
+        durationMs: 0,
+        results: [{ name: 'test-run', passed: false, message: err instanceof Error ? err.message : 'Test execution failed' }],
+      };
+    }
+
+    if (this.generation === gen) this.setSessionState('idle');
 
     try {
       const parsed = JSON.parse(stdout);
@@ -315,19 +369,250 @@ export class MobileService {
     const child = this.testProcess;
     if (!child) return;
 
+    ++this.generation;
     this.testProcess = null;
     if (process.platform === 'win32' && child.pid !== undefined) {
       execFile('taskkill', ['/pid', String(child.pid), '/T', '/F'], () => {});
     } else {
       child.kill();
     }
+    this.setSessionState('idle');
   }
 
-  /** Kill the run process on app quit. */
+  /* ----- session state ----- */
+
+  /** Update session state and notify the renderer. */
+  setSessionState(state: MobileSessionState, sender?: WebContents): void {
+    this.sessionState = state;
+    const target = sender ?? this.logSender ?? this.profileSender ?? this.buildSender;
+    if (target && !target.isDestroyed()) {
+      target.send(IpcChannels.MobileSessionState, state);
+    }
+  }
+
+  /** Return the current session state. */
+  getSessionState(): MobileSessionState {
+    return this.sessionState;
+  }
+
+  /* ----- profiling ----- */
+
+  /** Start `zornux mobile profile android --device <id> --json`. Kills any previous profile. */
+  profileStart(config: MobileProfileConfig, sender: WebContents): void {
+    this.profileStop();
+    this.profileMetrics = [];
+
+    const compilerPath = this.locateCompiler();
+    const args = ['mobile', 'profile', 'android', '--json'];
+    if (config.deviceId) args.push('--device', config.deviceId);
+    if (config.durationMs != null) args.push('--duration', String(config.durationMs));
+
+    const child = spawn(compilerPath, args, {
+      cwd: config.workspaceRoot,
+      windowsHide: true,
+    });
+
+    this.profileProcess = child;
+    this.profileSender = sender;
+    const gen = ++this.generation;
+    this.setSessionState('profiling', sender);
+
+    const emitEvent = (data: Record<string, unknown>) => {
+      if (this.profileSender && !this.profileSender.isDestroyed()) {
+        this.profileSender.send(IpcChannels.MobileProfileEvent, data);
+      }
+    };
+
+    child.stdout?.on('data', (chunk: Buffer) => {
+      for (const line of chunk.toString().split('\n')) {
+        if (line.length === 0) continue;
+        try {
+          const parsed = JSON.parse(line);
+          if (parsed && typeof parsed === 'object' && parsed.type === 'metric') {
+            this.profileMetrics.push({
+              name: String(parsed.name ?? ''),
+              value: typeof parsed.value === 'number' ? parsed.value : 0,
+              unit: String(parsed.unit ?? ''),
+              budget: typeof parsed.budget === 'number' ? parsed.budget : undefined,
+              file: parsed.file != null ? String(parsed.file) : undefined,
+              line: typeof parsed.line === 'number' ? parsed.line : undefined,
+            });
+            emitEvent(parsed);
+          }
+        } catch {
+          // Not JSON — ignore.
+        }
+      }
+    });
+    child.stderr?.on('data', (chunk: Buffer) => {
+      for (const line of chunk.toString().split('\n')) {
+        if (line.length > 0) emitEvent({ type: 'error', message: line });
+      }
+    });
+    child.on('error', (error) => emitEvent({ type: 'error', message: error.message }));
+    child.on('close', () => {
+      emitEvent({ type: 'complete' });
+      if (this.generation === gen) {
+        this.profileProcess = null;
+        this.setSessionState('idle');
+      }
+    });
+  }
+
+  /** Kill the profile process and return collected metrics. */
+  profileStop(): MobileProfileReport {
+    const child = this.profileProcess;
+    const report: MobileProfileReport = {
+      durationMs: 0,
+      metrics: [...this.profileMetrics],
+      events: [],
+    };
+
+    if (!child) return report;
+
+    ++this.generation;
+    this.profileProcess = null;
+    this.setSessionState('idle');
+    if (process.platform === 'win32' && child.pid !== undefined) {
+      execFile('taskkill', ['/pid', String(child.pid), '/T', '/F'], () => {});
+    } else {
+      child.kill();
+    }
+
+    return report;
+  }
+
+  /* ----- build ----- */
+
+  /** Build an APK via `zornux mobile build android --json`. */
+  async buildApk(config: MobileBuildConfig, sender: WebContents): Promise<MobileBuildResult> {
+    const args = ['mobile', 'build', 'android', '--json'];
+    if (config.mode === 'release') args.push('--release');
+    return this.execBuildAndParse(args, config.workspaceRoot, sender);
+  }
+
+  /** Build an AAB via `zornux mobile release build android --format aab --json`. */
+  async buildAab(config: MobileBuildConfig, sender: WebContents): Promise<MobileBuildResult> {
+    const args = ['mobile', 'release', 'build', 'android', '--format', 'aab', '--json'];
+    if (config.mode === 'release') args.push('--release');
+    return this.execBuildAndParse(args, config.workspaceRoot, sender);
+  }
+
+  /* ----- release ----- */
+
+  /** Run `zornux mobile release check android --json` and return structured results. */
+  async releaseCheck(workspaceRoot: string): Promise<MobileReleaseCheckResult> {
+    const { code, stdout } = await this.exec(['mobile', 'release', 'check', 'android', '--json'], workspaceRoot);
+
+    try {
+      const parsed = JSON.parse(stdout);
+      return {
+        ready: Boolean(parsed.ready),
+        applicationId: parsed.applicationId != null ? String(parsed.applicationId) : null,
+        version: parsed.version != null ? String(parsed.version) : null,
+        versionCode: typeof parsed.versionCode === 'number' ? parsed.versionCode : null,
+        signing: parsed.signing != null
+          ? { configured: Boolean(parsed.signing.configured), detail: String(parsed.signing.detail ?? '') }
+          : null,
+        issues: Array.isArray(parsed.issues)
+          ? parsed.issues.map((i: Record<string, unknown>) => ({
+              code: String(i.code ?? ''),
+              severity: i.severity === 'warning' ? 'warning' as const
+                : i.severity === 'info' ? 'info' as const
+                : 'error' as const,
+              message: String(i.message ?? ''),
+              file: i.file != null ? String(i.file) : undefined,
+              line: typeof i.line === 'number' ? i.line : undefined,
+            }))
+          : [],
+      };
+    } catch {
+      return {
+        ready: false,
+        applicationId: null,
+        version: null,
+        versionCode: null,
+        signing: null,
+        issues: [{ code: 'PARSE_ERROR', severity: 'error', message: stdout.trim() || `exit code ${code}` }],
+      };
+    }
+  }
+
+  /** Run `zornux mobile clean android` in the project directory. */
+  async clean(workspaceRoot: string): Promise<void> {
+    await this.exec(['mobile', 'clean', 'android'], workspaceRoot);
+  }
+
+  /* ----- project config ----- */
+
+  /** Read `zornux.project` and parse android.* keys into an AndroidProjectConfig. */
+  async projectConfig(workspaceRoot: string): Promise<AndroidProjectConfig | null> {
+    const filePath = `${workspaceRoot}/zornux.project`;
+    let content: string;
+    try {
+      content = await readFile(filePath, 'utf-8');
+    } catch {
+      return null;
+    }
+
+    const get = (key: string): string | undefined => {
+      const match = content.match(new RegExp(`^android\\.${key}\\s*=\\s*(.+)$`, 'm'));
+      return match ? match[1].trim() : undefined;
+    };
+
+    const applicationId = get('applicationId');
+    const version = get('version');
+    if (!applicationId || !version) return null;
+
+    const permissionsRaw = get('permissions');
+    return {
+      applicationId,
+      version,
+      versionCode: get('versionCode') != null ? parseInt(get('versionCode')!, 10) : undefined,
+      minSdk: parseInt(get('minSdk') ?? '21', 10),
+      targetSdk: parseInt(get('targetSdk') ?? '34', 10),
+      compileSdk: parseInt(get('compileSdk') ?? '34', 10),
+      permissions: permissionsRaw ? permissionsRaw.split(',').map((p) => p.trim()) : [],
+    };
+  }
+
+  /** Update android.* keys in `zornux.project`. */
+  async updateProjectConfig(workspaceRoot: string, updates: Partial<AndroidProjectConfig>): Promise<void> {
+    const filePath = `${workspaceRoot}/zornux.project`;
+    let content: string;
+    try {
+      content = await readFile(filePath, 'utf-8');
+    } catch {
+      content = '';
+    }
+
+    const set = (key: string, value: string) => {
+      const regex = new RegExp(`^(android\\.${key}\\s*=)\\s*.+$`, 'm');
+      if (regex.test(content)) {
+        content = content.replace(regex, `$1 ${value}`);
+      } else {
+        content += `${content.endsWith('\n') || content.length === 0 ? '' : '\n'}android.${key} = ${value}\n`;
+      }
+    };
+
+    if (updates.applicationId != null) set('applicationId', updates.applicationId);
+    if (updates.version != null) set('version', updates.version);
+    if (updates.versionCode != null) set('versionCode', String(updates.versionCode));
+    if (updates.minSdk != null) set('minSdk', String(updates.minSdk));
+    if (updates.targetSdk != null) set('targetSdk', String(updates.targetSdk));
+    if (updates.compileSdk != null) set('compileSdk', String(updates.compileSdk));
+    if (updates.permissions != null) set('permissions', updates.permissions.join(', '));
+
+    await writeFile(filePath, content, 'utf-8');
+  }
+
+  /** Kill all active processes on app quit. */
   dispose(): void {
     this.runStop();
     this.debugStop();
     this.testStop();
+    this.profileStop();
+    this.buildStop();
   }
 
   /* ----- internals ----- */
@@ -374,10 +659,125 @@ export class MobileService {
     });
   }
 
-  private exec(args: string[]): Promise<ExecResult> {
+  /** Kill the current build process. */
+  buildStop(): void {
+    const child = this.buildProcess;
+    if (!child) return;
+
+    ++this.generation;
+    this.buildProcess = null;
+    this.setSessionState('idle');
+    if (process.platform === 'win32' && child.pid !== undefined) {
+      execFile('taskkill', ['/pid', String(child.pid), '/T', '/F'], () => {});
+    } else {
+      child.kill();
+    }
+  }
+
+  /**
+   * Like execWithTimeout but tracks the child as `buildProcess`, streams
+   * build progress events, and parses the final JSON result.
+   */
+  private execBuildAndParse(args: string[], cwd: string, sender: WebContents): Promise<MobileBuildResult> {
+    this.buildStop();
+    this.buildSender = sender;
+    const gen = ++this.generation;
+    this.setSessionState('building', sender);
+
+    const BUILD_TIMEOUT_MS = 300_000;
+    const command = this.locateCompiler();
+
+    return new Promise<MobileBuildResult>((resolve) => {
+      const child = spawn(command, args, { cwd, windowsHide: true });
+      this.buildProcess = child;
+      let lastLine = '';
+      let settled = false;
+
+      const timer = setTimeout(() => {
+        if (settled) return;
+        settled = true;
+        child.kill();
+        if (this.generation === gen) {
+          this.buildProcess = null;
+          this.setSessionState('idle');
+        }
+        resolve({
+          success: false,
+          artifactPath: null,
+          artifactSizeBytes: null,
+          diagnostics: [`Build timed out after ${BUILD_TIMEOUT_MS}ms`],
+        });
+      }, BUILD_TIMEOUT_MS);
+
+      child.stdout?.on('data', (chunk: Buffer) => {
+        for (const line of chunk.toString().split('\n')) {
+          if (line.length === 0) continue;
+          lastLine = line;
+          try {
+            const parsed = JSON.parse(line);
+            if (parsed && typeof parsed === 'object' && parsed.phase != null) {
+              if (this.buildSender && !this.buildSender.isDestroyed()) {
+                this.buildSender.send(IpcChannels.MobileBuildProgress, parsed);
+              }
+            }
+          } catch {
+            // Not JSON — ignore.
+          }
+        }
+      });
+      child.stderr?.on('data', () => {
+        // Captured but not streamed; diagnostics come from the final result.
+      });
+      child.on('error', (error) => {
+        if (settled) return;
+        settled = true;
+        clearTimeout(timer);
+        if (this.generation === gen) {
+          this.buildProcess = null;
+          this.setSessionState('failed');
+        }
+        resolve({
+          success: false,
+          artifactPath: null,
+          artifactSizeBytes: null,
+          diagnostics: [error.message],
+        });
+      });
+      child.on('close', (code) => {
+        if (settled) return;
+        settled = true;
+        clearTimeout(timer);
+        if (this.generation === gen) {
+          this.buildProcess = null;
+          this.setSessionState('idle');
+        }
+
+        try {
+          const parsed = JSON.parse(lastLine);
+          resolve({
+            success: Boolean(parsed.success),
+            artifactPath: parsed.artifactPath != null ? String(parsed.artifactPath) : null,
+            artifactSizeBytes: typeof parsed.artifactSizeBytes === 'number' ? parsed.artifactSizeBytes : null,
+            diagnostics: Array.isArray(parsed.diagnostics)
+              ? parsed.diagnostics.map((d: unknown) => String(d))
+              : [],
+          });
+        } catch {
+          resolve({
+            success: false,
+            artifactPath: null,
+            artifactSizeBytes: null,
+            diagnostics: [`Build exited with code ${code ?? '—'}`],
+          });
+        }
+      });
+    });
+  }
+
+  private exec(args: string[], cwd?: string): Promise<ExecResult> {
     const command = this.locateCompiler();
     return new Promise<ExecResult>((resolve, reject) => {
-      const child = spawn(command, args, { windowsHide: true });
+      const child = spawn(command, args, { cwd, windowsHide: true });
       let stdout = '';
       let stderr = '';
       let settled = false;

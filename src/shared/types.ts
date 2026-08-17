@@ -763,6 +763,140 @@ export interface MobileTestReport {
   results: MobileTestResultItem[];
 }
 
+/* ----- Android Toolchain Management ----- */
+
+export interface ToolchainComponent {
+  name: string;
+  required: boolean;
+  installed: boolean;
+  version: string | null;
+  requiredVersion: string | null;
+  updateAvailable: boolean;
+}
+
+export interface ToolchainStatus {
+  ready: boolean;
+  managedPath: string | null;
+  components: ToolchainComponent[];
+}
+
+export interface ToolchainSetupProgress {
+  step: string;
+  progress: number;
+  complete: boolean;
+  error: string | null;
+}
+
+/* ----- Mobile Profile (Android) ----- */
+
+export interface MobileProfileConfig {
+  workspaceRoot: string;
+  deviceId?: string;
+  durationMs?: number;
+}
+
+export interface MobileProfileMetric {
+  name: string;
+  value: number;
+  unit: string;
+  budget?: number;
+  file?: string;
+  line?: number;
+}
+
+export interface MobileProfileTimelineEvent {
+  timestampMs: number;
+  name: string;
+  durationMs?: number;
+  category: string;
+}
+
+export interface MobileProfileReport {
+  durationMs: number;
+  metrics: MobileProfileMetric[];
+  events: MobileProfileTimelineEvent[];
+}
+
+export interface MobileProfileEvent {
+  type: 'metric' | 'complete' | 'error';
+  name?: string;
+  value?: number;
+  unit?: string;
+  file?: string;
+  line?: number;
+  message?: string;
+}
+
+/* ----- Mobile Build (Android) ----- */
+
+export interface MobileBuildConfig {
+  workspaceRoot: string;
+  mode: 'debug' | 'release';
+  format: 'apk' | 'aab';
+}
+
+export interface MobileBuildResult {
+  success: boolean;
+  artifactPath: string | null;
+  artifactSizeBytes: number | null;
+  diagnostics: string[];
+}
+
+export interface MobileBuildProgress {
+  phase: string;
+  message: string;
+}
+
+/* ----- Mobile Release (Android) ----- */
+
+export interface MobileReleaseIssue {
+  code: string;
+  severity: 'error' | 'warning' | 'info';
+  message: string;
+  file?: string;
+  line?: number;
+}
+
+export interface MobileReleaseCheckResult {
+  ready: boolean;
+  applicationId: string | null;
+  version: string | null;
+  versionCode: number | null;
+  signing: { configured: boolean; detail: string } | null;
+  issues: MobileReleaseIssue[];
+}
+
+/* ----- Mobile Session State ----- */
+
+export type MobileSessionState =
+  | 'idle'
+  | 'preparing'
+  | 'building'
+  | 'running'
+  | 'debugging'
+  | 'testing'
+  | 'profiling'
+  | 'stopping'
+  | 'failed';
+
+/* ----- Android Project Config ----- */
+
+export interface AndroidProjectConfig {
+  applicationId: string;
+  version: string;
+  versionCode?: number;
+  minSdk: number;
+  targetSdk: number;
+  compileSdk: number;
+  permissions: string[];
+}
+
+export interface MobileSigningConfig {
+  keystorePath: string;
+  alias: string;
+  passwordEnvVar: string;
+}
+
 /**
  * The typed surface exposed to the renderer via `window.znxstudio`.
  * This is the ONLY channel the renderer uses to reach the OS/filesystem.
@@ -1005,5 +1139,27 @@ export interface ZnxStudioApi {
     testRun(config: MobileTestConfig): Promise<MobileTestReport>;
     testStop(): Promise<void>;
     onTestResult(callback: (result: MobileTestReport) => void): Unsubscribe;
+    profileStart(config: MobileProfileConfig): Promise<void>;
+    profileStop(): Promise<MobileProfileReport>;
+    onProfileEvent(callback: (event: MobileProfileEvent) => void): Unsubscribe;
+    buildApk(config: MobileBuildConfig): Promise<MobileBuildResult>;
+    buildAab(config: MobileBuildConfig): Promise<MobileBuildResult>;
+    buildStop(): Promise<void>;
+    onBuildProgress(callback: (progress: MobileBuildProgress) => void): Unsubscribe;
+    releaseCheck(workspaceRoot: string): Promise<MobileReleaseCheckResult>;
+    clean(workspaceRoot: string): Promise<void>;
+    sessionState(): Promise<MobileSessionState>;
+    onSessionState(callback: (state: MobileSessionState) => void): Unsubscribe;
+    projectConfig(workspaceRoot: string): Promise<AndroidProjectConfig | null>;
+    updateProjectConfig(workspaceRoot: string, config: Partial<AndroidProjectConfig>): Promise<void>;
+  };
+  /** Android toolchain management. */
+  androidToolchain: {
+    status(): Promise<ToolchainStatus>;
+    setup(): Promise<void>;
+    onSetupProgress(callback: (progress: ToolchainSetupProgress) => void): Unsubscribe;
+    sdkList(): Promise<ToolchainComponent[]>;
+    sdkInstall(component: string): Promise<void>;
+    update(): Promise<void>;
   };
 }

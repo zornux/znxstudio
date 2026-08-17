@@ -61,6 +61,13 @@ const CONTEXTUAL: { id: string; side?: 'left' | 'right' }[] = [
   { id: 'editor.liveshare', side: 'right' },
   { id: 'toolchain.compat', side: 'right' }, // only when the toolchain needs attention
   { id: 'toolchain.pin', side: 'right' },
+  { id: 'mobile.status', side: 'right' }, // mobile run/build session
+  { id: 'mobile.debug', side: 'right' }, // mobile debug session
+  { id: 'mobile.test', side: 'right' }, // mobile test run
+  { id: 'mobile.profile', side: 'right' }, // mobile profile session
+  { id: 'mobile.build', side: 'right' }, // mobile APK/AAB build
+  { id: 'android.device', side: 'right' }, // selected Android device
+  { id: 'android.toolchain', side: 'right' }, // toolchain status
 ];
 
 const TABLE: Record<string, StatusPolicyEntry> = {};
