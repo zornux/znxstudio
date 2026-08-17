@@ -102,4 +102,4 @@ src/
 
 ## License
 
-Proprietary — see [`LICENSE`](LICENSE).
+Apache-2.0 — see [`LICENSE`](LICENSE).

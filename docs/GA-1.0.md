@@ -32,7 +32,7 @@ by the dedicated smoke job, so CI can call `node build/ga-gate.mjs --no-app`.
 | Gate | How it is proven | Expected |
 | --- | --- | --- |
 | Types | `tsc --noEmit` | clean |
-| Unit suite | `npm test` | **1525 passed, 0 failed** |
+| Unit suite | `npm test` | **2162 passed, 0 failed** |
 | Bundle | `npm run build` | clean → `dist/` |
 | Version wiring | `package.json` → `app.getVersion()` | well-formed semver |
 | Full activation | real-app `[perf] startup` line | all modules activate |

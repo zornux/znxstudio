@@ -2,11 +2,11 @@
   "name": "znxstudio",
   "productName": "ZnxStudio",
   "desktopName": "znxstudio.desktop",
-  "version": "1.0.0-rc.1",
+  "version": "1.0.0-rc.2",
   "description": "Enterprise IDE platform for Zornux & Zoijs.",
   "author": "ZnxStudio <release@znxstudio.dev>",
   "private": true,
-  "license": "UNLICENSED",
+  "license": "Apache-2.0",
   "main": "dist/main/main.js",
   "scripts": {
     "clean": "node -e \"require('fs').rmSync('dist',{recursive:true,force:true})\"",

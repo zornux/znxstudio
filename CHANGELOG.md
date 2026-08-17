@@ -10,6 +10,84 @@ ZnxStudio is an enterprise IDE platform built first-class for **Zornux** and
 
 ## [Unreleased]
 
+## [1.0.0-rc.2] - 2026-08-17
+
+Second release candidate. Adds Android mobile developer tooling, a true dark
+theme system, and a secure AI assistant infrastructure — all since rc.1.
+
+### Added — Android Mobile (Phases 5–6)
+
+- **Developer experience** — device discovery via ADB, emulator management,
+  file watching with debounced change detection, incremental generation backed
+  by SHA-256 content hashing, source maps from generated Kotlin back to Zornux
+  source, Gradle/runtime error translation, persistent development run sessions
+  with hot reload, and full ZnxStudio IDE integration (device selector, run/stop,
+  logs panel, doctor sidebar).
+- **Debugging & testing infrastructure** — Android debug bridge, mobile debug
+  sessions, breakpoints/stepping/variables/scopes, CLI `mobile debug android`,
+  mobile test model with host-side tests and test doubles, Android UI tests,
+  and a reliability/stress suite.
+- **Session lifecycle hardening** — security audit and session state machine
+  certification.
+
+### Added — Theme System
+
+- **True dark theme** with 54 semantic color tokens, 7 theme variants (Light,
+  Dark, High Contrast Dark, High Contrast Light, Solarized Dark, Solarized
+  Light, System), and startup flash prevention.
+- Monaco editor syntax colors driven by the semantic token system.
+- Appearance settings group for theme selection.
+- Scrollbar, spacing, and visual polish pass.
+
+### Added — AI Assistant Infrastructure
+
+- **Fix with AI** — select a compiler diagnostic and AI proposes a concrete
+  fix as a reviewable diff; the compiler remains authoritative.
+- **Inline AI** — 6 context-menu actions (Explain, Refactor, Optimize,
+  Document, Add Tests, Find Bugs) with diff preview and accept/reject.
+- **Agent mode** — multi-step plan → edit → command → check → iterate loop
+  with explicit user approval at every side-effect boundary.
+- **Shared context store** — project files, open editors, diagnostics, and
+  workspace state are shared across all AI features via `ServiceKeys.AiContext`.
+- **Workspace Trust gating** — AI features are disabled in untrusted workspaces.
+
+### Added — Agent Execution Security
+
+- Three-tier command classification: `allowed` (auto-approved read-only),
+  `needs_approval` (user must consent), `blocked` (rejected outright).
+- Defense-in-depth: renderer classifies + shows approval UI, main process
+  independently re-classifies and enforces.
+- Shell interpreter blocking (sh/bash/zsh/cmd/powershell/pwsh and 4 more).
+- Shell metacharacter detection (`; | & $ \``) rejects injection operators.
+- Executable extension stripping (`.exe`, `.bat`, `.cmd`, `.com`, `.ps1`, `.sh`)
+  before blocklist lookup.
+- Workspace confinement with `realpathSync` resolution in the main process.
+- Secret filtering on environment variables, command output, and AI context.
+- Expanded sensitive file detection (+12 patterns: `.htpasswd`, `.docker/`,
+  `kubeconfig`, `.aws/credentials`, `.pgpass`, shell histories,
+  `terraform.tfstate`, `.gnupg/`, `token.json`).
+- AWS access key (`AKIA*`) redaction in command output.
+
+### Changed — CI & Release
+
+- CI: added `permissions: contents: read`, `timeout-minutes` on all jobs, and
+  Node version pinning via `.nvmrc`.
+- Release: unified checksum algorithm to SHA-256 across Windows and Linux.
+- Release: added `timeout-minutes` on all packaging and finalize jobs.
+
+### Fixed
+
+- Agent `cancel()` now correctly reports `cancelled: true` on the result.
+- Command resolution uses the confined workspace cwd, not the main process cwd.
+- `truncateOutput` handles `maxBytes <= 0` without crashing.
+- `git checkout .` pattern match is now case-insensitive.
+- FixAssistModule checks for stale source before applying a fix.
+
+### Tests
+
+- 2162 tests, 0 failures, clean TypeScript.
+- 59 adversarial regression tests for agent execution security.
+
 ## [1.0.0-rc.1] - 2026-08-08
 
 First release candidate for 1.0.0 — published for user testing ahead of GA.
@@ -179,5 +257,6 @@ full unit suite — see [`docs/RC-1.0.md`](docs/RC-1.0.md).
   items that require certificates and macOS/Linux hardware. See
   [`docs/GA-1.0.md`](docs/GA-1.0.md) and [`docs/RELEASE.md`](docs/RELEASE.md).
 
-[Unreleased]: https://example.com/znxstudio/compare/v1.0.0-rc.1...HEAD
-[1.0.0-rc.1]: https://example.com/znxstudio/releases/tag/v1.0.0-rc.1
+[Unreleased]: https://github.com/zornux/znxstudio/compare/v1.0.0-rc.2...HEAD
+[1.0.0-rc.2]: https://github.com/zornux/znxstudio/compare/v1.0.0-rc.1...v1.0.0-rc.2
+[1.0.0-rc.1]: https://github.com/zornux/znxstudio/releases/tag/v1.0.0-rc.1

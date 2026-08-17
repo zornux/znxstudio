@@ -252,7 +252,7 @@ covered by tests + the `npm run ga:check` gate (1533 tests, 0 failed; gate green
 | **Atomic file/settings writes** (temp+fsync+rename) — prevents corruption on crash mid-write | `src/main/util/atomicWrite.ts` (new), `SettingsStore.ts`, `FileSystemService.ts` | `test/atomicwrite.test.ts` (4) |
 | **Quit-time child-process cleanup** — no orphaned PTY/LSP/DAP/task processes | `TaskService.killAll()`, `taskIpc.ts`, `terminalIpc.ts`, `lspIpc.ts`, `debugIpc.ts` | boot self-test still green |
 | **macOS Cmd-vs-Ctrl keybindings** — one `Mod` table resolves to Cmd on darwin, Ctrl elsewhere | `keybindings.ts` (`resolvePrimaryModifier`), `KeybindingsModule.ts` | `test/keybindings.test.ts` (+4) |
-| **LICENSE** (proprietary, matches `UNLICENSED`) | `LICENSE` (new) | — |
+| **LICENSE** (Apache-2.0) | `LICENSE` | — |
 | **THIRD-PARTY-NOTICES** (Monaco/Electron/xterm/node-pty, verified from bundled license files) | `THIRD-PARTY-NOTICES.md` (new) | — |
 | **README** rewritten from stale "Phase 1" to GA | `README.md` | — |
 

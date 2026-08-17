@@ -1,12 +1,13 @@
-# Continuous integration (Phase 20G) — the same gate on all three OSes so a
-# platform-specific regression is caught before release, not after.
 name: CI
 
 on:
   push:
     branches: [main]
   pull_request:
-  workflow_dispatch: # allow manual runs (e.g. to verify the gate on demand)
+  workflow_dispatch:
+
+permissions:
+  contents: read
 
 jobs:
   verify:
@@ -16,11 +17,12 @@ jobs:
       matrix:
         os: [windows-latest, macos-latest, ubuntu-latest]
     runs-on: ${{ matrix.os }}
+    timeout-minutes: 20
     steps:
       - uses: actions/checkout@v5
       - uses: actions/setup-node@v5
         with:
-          node-version: 20
+          node-version-file: .nvmrc
           cache: npm
       - run: npm ci
       - run: npm run typecheck
@@ -31,19 +33,15 @@ jobs:
     name: smoke launch (linux)
     runs-on: ubuntu-latest
     needs: verify
+    timeout-minutes: 10
     steps:
       - uses: actions/checkout@v5
       - uses: actions/setup-node@v5
         with:
-          node-version: 20
+          node-version-file: .nvmrc
           cache: npm
       - run: npm ci
       - run: npm run build
-      # Launch the real app headlessly (xvfb) with the self-test harness and
-      # confirm it boots — the startup line proves activation completed.
-      # --no-sandbox: GitHub's runner ships chrome-sandbox without the root:root
-      # mode-4755 setup Chromium's SUID sandbox requires, so Electron aborts with
-      # SIGTRAP otherwise. The sandbox is irrelevant to a headless boot smoke test.
       - name: Launch + verify startup
         run: |
           xvfb-run -a bash -c 'ZNXSTUDIO_SELFTEST=1 timeout --preserve-status -k 5 60 npx electron . --no-sandbox --enable-logging 2>&1 | tee boot.log; grep -q "\[perf\] startup" boot.log'

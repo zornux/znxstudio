@@ -26,7 +26,7 @@ describe('release publishing policy', () => {
   });
 
   test('classifies the current RC as a prerelease', () => {
-    const result = policy('tag', 'v1.0.0-rc.1');
+    const result = policy('tag', 'v1.0.0-rc.2');
     expect(result.status).toBe(0);
     expect(result.stdout).toContain('publish=true');
     expect(result.stdout).toContain('release_type=prerelease');
