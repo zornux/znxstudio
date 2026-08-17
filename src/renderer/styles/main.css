@@ -6,6 +6,7 @@
 
 :root,
 :root[data-theme='znxstudio-dark'] {
+  /* ---- Typography ---- */
   --z-font-ui: -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, Ubuntu, 'Helvetica Neue', sans-serif;
   --z-font-mono: 'Cascadia Code', 'SFMono-Regular', Consolas, 'Liberation Mono', Menlo, monospace;
   --z-font-icons: 'Segoe Fluent Icons', 'Noto Sans Symbols 2', 'Segoe UI Symbol', sans-serif;
@@ -15,25 +16,99 @@
   --z-type-small: 12px;
   --z-type-caption: 11px;
   --z-control-height: 28px;
+
+  /* ---- Core palette ---- */
   --z-bg: #1a1b1e;
   --z-bg-elevated: #212226;
   --z-bg-panel: #1d1e22;
   --z-border: #2c2e33;
   --z-fg: #d7d9de;
   --z-fg-muted: #8b8f98;
-  /* Darkened from #4c8dff so white-on-accent meets WCAG AA (≈4.6:1). */
   --z-accent: #7657e8;
   --z-accent-secondary: #29bfd2;
   --z-accent-soft: color-mix(in srgb, var(--z-accent) 18%, transparent);
-  --z-surface-glow: rgba(118, 87, 232, 0.16);
-  --z-radius-sm: 6px;
-  --z-radius-md: 10px;
-  --z-radius-lg: 14px;
   --z-accent-fg: #ffffff;
+  --z-surface-glow: rgba(118, 87, 232, 0.16);
+
+  /* ---- Semantic surfaces ---- */
+  --z-hover: #2a2c31;
+  --z-bg-hover: rgba(255, 255, 255, 0.06);
+  --z-bg-input: #161719;
+  --z-bg-sidebar: var(--z-bg-panel);
+  --z-border-subtle: #252730;
+  --z-focus: var(--z-accent);
+  --z-focus-border: var(--z-accent);
+
+  /* ---- Semantic status ---- */
+  --z-success: #3fb950;
+  --z-ok: #3fb950;
+  --z-warning: var(--z-warn);
+  --z-warn: var(--z-warn);
+  --z-error: var(--z-error);
+  --z-danger: #c0392b;
+  --z-info: #6ea8fe;
+  --z-link: #6ea8fe;
+
+  /* ---- Mapped semantic aliases (spec §2) ---- */
+  --znx-bg-primary: var(--z-bg);
+  --znx-bg-secondary: var(--z-bg-panel);
+  --znx-bg-tertiary: var(--z-bg-elevated);
+  --znx-bg-elevated: var(--z-bg-elevated);
+  --znx-surface-hover: var(--z-hover);
+  --znx-surface-active: color-mix(in srgb, var(--z-accent) 12%, transparent);
+  --znx-surface-selected: color-mix(in srgb, var(--z-accent) 18%, transparent);
+  --znx-border: var(--z-border);
+  --znx-border-subtle: var(--z-border-subtle);
+  --znx-focus: var(--z-focus);
+  --znx-text-primary: var(--z-fg);
+  --znx-text-secondary: var(--z-fg-muted);
+  --znx-text-muted: color-mix(in srgb, var(--z-fg-muted) 70%, transparent);
+  --znx-text-disabled: color-mix(in srgb, var(--z-fg) 38%, transparent);
+  --znx-accent: var(--z-accent);
+  --znx-accent-hover: color-mix(in srgb, var(--z-accent) 85%, white);
+  --znx-success: var(--z-success);
+  --znx-warning: var(--z-warning);
+  --znx-error: var(--z-error);
+  --znx-info: var(--z-info);
+
+  /* ---- IDE-specific surface tokens ---- */
   --z-activity-bg: #161719;
   --z-status-bg: #33286f;
   --z-status-fg: #eaf0ff;
-  --z-hover: #2a2c31;
+
+  /* ---- Scrollbar ---- */
+  --z-scrollbar-thumb: rgba(255, 255, 255, 0.10);
+  --z-scrollbar-thumb-hover: rgba(255, 255, 255, 0.18);
+
+  /* ---- Radii ---- */
+  --z-radius-sm: 6px;
+  --z-radius-md: 10px;
+  --z-radius-lg: 14px;
+
+  /* ---- Component tokens (docs/notifications) ---- */
+  --znxstudio-success: var(--z-success);
+  --znxstudio-warning: var(--z-warning);
+  --znxstudio-error: var(--z-error);
+  --znxstudio-info: var(--z-info);
+  --znxstudio-link: var(--z-link);
+  --znxstudio-border: var(--z-border);
+  --znxstudio-code-bg: rgba(255, 255, 255, 0.06);
+
+  /* ---- Backdrop ---- */
+  --z-backdrop: rgba(0, 0, 0, 0.35);
+  --z-backdrop-heavy: rgba(0, 0, 0, 0.5);
+
+  /* ---- Visualization tokens ---- */
+  --z-flame-bg: linear-gradient(180deg, #e8a33d, #d97706);
+  --z-flame-fg: #1b1b1b;
+  --z-tl-default: #6ea8fe;
+  --z-tl-query: #7ee787;
+  --z-tl-request: #d2a8ff;
+  --z-tl-job: #ffa657;
+  --z-tl-fg: #10151b;
+  --z-grade-b: #b5cea8;
+  --z-status-tint-a: #241a4f;
+  --z-status-tint-b: #083c49;
 }
 
 :root[data-theme='znxstudio-light'] {
@@ -46,15 +121,74 @@
   --z-accent: #6547d5;
   --z-accent-secondary: #078da5;
   --z-accent-soft: color-mix(in srgb, var(--z-accent) 12%, transparent);
-  --z-surface-glow: rgba(101, 71, 213, 0.1);
-  --z-radius-sm: 6px;
-  --z-radius-md: 10px;
-  --z-radius-lg: 14px;
   --z-accent-fg: #ffffff;
+  --z-surface-glow: rgba(101, 71, 213, 0.1);
+  --z-hover: #e8eaef;
+  --z-bg-hover: rgba(0, 0, 0, 0.04);
+  --z-bg-input: #ffffff;
+  --z-bg-sidebar: var(--z-bg-panel);
+  --z-border-subtle: #e8eaef;
+  --z-focus: var(--z-accent);
+  --z-focus-border: var(--z-accent);
+  --z-success: #1a7f37;
+  --z-ok: #1a7f37;
+  --z-warning: #9a6700;
+  --z-warn: #9a6700;
+  --z-error: #cf222e;
+  --z-danger: #cf222e;
+  --z-info: #0969da;
+  --z-link: #0969da;
+  --znx-bg-primary: var(--z-bg);
+  --znx-bg-secondary: var(--z-bg-panel);
+  --znx-bg-tertiary: var(--z-bg-elevated);
+  --znx-bg-elevated: var(--z-bg-elevated);
+  --znx-surface-hover: var(--z-hover);
+  --znx-surface-active: color-mix(in srgb, var(--z-accent) 10%, transparent);
+  --znx-surface-selected: color-mix(in srgb, var(--z-accent) 14%, transparent);
+  --znx-border: var(--z-border);
+  --znx-border-subtle: var(--z-border-subtle);
+  --znx-focus: var(--z-focus);
+  --znx-text-primary: var(--z-fg);
+  --znx-text-secondary: var(--z-fg-muted);
+  --znx-text-muted: color-mix(in srgb, var(--z-fg-muted) 70%, transparent);
+  --znx-text-disabled: color-mix(in srgb, var(--z-fg) 38%, transparent);
+  --znx-accent: var(--z-accent);
+  --znx-accent-hover: color-mix(in srgb, var(--z-accent) 85%, black);
+  --znx-success: var(--z-success);
+  --znx-warning: var(--z-warning);
+  --znx-error: var(--z-error);
+  --znx-info: var(--z-info);
   --z-activity-bg: #f0f1f4;
   --z-status-bg: #5b3fc4;
   --z-status-fg: #ffffff;
-  --z-hover: #e8eaef;
+  --z-scrollbar-thumb: rgba(0, 0, 0, 0.12);
+  --z-scrollbar-thumb-hover: rgba(0, 0, 0, 0.22);
+  --z-radius-sm: 6px;
+  --z-radius-md: 10px;
+  --z-radius-lg: 14px;
+  --znxstudio-success: var(--z-success);
+  --znxstudio-warning: var(--z-warning);
+  --znxstudio-error: var(--z-error);
+  --znxstudio-info: var(--z-info);
+  --znxstudio-link: var(--z-link);
+  --znxstudio-border: var(--z-border);
+  --znxstudio-code-bg: rgba(0, 0, 0, 0.04);
+
+  /* ---- Backdrop ---- */
+  --z-backdrop: rgba(0, 0, 0, 0.25);
+  --z-backdrop-heavy: rgba(0, 0, 0, 0.4);
+
+  /* ---- Visualization tokens ---- */
+  --z-flame-bg: linear-gradient(180deg, #d97706, #b45309);
+  --z-flame-fg: #ffffff;
+  --z-tl-default: #3b82f6;
+  --z-tl-query: #16a34a;
+  --z-tl-request: #9333ea;
+  --z-tl-job: #ea580c;
+  --z-tl-fg: #ffffff;
+  --z-grade-b: #4d7c0f;
+  --z-status-tint-a: #c4b5fd;
+  --z-status-tint-b: #67e8f9;
 }
 
 /* Tide: deep marine surfaces with teal signals and a restrained coral accent. */
@@ -68,15 +202,41 @@
   --z-accent: #b95742;
   --z-accent-secondary: #31b8a7;
   --z-accent-soft: color-mix(in srgb, var(--z-accent) 19%, transparent);
-  --z-surface-glow: rgba(49, 184, 167, 0.14);
-  --z-radius-sm: 6px;
-  --z-radius-md: 10px;
-  --z-radius-lg: 14px;
   --z-accent-fg: #ffffff;
+  --z-surface-glow: rgba(49, 184, 167, 0.14);
+  --z-hover: #20343d;
+  --z-bg-hover: rgba(255, 255, 255, 0.06);
+  --z-bg-input: #0c171d;
+  --z-bg-sidebar: var(--z-bg-panel);
+  --z-border-subtle: #1e3038;
+  --z-focus: var(--z-accent-secondary);
+  --z-focus-border: var(--z-accent-secondary);
+  --z-success: #3fb950;
+  --z-ok: #3fb950;
+  --z-warning: var(--z-warn);
+  --z-warn: var(--z-warn);
+  --z-error: var(--z-error);
+  --z-danger: #c0392b;
+  --z-info: #6ea8fe;
+  --z-link: #6ea8fe;
   --z-activity-bg: #0c171d;
   --z-status-bg: #164f59;
   --z-status-fg: #f0ffff;
-  --z-hover: #20343d;
+  --z-scrollbar-thumb: rgba(255, 255, 255, 0.10);
+  --z-scrollbar-thumb-hover: rgba(255, 255, 255, 0.18);
+  --znxstudio-code-bg: rgba(255, 255, 255, 0.06);
+  --z-backdrop: rgba(0, 0, 0, 0.35);
+  --z-backdrop-heavy: rgba(0, 0, 0, 0.5);
+  --z-flame-bg: linear-gradient(180deg, #e8a33d, #d97706);
+  --z-flame-fg: #1b1b1b;
+  --z-tl-default: #6ea8fe;
+  --z-tl-query: #7ee787;
+  --z-tl-request: #d2a8ff;
+  --z-tl-job: #ffa657;
+  --z-tl-fg: #10151b;
+  --z-grade-b: #b5cea8;
+  --z-status-tint-a: #1a3f4f;
+  --z-status-tint-b: #0a3040;
 }
 
 /* Dune: a low-glare warm canvas with plum and teal studio signals. */
@@ -90,15 +250,41 @@
   --z-accent: #7d438f;
   --z-accent-secondary: #16777b;
   --z-accent-soft: color-mix(in srgb, var(--z-accent) 12%, transparent);
-  --z-surface-glow: rgba(125, 67, 143, 0.1);
-  --z-radius-sm: 6px;
-  --z-radius-md: 10px;
-  --z-radius-lg: 14px;
   --z-accent-fg: #ffffff;
+  --z-surface-glow: rgba(125, 67, 143, 0.1);
+  --z-hover: #e8ddcf;
+  --z-bg-hover: rgba(0, 0, 0, 0.04);
+  --z-bg-input: #fffaf1;
+  --z-bg-sidebar: var(--z-bg-panel);
+  --z-border-subtle: #e0d5c5;
+  --z-focus: var(--z-accent);
+  --z-focus-border: var(--z-accent);
+  --z-success: #1a7f37;
+  --z-ok: #1a7f37;
+  --z-warning: #9a6700;
+  --z-warn: #9a6700;
+  --z-error: #cf222e;
+  --z-danger: #cf222e;
+  --z-info: #0969da;
+  --z-link: #0969da;
   --z-activity-bg: #e9dece;
   --z-status-bg: #633572;
   --z-status-fg: #fffaff;
-  --z-hover: #e8ddcf;
+  --z-scrollbar-thumb: rgba(0, 0, 0, 0.12);
+  --z-scrollbar-thumb-hover: rgba(0, 0, 0, 0.22);
+  --znxstudio-code-bg: rgba(0, 0, 0, 0.04);
+  --z-backdrop: rgba(0, 0, 0, 0.25);
+  --z-backdrop-heavy: rgba(0, 0, 0, 0.4);
+  --z-flame-bg: linear-gradient(180deg, #d97706, #b45309);
+  --z-flame-fg: #ffffff;
+  --z-tl-default: #3b82f6;
+  --z-tl-query: #16a34a;
+  --z-tl-request: #9333ea;
+  --z-tl-job: #ea580c;
+  --z-tl-fg: #ffffff;
+  --z-grade-b: #4d7c0f;
+  --z-status-tint-a: #c4b5fd;
+  --z-status-tint-b: #67e8f9;
 }
 
 /* High-contrast themes (Phase 20J WI4): maximal fg/bg separation, bright
@@ -112,10 +298,39 @@
   --z-fg-muted: #e6e6e6;
   --z-accent: #ffff00;
   --z-accent-fg: #000000;
+  --z-hover: #1e1e1e;
+  --z-bg-hover: rgba(255, 255, 255, 0.10);
+  --z-bg-input: #000000;
+  --z-bg-sidebar: #000000;
+  --z-border-subtle: #666666;
+  --z-focus: #ffff00;
+  --z-focus-border: #ffff00;
+  --z-success: #89d185;
+  --z-ok: #89d185;
+  --z-warning: #ffcc00;
+  --z-warn: #ffcc00;
+  --z-error: #f48771;
+  --z-danger: #f48771;
+  --z-info: #75beff;
+  --z-link: #75beff;
   --z-activity-bg: #000000;
   --z-status-bg: #000000;
   --z-status-fg: #ffffff;
-  --z-hover: #1e1e1e;
+  --z-scrollbar-thumb: rgba(255, 255, 255, 0.25);
+  --z-scrollbar-thumb-hover: rgba(255, 255, 255, 0.40);
+  --znxstudio-code-bg: rgba(255, 255, 255, 0.10);
+  --z-backdrop: rgba(0, 0, 0, 0.6);
+  --z-backdrop-heavy: rgba(0, 0, 0, 0.75);
+  --z-flame-bg: linear-gradient(180deg, #fbbf24, #d97706);
+  --z-flame-fg: #000000;
+  --z-tl-default: #75beff;
+  --z-tl-query: #73e67e;
+  --z-tl-request: #d2a8ff;
+  --z-tl-job: #ffa657;
+  --z-tl-fg: #000000;
+  --z-grade-b: #b5cea8;
+  --z-status-tint-a: #000000;
+  --z-status-tint-b: #000000;
 }
 
 :root[data-theme='znxstudio-hc-light'] {
@@ -127,10 +342,39 @@
   --z-fg-muted: #1a1a1a;
   --z-accent: #0033cc;
   --z-accent-fg: #ffffff;
+  --z-hover: #e0e0e0;
+  --z-bg-hover: rgba(0, 0, 0, 0.08);
+  --z-bg-input: #ffffff;
+  --z-bg-sidebar: #ffffff;
+  --z-border-subtle: #999999;
+  --z-focus: #0033cc;
+  --z-focus-border: #0033cc;
+  --z-success: #007700;
+  --z-ok: #007700;
+  --z-warning: #996600;
+  --z-warn: #996600;
+  --z-error: #cc0000;
+  --z-danger: #cc0000;
+  --z-info: #0033cc;
+  --z-link: #0033cc;
   --z-activity-bg: #ffffff;
   --z-status-bg: #ffffff;
   --z-status-fg: #000000;
-  --z-hover: #e0e0e0;
+  --z-scrollbar-thumb: rgba(0, 0, 0, 0.25);
+  --z-scrollbar-thumb-hover: rgba(0, 0, 0, 0.40);
+  --znxstudio-code-bg: rgba(0, 0, 0, 0.06);
+  --z-backdrop: rgba(0, 0, 0, 0.5);
+  --z-backdrop-heavy: rgba(0, 0, 0, 0.65);
+  --z-flame-bg: linear-gradient(180deg, #d97706, #b45309);
+  --z-flame-fg: #ffffff;
+  --z-tl-default: #0033cc;
+  --z-tl-query: #166534;
+  --z-tl-request: #7e22ce;
+  --z-tl-job: #c2410c;
+  --z-tl-fg: #ffffff;
+  --z-grade-b: #166534;
+  --z-status-tint-a: #ffffff;
+  --z-status-tint-b: #ffffff;
 }
 
 /* Make every high-contrast surface visibly bordered (bg==panel==elevated). */
@@ -177,6 +421,7 @@ body {
   text-rendering: optimizeLegibility;
   color: var(--z-fg);
   background: var(--z-bg);
+  transition: color 120ms ease, background-color 120ms ease;
 }
 
 #znxstudio-root {
@@ -187,6 +432,29 @@ button {
   font-family: inherit;
   font-size: inherit;
   cursor: pointer;
+}
+
+/* ---- IDE-style scrollbars ---- */
+::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background: var(--z-scrollbar-thumb);
+  border-radius: 5px;
+  border: 2px solid transparent;
+  background-clip: padding-box;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: var(--z-scrollbar-thumb-hover);
+  border: 2px solid transparent;
+  background-clip: padding-box;
+}
+::-webkit-scrollbar-corner {
+  background: transparent;
 }
 
 /* ---- Workbench grid ---- */
@@ -204,6 +472,7 @@ button {
   background: var(--z-bg-elevated);
   border-bottom: 1px solid var(--z-border);
   -webkit-app-region: drag;
+  transition: background-color 120ms ease, border-color 120ms ease;
 }
 
 .znxstudio-titlebar-brand {
@@ -260,6 +529,7 @@ button {
   align-items: center;
   padding-top: 8px;
   gap: 4px;
+  transition: background-color 120ms ease, border-color 120ms ease;
 }
 
 .znxstudio-activity-item {
@@ -381,7 +651,7 @@ button {
   align-items: flex-start;
   justify-content: center;
   padding-top: 18vh;
-  background: rgba(0, 0, 0, 0.35);
+  background: var(--z-backdrop);
 }
 .znxstudio-inputbox.is-open {
   display: flex;
@@ -423,7 +693,7 @@ button {
 }
 .znxstudio-inputbox-error {
   min-height: 16px;
-  color: var(--z-warn, #d29922);
+  color: var(--z-warn);
   font-size: 12px;
 }
 .znxstudio-inputbox-actions {
@@ -433,9 +703,9 @@ button {
   margin-top: 4px;
 }
 .znxstudio-btn.is-danger {
-  background: var(--z-danger, #c0392b);
-  border-color: var(--z-danger, #c0392b);
-  color: #fff;
+  background: var(--z-danger);
+  border-color: var(--z-danger);
+  color: var(--z-accent-fg);
 }
 
 /* Parent items (submenu) — label left, › chevron right. */
@@ -476,6 +746,7 @@ button {
   display: flex;
   flex-direction: column;
   min-width: 180px;
+  transition: background-color 120ms ease, border-color 120ms ease;
 }
 
 .znxstudio-sidebar.is-collapsed {
@@ -572,7 +843,7 @@ button {
 }
 /* The treeitem is the focus target; show the focus ring on its visible row. */
 .znxstudio-tree [role='treeitem']:focus-visible > .znxstudio-tree-row {
-  outline: 2px solid var(--z-focus, var(--z-accent, #4c8bf5));
+  outline: 2px solid var(--z-focus);
   outline-offset: -2px;
 }
 .znxstudio-tree-row {
@@ -628,6 +899,7 @@ button {
   align-items: stretch;
   background: var(--z-bg-elevated);
   border-bottom: 1px solid var(--z-border);
+  transition: background-color 120ms ease, border-color 120ms ease;
 }
 .znxstudio-editor-actions {
   display: flex;
@@ -911,12 +1183,12 @@ button {
 }
 
 .znxstudio-editor-overlay-close:hover {
-  background: var(--z-bg-hover, var(--z-border));
+  background: var(--z-bg-hover);
   color: var(--z-fg);
 }
 
 .znxstudio-editor-overlay-close:focus-visible {
-  outline: 2px solid var(--z-focus, var(--z-accent, #4c8bf5));
+  outline: 2px solid var(--z-focus);
   outline-offset: 1px;
 }
 
@@ -927,6 +1199,7 @@ button {
   background: var(--z-bg-panel);
   display: flex;
   flex-direction: column;
+  transition: background-color 120ms ease, border-color 120ms ease;
 }
 
 .znxstudio-panel.is-hidden {
@@ -938,6 +1211,7 @@ button {
   min-width: 0;
   background: var(--z-bg-elevated);
   border-bottom: 1px solid var(--z-border);
+  transition: background-color 120ms ease, border-color 120ms ease;
 }
 
 .znxstudio-panel-tabs {
@@ -1360,6 +1634,7 @@ body.is-resizing {
   color: var(--z-status-fg);
   font-size: var(--z-type-small);
   padding: 0 8px;
+  transition: background-color 120ms ease, border-color 120ms ease, color 120ms ease;
 }
 
 .znxstudio-status-left,
@@ -1388,7 +1663,7 @@ body.is-resizing {
 }
 
 .znxstudio-status-btn:hover {
-  background: rgba(255, 255, 255, 0.18);
+  background: var(--z-bg-hover);
 }
 
 /* ---- Welcome ---- */
@@ -1559,12 +1834,12 @@ body.is-resizing {
 }
 
 .znxstudio-toast-close:hover {
-  background: var(--z-bg-hover, var(--z-border));
+  background: var(--z-bg-hover);
   color: var(--z-fg);
 }
 
 .znxstudio-toast-close:focus-visible {
-  outline: 2px solid var(--z-focus, var(--z-accent, #4c8bf5));
+  outline: 2px solid var(--z-focus);
   outline-offset: 1px;
 }
 
@@ -1577,11 +1852,11 @@ body.is-resizing {
 }
 
 .znxstudio-toast--error {
-  border-color: #e5484d;
+  border-color: var(--z-error);
 }
 
 .znxstudio-toast--error .znxstudio-toast-icon {
-  color: #e5484d;
+  color: var(--z-error);
 }
 
 .znxstudio-toast.is-leaving {
@@ -1608,7 +1883,7 @@ body.is-resizing {
 }
 
 .znxstudio-status-item.is-action:hover {
-  background: rgba(255, 255, 255, 0.18);
+  background: var(--z-bg-hover);
 }
 
 /* ---- Explorer (structured) ---- */
@@ -1894,7 +2169,7 @@ body.is-resizing {
 }
 .znxstudio-solution-problems {
   font-size: 10px;
-  color: var(--z-warn, #d29922);
+  color: var(--z-warn);
   margin-left: 4px;
 }
 .znxstudio-solution-details {
@@ -1919,7 +2194,7 @@ button.znxstudio-solution-action {
   color: var(--z-fg);
 }
 button.znxstudio-solution-action:focus-visible {
-  outline: 1px solid var(--z-focus-border, var(--z-accent));
+  outline: 1px solid var(--z-focus-border);
   outline-offset: 2px;
 }
 .znxstudio-solution-ref {
@@ -1936,7 +2211,7 @@ button.znxstudio-solution-action:focus-visible {
   white-space: nowrap;
 }
 .znxstudio-solution-ref.is-internal .znxstudio-solution-ref-label {
-  color: var(--z-accent, #4a9eff);
+  color: var(--z-accent);
 }
 .znxstudio-solution-ref .znxstudio-icon-btn {
   opacity: 0;
@@ -2078,7 +2353,7 @@ button.znxstudio-solution-action:focus-visible {
   cursor: pointer;
 }
 .znxstudio-profiles-option:focus-visible {
-  outline: 1px solid var(--z-focus-border, var(--z-accent));
+  outline: 1px solid var(--z-focus-border);
   outline-offset: -1px;
 }
 .znxstudio-profiles-layers {
@@ -2117,7 +2392,7 @@ button.znxstudio-solution-action:focus-visible {
 }
 .znxstudio-profiles-error {
   font-size: 11px;
-  color: var(--z-error, #f85149);
+  color: var(--z-error);
   padding: 2px 0;
   font-family: var(--z-mono, monospace);
 }
@@ -2173,7 +2448,7 @@ button.znxstudio-solution-action:focus-visible {
   transition: border-color 0.12s, transform 0.12s;
 }
 .znxstudio-template-card:hover {
-  border-color: var(--z-accent, #4a9eff);
+  border-color: var(--z-accent);
   transform: translateY(-1px);
 }
 .znxstudio-template-icon {
@@ -2232,7 +2507,7 @@ button.znxstudio-solution-action:focus-visible {
   background: var(--z-border);
 }
 .znxstudio-wizard-dot.is-active {
-  background: var(--z-accent, #4a9eff);
+  background: var(--z-accent);
 }
 .znxstudio-wizard-dot.is-done {
   background: var(--z-fg-muted);
@@ -2260,8 +2535,8 @@ button.znxstudio-solution-action:focus-visible {
   gap: 10px;
 }
 .znxstudio-template-card.is-selected {
-  border-color: var(--z-accent, #4a9eff);
-  box-shadow: 0 0 0 1px var(--z-accent, #4a9eff) inset;
+  border-color: var(--z-accent);
+  box-shadow: 0 0 0 1px var(--z-accent) inset;
 }
 .znxstudio-wizard-locationrow {
   display: flex;
@@ -2313,8 +2588,8 @@ button.znxstudio-solution-action:focus-visible {
   gap: 10px;
 }
 .znxstudio-wizard-body .znxstudio-profiles-option.is-active {
-  border-color: var(--z-accent, #4a9eff);
-  box-shadow: 0 0 0 1px var(--z-accent, #4a9eff) inset;
+  border-color: var(--z-accent);
+  box-shadow: 0 0 0 1px var(--z-accent) inset;
 }
 .znxstudio-wizard-reviewrow {
   display: flex;
@@ -2328,7 +2603,7 @@ button.znxstudio-solution-action:focus-visible {
   font-size: 12px;
 }
 .znxstudio-wizard-error {
-  color: var(--z-warn, #d29922);
+  color: var(--z-warn);
   font-size: 12px;
 }
 .znxstudio-wizard-footer {
@@ -2341,8 +2616,8 @@ button.znxstudio-solution-action:focus-visible {
   background: transparent;
 }
 .znxstudio-btn.primary {
-  background: var(--z-accent, #4a9eff);
-  color: var(--z-accent-fg, #fff);
+  background: var(--z-accent);
+  color: var(--z-accent-fg);
 }
 .znxstudio-btn:disabled {
   opacity: 0.5;
@@ -2382,7 +2657,7 @@ button.znxstudio-solution-action:focus-visible {
   border-bottom: 1px solid var(--z-border);
 }
 .znxstudio-zoijs-devtools-status.is-connected {
-  color: var(--z-ok, #3fb950);
+  color: var(--z-ok);
 }
 
 /* ---- Find in Files / Symbols (Phase 7A) ---- */
@@ -2452,9 +2727,9 @@ button.znxstudio-solution-action:focus-visible {
 }
 .znxstudio-search-toggle.is-on,
 .znxstudio-search-mode.is-active {
-  background: var(--z-accent, #4a9eff);
-  color: var(--z-accent-fg, #fff);
-  border-color: var(--z-accent, #4a9eff);
+  background: var(--z-accent);
+  color: var(--z-accent-fg);
+  border-color: var(--z-accent);
 }
 .znxstudio-search-toggle:focus-visible,
 .znxstudio-search-mode:focus-visible,
@@ -2503,7 +2778,7 @@ button.znxstudio-solution-action:focus-visible {
   overflow: hidden;
 }
 .znxstudio-search-match:hover {
-  background: var(--z-bg-hover, rgba(127, 127, 127, 0.12));
+  background: var(--z-bg-hover);
 }
 .znxstudio-search-lineno {
   color: var(--z-fg-muted);
@@ -2516,9 +2791,9 @@ button.znxstudio-solution-action:focus-visible {
   text-overflow: ellipsis;
 }
 .znxstudio-search-match mark {
-  background: color-mix(in srgb, var(--z-accent, #4a9eff) 38%, transparent);
+  background: color-mix(in srgb, var(--z-accent) 38%, transparent);
   color: var(--z-fg);
-  box-shadow: inset 0 -1px var(--z-accent, #4a9eff);
+  box-shadow: inset 0 -1px var(--z-accent);
   border-radius: 2px;
 }
 .znxstudio-search-symbol {
@@ -2561,14 +2836,14 @@ button.znxstudio-solution-action:focus-visible {
   color: var(--z-fg-muted);
 }
 .znxstudio-search-old del {
-  background: color-mix(in srgb, var(--z-error, #f85149) 28%, transparent);
+  background: color-mix(in srgb, var(--z-error) 28%, transparent);
   color: var(--z-fg);
-  box-shadow: inset 0 -1px var(--z-error, #f85149);
+  box-shadow: inset 0 -1px var(--z-error);
   text-decoration: none;
   border-radius: 2px;
 }
 .znxstudio-search-new .znxstudio-search-linetext {
-  color: var(--z-ok, #3fb950);
+  color: var(--z-ok);
 }
 @media (max-width: 320px) {
   .znxstudio-search-replacebar { align-items: stretch; flex-direction: column; }
@@ -2654,7 +2929,7 @@ button.znxstudio-solution-action:focus-visible {
   position: absolute;
   inset: 0 0 2px;
   border-radius: 2px 2px 2px 2px;
-  background: var(--z-accent, #3b8eea);
+  background: var(--z-accent);
   clip-path: polygon(0 18%, 34% 18%, 43% 0, 73% 0, 82% 18%, 100% 18%, 100% 100%, 0 100%);
 }
 .znxstudio-folder-icon::after {
@@ -2694,7 +2969,7 @@ button.znxstudio-solution-action:focus-visible {
   display: none;
   justify-content: center;
   align-items: flex-start;
-  background: rgba(0, 0, 0, 0.35);
+  background: var(--z-backdrop);
 }
 
 .znxstudio-palette.is-open {
@@ -2775,7 +3050,7 @@ button.znxstudio-solution-action:focus-visible {
 
 .znxstudio-palette-item.is-selected .znxstudio-palette-id,
 .znxstudio-palette-item:hover .znxstudio-palette-id {
-  color: rgba(255, 255, 255, 0.75);
+  color: var(--z-fg);
 }
 
 /* ---- Search Everywhere (UX-4) ---- */
@@ -2786,7 +3061,7 @@ button.znxstudio-solution-action:focus-visible {
   display: none;
   justify-content: center;
   align-items: flex-start;
-  background: rgba(0, 0, 0, 0.35);
+  background: var(--z-backdrop);
 }
 
 .znxstudio-everywhere.is-open {
@@ -2890,7 +3165,7 @@ button.znxstudio-solution-action:focus-visible {
 
 .znxstudio-everywhere-item.is-selected .znxstudio-everywhere-detail,
 .znxstudio-everywhere-item:hover .znxstudio-everywhere-detail {
-  color: rgba(255, 255, 255, 0.75);
+  color: var(--z-fg);
 }
 
 .znxstudio-everywhere-empty {
@@ -2931,10 +3206,10 @@ button.znxstudio-solution-action:focus-visible {
   display: flex;
   gap: 6px;
   padding: 8px 16px;
-  border-bottom: 1px solid var(--z-border, rgba(255, 255, 255, 0.08));
+  border-bottom: 1px solid var(--z-border);
   position: sticky;
   top: 0;
-  background: var(--z-bg, #1e1e1e);
+  background: var(--z-bg);
   z-index: 1;
 }
 .znxstudio-diag-chip {
@@ -2942,7 +3217,7 @@ button.znxstudio-solution-action:focus-visible {
   font-size: 12px;
   padding: 2px 10px;
   border-radius: 12px;
-  border: 1px solid var(--z-border, rgba(255, 255, 255, 0.12));
+  border: 1px solid var(--z-border);
   background: transparent;
   color: var(--z-fg-muted);
   cursor: pointer;
@@ -2951,7 +3226,7 @@ button.znxstudio-solution-action:focus-visible {
 .znxstudio-diag-chip.is-active {
   opacity: 1;
   color: var(--z-fg);
-  background: var(--z-bg-hover, rgba(255, 255, 255, 0.06));
+  background: var(--z-bg-hover);
 }
 
 /* ----- diagnostic row meta (provenance · location · code) ----- */
@@ -2973,11 +3248,11 @@ button.znxstudio-solution-action:focus-visible {
   font-size: 11px;
   padding: 0 5px;
   border-radius: 4px;
-  background: rgba(255, 255, 255, 0.06);
+  background: var(--z-bg-hover);
 }
 .znxstudio-diagnostic-code.is-link {
   cursor: pointer;
-  color: #6ea8fe;
+  color: var(--z-link);
   text-decoration: underline;
 }
 
@@ -2993,27 +3268,27 @@ button.znxstudio-solution-action:focus-visible {
 }
 
 .znxstudio-diagnostic.is-clickable:hover {
-  background: var(--z-bg-hover, rgba(255, 255, 255, 0.06));
+  background: var(--z-bg-hover);
 }
 .znxstudio-diagnostic.is-clickable:focus-visible,
 .znxstudio-diagnostic-code.is-link:focus-visible,
 .znxstudio-diag-chip:focus-visible {
-  outline: 1px solid var(--z-focus-border, var(--z-accent));
+  outline: 1px solid var(--z-focus-border);
   outline-offset: -1px;
 }
 
 /* ----- Error Lens (inline diagnostics) ----- */
 .znxstudio-errorlens-line--error {
-  background: rgba(229, 72, 77, 0.09);
+  background: color-mix(in srgb, var(--z-error) 9%, transparent);
 }
 .znxstudio-errorlens-line--warning {
-  background: rgba(245, 166, 35, 0.09);
+  background: color-mix(in srgb, var(--z-warn) 9%, transparent);
 }
 .znxstudio-errorlens-line--info {
-  background: rgba(80, 140, 255, 0.08);
+  background: color-mix(in srgb, var(--z-info) 8%, transparent);
 }
 .znxstudio-errorlens-line--hint {
-  background: rgba(255, 255, 255, 0.04);
+  background: color-mix(in srgb, var(--z-fg-muted) 6%, transparent);
 }
 
 .znxstudio-errorlens-text {
@@ -3021,13 +3296,13 @@ button.znxstudio-solution-action:focus-visible {
   opacity: 0.85;
 }
 .znxstudio-errorlens-text--error {
-  color: #e5686d;
+  color: var(--z-error);
 }
 .znxstudio-errorlens-text--warning {
-  color: #f5a623;
+  color: var(--z-warn);
 }
 .znxstudio-errorlens-text--info {
-  color: #6ea8fe;
+  color: var(--z-info);
 }
 .znxstudio-errorlens-text--hint {
   color: var(--z-fg-muted);
@@ -3052,7 +3327,7 @@ button.znxstudio-solution-action:focus-visible {
   text-transform: uppercase;
   letter-spacing: 0.04em;
   color: var(--z-fg-muted);
-  background: rgba(255, 255, 255, 0.03);
+  background: color-mix(in srgb, var(--z-fg) 3%, transparent);
 }
 .znxstudio-deps-file {
   padding: 5px 16px;
@@ -3063,22 +3338,22 @@ button.znxstudio-solution-action:focus-visible {
   color: var(--z-fg-muted);
 }
 .znxstudio-deps-import--missing {
-  color: #e5686d;
+  color: var(--z-error);
 }
 .znxstudio-deps-cycle {
   padding: 4px 16px;
-  color: #f5a623;
+  color: var(--z-warn);
 }
 .znxstudio-deps .is-clickable {
   cursor: pointer;
 }
 .znxstudio-deps .is-clickable:hover {
-  background: var(--z-bg-hover, rgba(255, 255, 255, 0.06));
+  background: var(--z-bg-hover);
 }
 .znxstudio-deps .is-clickable:focus-visible {
-  outline: 1px solid var(--z-focus-border, var(--z-accent));
+  outline: 1px solid var(--z-focus-border);
   outline-offset: -1px;
-  background: var(--z-bg-hover, rgba(255, 255, 255, 0.06));
+  background: var(--z-bg-hover);
 }
 
 /* ----- Compiler Profiler panel ----- */
@@ -3101,13 +3376,13 @@ button.znxstudio-solution-action:focus-visible {
   font-size: 12px;
   padding: 2px 10px;
   border-radius: 6px;
-  border: 1px solid var(--z-border, rgba(255, 255, 255, 0.12));
+  border: 1px solid var(--z-border);
   background: transparent;
   color: var(--z-fg);
   cursor: pointer;
 }
 .znxstudio-profiler-btn:hover {
-  background: var(--z-bg-hover, rgba(255, 255, 255, 0.06));
+  background: var(--z-bg-hover);
 }
 .znxstudio-profiler-group {
   padding: 6px 16px 2px;
@@ -3129,7 +3404,7 @@ button.znxstudio-solution-action:focus-visible {
 .znxstudio-profiler-row--head {
   color: var(--z-fg-muted);
   font-size: 11px;
-  border-bottom: 1px solid var(--z-border, rgba(255, 255, 255, 0.08));
+  border-bottom: 1px solid var(--z-border);
 }
 .znxstudio-profiler-line {
   padding: 3px 16px;
@@ -3154,7 +3429,7 @@ button.znxstudio-solution-action:focus-visible {
   min-height: 38px;
   padding: 6px 10px;
   flex-wrap: wrap;
-  border-bottom: 1px solid var(--z-border, rgba(255, 255, 255, 0.08));
+  border-bottom: 1px solid var(--z-border);
   background: color-mix(in srgb, var(--z-fg) 2%, transparent);
 }
 .znxstudio-debug-state {
@@ -3163,13 +3438,13 @@ button.znxstudio-solution-action:focus-visible {
   font-size: 11.5px;
 }
 .znxstudio-debug-state--stopped {
-  color: #f5a623;
+  color: var(--z-warn);
 }
 .znxstudio-debug-state--running {
-  color: #3fb950;
+  color: var(--z-ok);
 }
 .znxstudio-debug-state--error {
-  color: #e5686d;
+  color: var(--z-error);
 }
 .znxstudio-debug-state--terminated {
   color: var(--z-fg-muted);
@@ -3180,13 +3455,13 @@ button.znxstudio-solution-action:focus-visible {
   min-height: 26px;
   padding: 2px 9px;
   border-radius: 4px;
-  border: 1px solid var(--z-border, rgba(255, 255, 255, 0.12));
+  border: 1px solid var(--z-border);
   background: transparent;
   color: var(--z-fg);
   cursor: pointer;
 }
 .znxstudio-debug-btn:hover {
-  background: var(--z-bg-hover, rgba(255, 255, 255, 0.06));
+  background: var(--z-bg-hover);
 }
 .znxstudio-debug-btn:focus-visible {
   outline: 1px solid var(--z-accent);
@@ -3222,7 +3497,7 @@ button.znxstudio-solution-action:focus-visible {
 
 /* ----- Call stack ----- */
 .znxstudio-debug-stack {
-  border-bottom: 1px solid var(--z-border, rgba(255, 255, 255, 0.08));
+  border-bottom: 1px solid var(--z-border);
   max-height: 40%;
   overflow: auto;
 }
@@ -3250,7 +3525,7 @@ button.znxstudio-solution-action:focus-visible {
   cursor: pointer;
 }
 .znxstudio-debug-frame:hover {
-  background: var(--z-bg-hover, rgba(255, 255, 255, 0.06));
+  background: var(--z-bg-hover);
 }
 .znxstudio-debug-frame.is-active {
   box-shadow: inset 2px 0 var(--z-accent);
@@ -3266,7 +3541,7 @@ button.znxstudio-solution-action:focus-visible {
 
 /* ----- Variables ----- */
 .znxstudio-debug-vars {
-  border-bottom: 1px solid var(--z-border, rgba(255, 255, 255, 0.08));
+  border-bottom: 1px solid var(--z-border);
   max-height: 45%;
   overflow: auto;
 }
@@ -3277,7 +3552,7 @@ button.znxstudio-solution-action:focus-visible {
   color: var(--z-fg);
 }
 .znxstudio-debug-scope:hover {
-  background: var(--z-bg-hover, rgba(255, 255, 255, 0.06));
+  background: var(--z-bg-hover);
 }
 .znxstudio-debug-var {
   display: flex;
@@ -3291,10 +3566,10 @@ button.znxstudio-solution-action:focus-visible {
   cursor: pointer;
 }
 .znxstudio-debug-var.is-expandable:hover {
-  background: var(--z-bg-hover, rgba(255, 255, 255, 0.06));
+  background: var(--z-bg-hover);
 }
 .znxstudio-debug-var-name {
-  color: #9cdcfe;
+  color: var(--z-info);
   white-space: nowrap;
 }
 .znxstudio-debug-var-value {
@@ -3306,7 +3581,7 @@ button.znxstudio-solution-action:focus-visible {
 
 /* ----- Watch expressions ----- */
 .znxstudio-debug-watch {
-  border-bottom: 1px solid var(--z-border, rgba(255, 255, 255, 0.08));
+  border-bottom: 1px solid var(--z-border);
   max-height: 40%;
   overflow: auto;
 }
@@ -3318,14 +3593,14 @@ button.znxstudio-solution-action:focus-visible {
   font: inherit;
   font-size: 12px;
   color: var(--z-fg);
-  background: var(--z-bg-hover, rgba(255, 255, 255, 0.06));
-  border: 1px solid var(--z-border, rgba(255, 255, 255, 0.12));
+  background: var(--z-bg-hover);
+  border: 1px solid var(--z-border);
   border-radius: 4px;
   box-sizing: border-box;
 }
 .znxstudio-debug-watch-input:focus {
   outline: none;
-  border-color: var(--z-accent, #6ea8fe);
+  border-color: var(--z-accent);
 }
 .znxstudio-debug-watch-row {
   align-items: center;
@@ -3351,39 +3626,39 @@ button.znxstudio-solution-action:focus-visible {
   outline-offset: -1px;
 }
 .znxstudio-debug-watch-error {
-  color: #e5686d;
+  color: var(--z-error);
   font-style: italic;
 }
 
 /* ----- Current execution line ----- */
 .znxstudio-exec-line {
-  background: rgba(245, 200, 66, 0.12);
+  background: color-mix(in srgb, var(--z-warn) 12%, transparent);
 }
 .znxstudio-exec-arrow::before {
   content: '▶';
-  color: #f5c842;
+  color: var(--z-warn);
   font-size: 11px;
   margin-left: 2px;
 }
 .znxstudio-exec-line--exception {
-  background: rgba(229, 72, 77, 0.16);
+  background: color-mix(in srgb, var(--z-error) 16%, transparent);
 }
 .znxstudio-exec-arrow--exception::before {
   content: '⛔';
-  color: #e5484d;
+  color: var(--z-error);
 }
 
 /* ----- Exception banner ----- */
 .znxstudio-debug-exception {
   margin: 7px 10px 0;
   padding: 7px 9px;
-  border: 1px solid color-mix(in srgb, var(--znxstudio-error, #e5484d) 45%, transparent);
+  border: 1px solid color-mix(in srgb, var(--z-error) 45%, transparent);
   border-radius: 5px;
-  background: color-mix(in srgb, var(--znxstudio-error, #e5484d) 10%, transparent);
+  background: color-mix(in srgb, var(--z-error) 10%, transparent);
 }
 .znxstudio-debug-exception-title {
   font-weight: 600;
-  color: #e5686d;
+  color: var(--z-error);
   font-size: 12px;
 }
 .znxstudio-debug-exception-message {
@@ -3406,15 +3681,15 @@ button.znxstudio-solution-action:focus-visible {
   vertical-align: middle;
 }
 .znxstudio-bp--verified::before {
-  background: #e5484d;
+  background: var(--z-error);
 }
 .znxstudio-bp--unverified::before {
   background: transparent;
-  border: 1px solid #9a5a5c;
+  border: 1px solid color-mix(in srgb, var(--z-error) 55%, var(--z-fg-muted));
   box-sizing: border-box;
 }
 .znxstudio-bp--conditional::before {
-  background: #e5484d;
+  background: var(--z-error);
   box-shadow: inset 0 0 0 2px rgba(0, 0, 0, 0.55);
 }
 
@@ -3429,7 +3704,7 @@ button.znxstudio-solution-action:focus-visible {
   height: 14px;
   margin-left: 3px;
   border-radius: 1px;
-  background: rgba(230, 184, 0, 0.9);
+  background: var(--z-warn);
 }
 .znxstudio-bookmarks {
   padding: 4px 0;
@@ -3478,7 +3753,7 @@ button.znxstudio-solution-action:focus-visible {
   justify-content: center;
   align-items: flex-start;
   padding-top: 12vh;
-  background: rgba(0, 0, 0, 0.35);
+  background: var(--z-backdrop);
 }
 .znxstudio-snippet-box {
   width: 560px;
@@ -3609,12 +3884,12 @@ button.znxstudio-solution-action:focus-visible {
   height: 28px;
   border-radius: 6px;
   font-weight: 700;
-  color: #fff;
+  color: var(--z-accent-fg);
 }
-.znxstudio-metrics-rating--a { background: #2fa84f; }
-.znxstudio-metrics-rating--b { background: #7bb241; }
-.znxstudio-metrics-rating--c { background: #d9a218; }
-.znxstudio-metrics-rating--d { background: #e5484d; }
+.znxstudio-metrics-rating--a { background: var(--z-ok); }
+.znxstudio-metrics-rating--b { background: var(--z-ok); }
+.znxstudio-metrics-rating--c { background: var(--z-warn); }
+.znxstudio-metrics-rating--d { background: var(--z-error); }
 .znxstudio-metrics-mi {
   font-size: 13px;
   color: var(--z-fg);
@@ -3655,7 +3930,7 @@ button.znxstudio-solution-action:focus-visible {
   justify-content: center;
   align-items: flex-start;
   padding-top: 10vh;
-  background: rgba(0, 0, 0, 0.35);
+  background: var(--z-backdrop);
 }
 .znxstudio-quickopen-box {
   width: 600px;
@@ -3773,14 +4048,14 @@ button.znxstudio-solution-action:focus-visible {
   font-weight: 700;
   padding: 1px 5px;
   border-radius: 3px;
-  color: #fff;
+  color: var(--z-accent-fg);
 }
-.znxstudio-todo-badge--todo { background: #4c8dff; }
-.znxstudio-todo-badge--fixme { background: #e5484d; }
-.znxstudio-todo-badge--bug { background: #e5484d; }
-.znxstudio-todo-badge--hack { background: #d9a218; }
-.znxstudio-todo-badge--xxx { background: #d9a218; }
-.znxstudio-todo-badge--note { background: #6b7280; }
+.znxstudio-todo-badge--todo { background: var(--z-accent); }
+.znxstudio-todo-badge--fixme { background: var(--z-error); }
+.znxstudio-todo-badge--bug { background: var(--z-error); }
+.znxstudio-todo-badge--hack { background: var(--z-warn); }
+.znxstudio-todo-badge--xxx { background: var(--z-warn); }
+.znxstudio-todo-badge--note { background: var(--z-fg-muted); }
 .znxstudio-todo-msg {
   flex: 1;
   overflow: hidden;
@@ -3912,8 +4187,8 @@ button.znxstudio-solution-action:focus-visible {
   border-color: var(--z-accent);
 }
 .znxstudio-database-tag--private {
-  color: #d9a218;
-  border-color: #d9a218;
+  color: var(--z-warn);
+  border-color: var(--z-warn);
 }
 
 /* Query Console (Phase 8C) */
@@ -3952,10 +4227,10 @@ button.znxstudio-solution-action:focus-visible {
   min-height: 14px;
 }
 .znxstudio-query-diag.is-ok {
-  color: #2fa84f;
+  color: var(--z-ok);
 }
 .znxstudio-query-diag.is-error {
-  color: #e5484d;
+  color: var(--z-error);
 }
 .znxstudio-query-actions {
   display: flex;
@@ -3970,10 +4245,10 @@ button.znxstudio-solution-action:focus-visible {
   font-family: var(--z-mono, monospace);
 }
 .znxstudio-query-result.is-success {
-  color: #2fa84f;
+  color: var(--z-ok);
 }
 .znxstudio-query-result.is-error {
-  color: #e5484d;
+  color: var(--z-error);
 }
 .znxstudio-query-result.is-info {
   color: var(--z-fg-muted);
@@ -4015,13 +4290,13 @@ button.znxstudio-solution-action:focus-visible {
   letter-spacing: 0.03em;
   padding: 1px 5px;
   border-radius: 3px;
-  color: #fff;
+  color: var(--z-accent-fg);
 }
 .znxstudio-migrations-status--applied {
-  background: #2fa84f;
+  background: var(--z-ok);
 }
 .znxstudio-migrations-status--pending {
-  background: #d9a218;
+  background: var(--z-warn);
 }
 .znxstudio-migrations-name {
   font-weight: 600;
@@ -4055,7 +4330,7 @@ button.znxstudio-solution-action:focus-visible {
   color: var(--z-fg-muted);
 }
 .znxstudio-data-status.is-error {
-  color: #e5484d;
+  color: var(--z-error);
 }
 .znxstudio-data-grid {
   overflow: auto;
@@ -4138,14 +4413,14 @@ button.znxstudio-solution-action:focus-visible {
   color: var(--z-fg-muted);
 }
 .znxstudio-orm-badge.is-on {
-  background: #2fa84f;
-  border-color: #2fa84f;
-  color: #fff;
+  background: var(--z-ok);
+  border-color: var(--z-ok);
+  color: var(--z-accent-fg);
 }
 .znxstudio-orm-ok {
   padding: 6px 12px;
   font-size: 12px;
-  color: #2fa84f;
+  color: var(--z-ok);
 }
 .znxstudio-orm-diag {
   padding: 3px 12px;
@@ -4153,10 +4428,10 @@ button.znxstudio-solution-action:focus-visible {
   cursor: pointer;
 }
 .znxstudio-orm-diag--error {
-  color: #e5484d;
+  color: var(--z-error);
 }
 .znxstudio-orm-diag--warning {
-  color: #d9a218;
+  color: var(--z-warn);
 }
 .znxstudio-orm-diag:hover {
   background: var(--z-bg-elevated);
@@ -4257,9 +4532,9 @@ button.znxstudio-solution-action:focus-visible {
   color: var(--z-fg-muted);
 }
 .znxstudio-tests-kind--integration {
-  background: #7c5cff;
-  border-color: #7c5cff;
-  color: #fff;
+  background: var(--z-accent);
+  border-color: var(--z-accent);
+  color: var(--z-accent-fg);
 }
 .znxstudio-tests-case {
   display: flex;
@@ -4287,10 +4562,10 @@ button.znxstudio-solution-action:focus-visible {
   text-align: center;
 }
 .znxstudio-tests-case--passed .znxstudio-tests-icon {
-  color: var(--znxstudio-success, #2fa84f);
+  color: var(--z-ok);
 }
 .znxstudio-tests-case--failed .znxstudio-tests-icon {
-  color: var(--znxstudio-error, #e5484d);
+  color: var(--z-error);
 }
 .znxstudio-tests-case-name {
   flex: 1;
@@ -4305,11 +4580,11 @@ button.znxstudio-solution-action:focus-visible {
   flex-basis: 100%;
   margin-left: 20px;
   padding: 5px 7px;
-  border-left: 2px solid var(--znxstudio-error, #e5484d);
+  border-left: 2px solid var(--z-error);
   border-radius: 2px;
-  background: color-mix(in srgb, var(--znxstudio-error, #e5484d) 8%, transparent);
+  background: color-mix(in srgb, var(--z-error) 8%, transparent);
   font-size: 11px;
-  color: var(--znxstudio-error, #e5484d);
+  color: var(--z-error);
   font-family: var(--znxstudio-font-mono, monospace);
   line-height: 1.45;
 }
@@ -4362,14 +4637,14 @@ button.znxstudio-solution-action:focus-visible {
   font-weight: 600;
 }
 .znxstudio-testresults-banner.is-pass {
-  border-color: color-mix(in srgb, var(--znxstudio-success, #2fa84f) 35%, transparent);
-  background: color-mix(in srgb, var(--znxstudio-success, #2fa84f) 12%, transparent);
-  color: var(--znxstudio-success, #2fa84f);
+  border-color: color-mix(in srgb, var(--z-ok) 35%, transparent);
+  background: color-mix(in srgb, var(--z-ok) 12%, transparent);
+  color: var(--z-ok);
 }
 .znxstudio-testresults-banner.is-fail {
-  border-color: color-mix(in srgb, var(--znxstudio-error, #e5484d) 35%, transparent);
-  background: color-mix(in srgb, var(--znxstudio-error, #e5484d) 12%, transparent);
-  color: var(--znxstudio-error, #e5484d);
+  border-color: color-mix(in srgb, var(--z-error) 35%, transparent);
+  background: color-mix(in srgb, var(--z-error) 12%, transparent);
+  color: var(--z-error);
 }
 .znxstudio-testresults-row {
   display: flex;
@@ -4385,10 +4660,10 @@ button.znxstudio-solution-action:focus-visible {
   background: var(--z-hover, var(--z-bg-elevated));
 }
 .znxstudio-testresults-row .is-pass {
-  color: var(--znxstudio-success, #2fa84f);
+  color: var(--z-ok);
 }
 .znxstudio-testresults-row .is-fail {
-  color: var(--znxstudio-error, #e5484d);
+  color: var(--z-error);
 }
 .znxstudio-testresults-file { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 @media (max-width: 360px) {
@@ -4425,16 +4700,16 @@ button.znxstudio-solution-action:focus-visible {
   transition: width 0.2s;
 }
 .znxstudio-coverage-fill.is-high {
-  background: #2fa84f;
+  background: var(--z-ok);
 }
 .znxstudio-coverage-fill.is-mid {
-  background: #d9a218;
+  background: var(--z-warn);
 }
 .znxstudio-coverage-fill.is-low {
-  background: #e5484d;
+  background: var(--z-error);
 }
 .znxstudio-coverage-ok {
-  color: #2fa84f;
+  color: var(--z-ok);
   font-size: 12px;
 }
 .znxstudio-coverage-heading {
@@ -4461,7 +4736,7 @@ button.znxstudio-solution-action:focus-visible {
   background: var(--z-bg-elevated);
 }
 .znxstudio-coverage-dot {
-  color: #d9a218;
+  color: var(--z-warn);
 }
 .znxstudio-coverage-name {
   flex: 1;
@@ -4478,12 +4753,12 @@ button.znxstudio-solution-action:focus-visible {
   margin-bottom: 4px;
 }
 .znxstudio-perf-over td {
-  background: rgba(229, 72, 77, 0.12);
+  background: color-mix(in srgb, var(--z-error) 12%, transparent);
 }
 .znxstudio-perf-budget {
   margin-top: 6px;
   font-size: 12px;
-  color: #e5484d;
+  color: var(--z-error);
 }
 
 /* Mocking (Phase 9F) */
@@ -4548,7 +4823,7 @@ button.znxstudio-solution-action:focus-visible {
 }
 .znxstudio-continuous-streak {
   font-size: 11px;
-  color: #d9a218;
+  color: var(--z-warn);
   font-weight: 600;
 }
 .znxstudio-continuous-empty {
@@ -4568,10 +4843,10 @@ button.znxstudio-solution-action:focus-visible {
   text-align: center;
 }
 .znxstudio-continuous-row.is-pass .znxstudio-continuous-badge {
-  color: #2fa84f;
+  color: var(--z-ok);
 }
 .znxstudio-continuous-row.is-fail .znxstudio-continuous-badge {
-  color: #e5484d;
+  color: var(--z-error);
 }
 .znxstudio-continuous-file {
   flex: 1;
@@ -4583,11 +4858,11 @@ button.znxstudio-solution-action:focus-visible {
 }
 
 .znxstudio-diagnostic--error {
-  border-left-color: #e5484d;
+  border-left-color: var(--z-error);
 }
 
 .znxstudio-diagnostic--warning {
-  border-left-color: #f5a623;
+  border-left-color: var(--z-warn);
 }
 
 .znxstudio-diagnostic--info {
@@ -4667,7 +4942,7 @@ button.znxstudio-solution-action:focus-visible {
   font-style: italic;
 }
 .znxstudio-chat-msg.is-error .znxstudio-chat-body {
-  border-color: var(--z-danger, #e5534b);
+  border-color: var(--z-danger);
 }
 .znxstudio-chat-copy {
   align-self: flex-end;
@@ -4691,9 +4966,9 @@ button.znxstudio-solution-action:focus-visible {
 }
 /* Send flips to a Stop control while a reply streams. */
 .znxstudio-btn.is-stop {
-  background: var(--z-danger, #e5534b);
-  border-color: var(--z-danger, #e5534b);
-  color: #fff;
+  background: var(--z-danger);
+  border-color: var(--z-danger);
+  color: var(--z-accent-fg);
 }
 .znxstudio-chat-composer {
   display: flex;
@@ -4834,20 +5109,20 @@ button.znxstudio-solution-action:focus-visible {
   color: var(--z-fg-muted);
 }
 .znxstudio-ai-probe-result.is-ok {
-  color: var(--z-ok, #3fb950);
+  color: var(--z-ok);
 }
 .znxstudio-ai-probe-result.is-error {
-  color: var(--z-danger, #e5534b);
+  color: var(--z-danger);
 }
 .znxstudio-ai-probe-result.is-warn {
-  color: var(--z-warn, #d29922);
+  color: var(--z-warn);
 }
 
 /* ---- AI Refactoring modal + diff (Phase 10C) ---- */
 .znxstudio-ai-modal {
   position: fixed;
   inset: 0;
-  background: rgba(0, 0, 0, 0.45);
+  background: var(--z-backdrop-heavy);
   display: flex;
   align-items: flex-start;
   justify-content: center;
@@ -4908,11 +5183,11 @@ button.znxstudio-solution-action:focus-visible {
   border-bottom: 1px solid var(--z-border);
 }
 .znxstudio-ai-diff-add {
-  color: var(--z-ok, #3fb950);
+  color: var(--z-ok);
   font-weight: 600;
 }
 .znxstudio-ai-diff-del {
-  color: var(--z-danger, #e5534b);
+  color: var(--z-danger);
   font-weight: 600;
 }
 .znxstudio-ai-diff {
@@ -4929,10 +5204,10 @@ button.znxstudio-solution-action:focus-visible {
   padding: 0 10px;
 }
 .znxstudio-ai-diff-line.is-add {
-  background: rgba(63, 185, 80, 0.14);
+  background: color-mix(in srgb, var(--z-ok) 14%, transparent);
 }
 .znxstudio-ai-diff-line.is-del {
-  background: rgba(229, 83, 75, 0.14);
+  background: color-mix(in srgb, var(--z-error) 14%, transparent);
 }
 .znxstudio-ai-diff-gutter {
   width: 14px;
@@ -5015,10 +5290,10 @@ button.znxstudio-solution-action:focus-visible {
   margin-top: 1px;
 }
 .znxstudio-review-row.is-error .znxstudio-review-line {
-  color: var(--z-danger, #e5534b);
+  color: var(--z-danger);
 }
 .znxstudio-review-row.is-warning .znxstudio-review-line {
-  color: var(--z-warn, #d29922);
+  color: var(--z-warn);
 }
 
 /* ---- AI Docs panel (Phase 10E) ---- */
@@ -5087,10 +5362,10 @@ button.znxstudio-solution-action:focus-visible {
   border-bottom: 1px solid var(--z-border);
 }
 .znxstudio-testgen-result.is-pass {
-  color: var(--z-ok, #3fb950);
+  color: var(--z-ok);
 }
 .znxstudio-testgen-result.is-fail {
-  color: var(--z-danger, #e5534b);
+  color: var(--z-danger);
 }
 .znxstudio-testgen-fail {
   color: var(--z-fg);
@@ -5137,7 +5412,7 @@ button.znxstudio-solution-action:focus-visible {
   padding: 6px 12px;
   font-size: 12px;
   font-weight: 600;
-  color: var(--z-danger, #e5534b);
+  color: var(--z-danger);
   border-bottom: 1px solid var(--z-border);
 }
 .znxstudio-debugai-error.is-output {
@@ -5355,15 +5630,15 @@ button.znxstudio-solution-action:focus-visible {
   font-weight: 600;
 }
 .znxstudio-extmgr-badge.is-active {
-  color: var(--z-ok, #3fb950);
+  color: var(--z-ok);
   background: color-mix(in srgb, currentColor 12%, transparent);
 }
 .znxstudio-extmgr-badge.is-failed {
-  color: var(--z-danger, #e5534b);
+  color: var(--z-danger);
   background: color-mix(in srgb, currentColor 12%, transparent);
 }
 .znxstudio-extmgr-badge.is-incompatible {
-  color: var(--z-warn, #d29922);
+  color: var(--z-warn);
   background: color-mix(in srgb, currentColor 12%, transparent);
 }
 .znxstudio-extmgr-desc {
@@ -5376,7 +5651,7 @@ button.znxstudio-solution-action:focus-visible {
 }
 .znxstudio-extmgr-error {
   font-size: 11px;
-  color: var(--z-danger, #e5534b);
+  color: var(--z-danger);
 }
 .znxstudio-extmgr-error:has(> .znxstudio-btn-small) {
   display: flex;
@@ -5406,7 +5681,7 @@ button.znxstudio-solution-action:focus-visible {
   color: var(--z-accent-fg);
 }
 .znxstudio-extmgr-actions .znxstudio-btn-small.is-danger {
-  color: var(--z-danger, #e5534b);
+  color: var(--z-danger);
 }
 .znxstudio-extmgr-logs {
   font-size: 11px;
@@ -5513,15 +5788,15 @@ button.znxstudio-solution-action:focus-visible {
   color: var(--z-fg-muted);
 }
 .znxstudio-scm-row.is-modified .znxstudio-scm-letter {
-  color: var(--z-warn, #d29922);
+  color: var(--z-warn);
 }
 .znxstudio-scm-row.is-untracked .znxstudio-scm-letter,
 .znxstudio-scm-row.is-added .znxstudio-scm-letter {
-  color: var(--z-ok, #3fb950);
+  color: var(--z-ok);
 }
 .znxstudio-scm-row.is-deleted .znxstudio-scm-letter,
 .znxstudio-scm-row.is-conflicted .znxstudio-scm-letter {
-  color: var(--z-danger, #e5534b);
+  color: var(--z-danger);
 }
 .znxstudio-scm-file {
   display: flex;
@@ -5565,7 +5840,7 @@ button.znxstudio-solution-action:focus-visible {
 .znxstudio-scm-picker {
   position: fixed;
   inset: 0;
-  background: rgba(0, 0, 0, 0.35);
+  background: var(--z-backdrop);
   display: flex;
   align-items: flex-start;
   justify-content: center;
@@ -5811,7 +6086,7 @@ button.znxstudio-solution-action:focus-visible {
 .znxstudio-deploy-modal {
   position: fixed;
   inset: 0;
-  background: rgba(0, 0, 0, 0.45);
+  background: var(--z-backdrop-heavy);
   display: flex;
   align-items: flex-start;
   justify-content: center;
@@ -5937,7 +6212,7 @@ button.znxstudio-solution-action:focus-visible {
 }
 .znxstudio-perf-notes {
   font-size: 11px;
-  color: var(--z-warn, #d29922);
+  color: var(--z-warn);
 }
 
 /* ---- CPU profiler view (Phase 14A) ---- */
@@ -6030,8 +6305,8 @@ button.znxstudio-solution-action:focus-visible {
   box-sizing: border-box;
   border: 1px solid var(--z-bg);
   border-radius: 2px;
-  background: linear-gradient(180deg, #e8a33d, #d97706);
-  color: #1b1b1b;
+  background: var(--z-flame-bg);
+  color: var(--z-flame-fg);
   cursor: default;
 }
 
@@ -6087,16 +6362,16 @@ button.znxstudio-solution-action:focus-visible {
   font-variant-numeric: tabular-nums;
 }
 .znxstudio-mem-row.is-grow .znxstudio-mem-value {
-  color: var(--z-warn, #d29922);
+  color: var(--z-warn);
 }
 .znxstudio-mem-row.is-shrink .znxstudio-mem-value {
-  color: var(--z-ok, #3fb950);
+  color: var(--z-ok);
 }
 .znxstudio-mem-row.is-leak {
-  background: color-mix(in srgb, var(--z-danger, #e5534b) 12%, transparent);
+  background: color-mix(in srgb, var(--z-danger) 12%, transparent);
 }
 .znxstudio-mem-row.is-leak .znxstudio-mem-value {
-  color: var(--z-danger, #e5534b);
+  color: var(--z-danger);
   font-weight: 600;
 }
 
@@ -6129,28 +6404,28 @@ button.znxstudio-solution-action:focus-visible {
   overflow: hidden;
   white-space: nowrap;
   text-overflow: ellipsis;
-  color: #10151b;
-  background: #6ea8fe;
+  color: var(--z-tl-fg);
+  background: var(--z-tl-default);
 }
 .znxstudio-tl-span.is-query {
-  background: #7ee787;
+  background: var(--z-tl-query);
 }
 .znxstudio-tl-span.is-request {
-  background: #d2a8ff;
+  background: var(--z-tl-request);
 }
 .znxstudio-tl-span.is-job,
 .znxstudio-tl-span.is-task {
-  background: #ffa657;
+  background: var(--z-tl-job);
 }
 .znxstudio-tl-span.is-unclosed {
-  border: 1px dashed var(--z-danger, #e5534b);
+  border: 1px dashed var(--z-danger);
 }
 .znxstudio-tl-marker {
   position: absolute;
   top: 0;
   bottom: 0;
   width: 2px;
-  background: var(--z-danger, #e5534b);
+  background: var(--z-danger);
 }
 
 /* ---- Hotspots (Phase 14D) ---- */
@@ -6204,7 +6479,7 @@ button.znxstudio-solution-action:focus-visible {
   left: 0;
   top: 0;
   bottom: 0;
-  background: color-mix(in srgb, var(--z-ok, #3fb950) 16%, transparent);
+  background: color-mix(in srgb, var(--z-ok) 16%, transparent);
   pointer-events: none;
 }
 .znxstudio-alloc-name {
@@ -6245,8 +6520,8 @@ button.znxstudio-solution-action:focus-visible {
 .znxstudio-security-note {
   font-size: 12px;
   padding: 6px 8px;
-  border-left: 3px solid var(--znxstudio-warning, #d19a66);
-  background: rgba(209, 154, 102, 0.1);
+  border-left: 3px solid var(--z-warn);
+  background: color-mix(in srgb, var(--z-warn) 10%, transparent);
 }
 .znxstudio-security-verdict {
   font-size: 12px;
@@ -6255,12 +6530,12 @@ button.znxstudio-solution-action:focus-visible {
   border-radius: 3px;
 }
 .znxstudio-security-verdict.is-blocking {
-  color: var(--znxstudio-error, #e06c75);
-  background: rgba(224, 108, 117, 0.12);
+  color: var(--z-error);
+  background: color-mix(in srgb, var(--z-error) 12%, transparent);
 }
 .znxstudio-security-verdict.is-clean {
-  color: var(--znxstudio-success, #98c379);
-  background: rgba(152, 195, 121, 0.12);
+  color: var(--z-ok);
+  background: color-mix(in srgb, var(--z-ok) 12%, transparent);
 }
 
 .znxstudio-secrets {
@@ -6277,8 +6552,8 @@ button.znxstudio-solution-action:focus-visible {
 .znxstudio-secrets-alert {
   font-size: 12px;
   padding: 6px 8px;
-  border-left: 3px solid var(--znxstudio-error, #e06c75);
-  background: rgba(224, 108, 117, 0.12);
+  border-left: 3px solid var(--z-error);
+  background: color-mix(in srgb, var(--z-error) 12%, transparent);
 }
 .znxstudio-secrets-row {
   display: flex;
@@ -6320,7 +6595,7 @@ button.znxstudio-solution-action:focus-visible {
 }
 .znxstudio-secrets-revoke {
   font-size: 11px;
-  color: var(--znxstudio-error, #e06c75);
+  color: var(--z-error);
 }
 .znxstudio-secrets-actions {
   display: flex;
@@ -6340,19 +6615,19 @@ button.znxstudio-solution-action:focus-visible {
   font-weight: 600;
 }
 .znxstudio-severity-critical {
-  background: rgba(224, 108, 117, 0.25);
-  color: var(--znxstudio-error, #e06c75);
+  background: color-mix(in srgb, var(--z-error) 25%, transparent);
+  color: var(--z-error);
 }
 .znxstudio-severity-error {
-  background: rgba(224, 108, 117, 0.15);
-  color: var(--znxstudio-error, #e06c75);
+  background: color-mix(in srgb, var(--z-error) 15%, transparent);
+  color: var(--z-error);
 }
 .znxstudio-severity-warning {
-  background: rgba(209, 154, 102, 0.18);
-  color: var(--znxstudio-warning, #d19a66);
+  background: color-mix(in srgb, var(--z-warn) 18%, transparent);
+  color: var(--z-warn);
 }
 .znxstudio-severity-info {
-  background: rgba(97, 175, 239, 0.15);
+  background: color-mix(in srgb, var(--z-info) 15%, transparent);
   color: var(--znxstudio-link, #61afef);
 }
 
@@ -6382,8 +6657,8 @@ button.znxstudio-solution-action:focus-visible {
 .znxstudio-scanner-unanalyzed {
   font-size: 11px;
   padding: 5px 8px;
-  border-left: 3px solid var(--znxstudio-warning, #d19a66);
-  background: rgba(209, 154, 102, 0.1);
+  border-left: 3px solid var(--z-warn);
+  background: color-mix(in srgb, var(--z-warn) 10%, transparent);
 }
 .znxstudio-scanner-empty {
   font-size: 12px;
@@ -6467,8 +6742,8 @@ button.znxstudio-solution-action:focus-visible {
   font-size: 11px;
   line-height: 1.5;
   padding: 5px 8px;
-  border-left: 3px solid var(--znxstudio-warning, #d19a66);
-  background: rgba(209, 154, 102, 0.1);
+  border-left: 3px solid var(--z-warn);
+  background: color-mix(in srgb, var(--z-warn) 10%, transparent);
 }
 .znxstudio-depaudit-row {
   display: flex;
@@ -6504,7 +6779,7 @@ button.znxstudio-solution-action:focus-visible {
   font-size: 11px;
   padding: 1px 5px;
   border-radius: 3px;
-  background: var(--znxstudio-code-bg, rgba(255, 255, 255, 0.06));
+  background: var(--znxstudio-code-bg);
 }
 .znxstudio-depaudit-docs {
   font-size: 11px;
@@ -6561,8 +6836,8 @@ button.znxstudio-solution-action:focus-visible {
   font-size: 11px;
   line-height: 1.5;
   padding: 5px 8px;
-  border-left: 3px solid var(--znxstudio-warning, #d19a66);
-  background: rgba(209, 154, 102, 0.1);
+  border-left: 3px solid var(--z-warn);
+  background: color-mix(in srgb, var(--z-warn) 10%, transparent);
 }
 .znxstudio-secrules-row {
   display: flex;
@@ -6595,7 +6870,7 @@ button.znxstudio-solution-action:focus-visible {
 }
 .znxstudio-secrules-blocks {
   font-size: 10px;
-  color: var(--znxstudio-error, #e06c75);
+  color: var(--z-error);
   text-transform: uppercase;
   letter-spacing: 0.04em;
 }
@@ -6620,7 +6895,7 @@ button.znxstudio-solution-action:focus-visible {
   font-size: 11px;
   opacity: 0.7;
   padding: 6px 8px;
-  background: var(--znxstudio-code-bg, rgba(255, 255, 255, 0.04));
+  background: var(--znxstudio-code-bg);
   border-radius: 3px;
 }
 
@@ -6642,17 +6917,17 @@ button.znxstudio-solution-action:focus-visible {
   line-height: 1;
 }
 .znxstudio-secdash-grade.grade-a {
-  color: var(--znxstudio-success, #98c379);
+  color: var(--z-ok);
 }
 .znxstudio-secdash-grade.grade-b {
-  color: #b5cea8;
+  color: var(--z-grade-b);
 }
 .znxstudio-secdash-grade.grade-c {
-  color: var(--znxstudio-warning, #d19a66);
+  color: var(--z-warn);
 }
 .znxstudio-secdash-grade.grade-d,
 .znxstudio-secdash-grade.grade-f {
-  color: var(--znxstudio-error, #e06c75);
+  color: var(--z-error);
 }
 .znxstudio-secdash-score {
   font-size: 13px;
@@ -6668,8 +6943,8 @@ button.znxstudio-solution-action:focus-visible {
   font-size: 12px;
   line-height: 1.5;
   padding: 6px 8px;
-  border-left: 3px solid var(--znxstudio-warning, #d19a66);
-  background: rgba(209, 154, 102, 0.1);
+  border-left: 3px solid var(--z-warn);
+  background: color-mix(in srgb, var(--z-warn) 10%, transparent);
 }
 .znxstudio-secdash-severities {
   display: flex;
@@ -6717,8 +6992,8 @@ button.znxstudio-solution-action:focus-visible {
   font-size: 11px;
   line-height: 1.5;
   padding: 5px 8px;
-  border-left: 3px solid var(--znxstudio-warning, #d19a66);
-  background: rgba(209, 154, 102, 0.1);
+  border-left: 3px solid var(--z-warn);
+  background: color-mix(in srgb, var(--z-warn) 10%, transparent);
 }
 .znxstudio-collab-action {
   text-align: left;
@@ -6779,18 +7054,18 @@ button.znxstudio-solution-action:focus-visible {
   line-height: 1.5;
   padding: 5px 8px;
   border-left: 3px solid var(--znxstudio-link, #61afef);
-  background: rgba(97, 175, 239, 0.08);
+  background: color-mix(in srgb, var(--z-info) 8%, transparent);
 }
 .znxstudio-team-warn {
   font-size: 11px;
   line-height: 1.5;
   padding: 5px 8px;
-  border-left: 3px solid var(--znxstudio-warning, #d19a66);
-  background: rgba(209, 154, 102, 0.1);
+  border-left: 3px solid var(--z-warn);
+  background: color-mix(in srgb, var(--z-warn) 10%, transparent);
 }
 .znxstudio-team-ok {
   font-size: 11px;
-  color: var(--znxstudio-success, #98c379);
+  color: var(--z-ok);
 }
 .znxstudio-team-setting {
   display: flex;
@@ -6815,15 +7090,15 @@ button.znxstudio-solution-action:focus-visible {
   letter-spacing: 0.04em;
 }
 .znxstudio-team-origin.origin-locked {
-  background: rgba(224, 108, 117, 0.18);
-  color: var(--znxstudio-error, #e06c75);
+  background: color-mix(in srgb, var(--z-error) 18%, transparent);
+  color: var(--z-error);
 }
 .znxstudio-team-origin.origin-user {
-  background: rgba(152, 195, 121, 0.15);
-  color: var(--znxstudio-success, #98c379);
+  background: color-mix(in srgb, var(--z-ok) 15%, transparent);
+  color: var(--z-ok);
 }
 .znxstudio-team-origin.origin-team {
-  background: rgba(97, 175, 239, 0.15);
+  background: color-mix(in srgb, var(--z-info) 15%, transparent);
   color: var(--znxstudio-link, #61afef);
 }
 .znxstudio-team-origin.origin-default {
@@ -6831,7 +7106,7 @@ button.znxstudio-solution-action:focus-visible {
 }
 .znxstudio-team-overridden {
   font-size: 10px;
-  color: var(--znxstudio-error, #e06c75);
+  color: var(--z-error);
 }
 .znxstudio-team-violation {
   display: flex;
@@ -7000,7 +7275,7 @@ button.znxstudio-solution-action:focus-visible {
   display: flex;
   align-items: center;
   justify-content: center;
-  background: rgba(0, 0, 0, 0.45);
+  background: var(--z-backdrop-heavy);
 }
 .znxstudio-pm-card {
   display: flex;
@@ -7185,7 +7460,7 @@ button.znxstudio-solution-action:focus-visible {
   font-family: var(--znxstudio-font-mono, monospace);
   padding: 1px 5px;
   border-radius: 3px;
-  background: var(--znxstudio-code-bg, rgba(255, 255, 255, 0.06));
+  background: var(--znxstudio-code-bg);
 }
 .znxstudio-keys-command {
   flex: 1;
@@ -7198,15 +7473,15 @@ button.znxstudio-solution-action:focus-visible {
   opacity: 0.5;
 }
 .znxstudio-keys-row.is-user .znxstudio-keys-origin {
-  color: var(--znxstudio-success, #98c379);
+  color: var(--z-ok);
   opacity: 1;
 }
 .znxstudio-keys-warn {
   font-size: 11px;
   line-height: 1.5;
   padding: 5px 8px;
-  border-left: 3px solid var(--znxstudio-warning, #d19a66);
-  background: rgba(209, 154, 102, 0.1);
+  border-left: 3px solid var(--z-warn);
+  background: color-mix(in srgb, var(--z-warn) 10%, transparent);
 }
 .znxstudio-macros-note {
   font-size: 11px;
@@ -7215,7 +7490,7 @@ button.znxstudio-solution-action:focus-visible {
 }
 .znxstudio-macros-recording {
   font-size: 11px;
-  color: var(--znxstudio-error, #e06c75);
+  color: var(--z-error);
 }
 .znxstudio-macros-steps {
   font-size: 10px;
@@ -7353,7 +7628,7 @@ button.znxstudio-solution-action:focus-visible {
 }
 .znxstudio-apidocs-toggle { display: inline-flex; align-items: center; gap: 4px; font-size: 11px; }
 .znxstudio-apidocs-summary { padding: 5px 0; font-size: 11px; opacity: 0.85; }
-.znxstudio-apidocs-summary.is-unwritten { color: var(--znxstudio-warning, #d19a66); }
+.znxstudio-apidocs-summary.is-unwritten { color: var(--z-warn); }
 .znxstudio-apidocs-section { margin-top: 10px; font-weight: 600; font-size: 11px; text-transform: uppercase; opacity: 0.7; }
 .znxstudio-apidocs-pages, .znxstudio-apidocs-coverage, .znxstudio-learning-problems, .znxstudio-learning-items {
   list-style: none;
@@ -7381,12 +7656,12 @@ button.znxstudio-solution-action:focus-visible {
   opacity: 0.7;
   line-height: 1.6;
 }
-.znxstudio-apidocs-failure { color: var(--znxstudio-error, #e06c75); font-weight: 600; margin: 6px 0; }
+.znxstudio-apidocs-failure { color: var(--z-error); font-weight: 600; margin: 6px 0; }
 .znxstudio-apidocs-note, .znxstudio-samples-note {
   font-size: 11px;
   opacity: 0.75;
   line-height: 1.5;
-  border-left: 3px solid var(--znxstudio-warning, #d19a66);
+  border-left: 3px solid var(--z-warn);
   padding: 4px 8px;
   margin: 6px 0;
 }
@@ -7433,8 +7708,8 @@ button.znxstudio-solution-action:focus-visible {
   border-radius: 3px;
   margin: 6px 0;
 }
-.is-ok { background: rgba(80, 200, 120, 0.12); color: var(--znxstudio-success, #6cc78a); }
-.is-bad { background: rgba(224, 108, 117, 0.12); color: var(--znxstudio-error, #e06c75); }
+.is-ok { background: color-mix(in srgb, var(--z-ok) 12%, transparent); color: var(--z-ok); }
+.is-bad { background: color-mix(in srgb, var(--z-error) 12%, transparent); color: var(--z-error); }
 
 .znxstudio-learning { padding: 8px 10px; overflow: auto; height: 100%; }
 .znxstudio-learning-header { font-weight: 600; margin-bottom: 8px; }
@@ -7554,14 +7829,14 @@ button.znxstudio-solution-action:focus-visible {
 }
 .znxstudio-log-record:nth-child(even) { background: color-mix(in srgb, var(--z-fg) 2.5%, transparent); }
 .znxstudio-log-record:hover { background: var(--z-hover); }
-.znxstudio-log-record.is-warn { border-left-color: var(--znxstudio-warning, #d19a66); }
-.znxstudio-log-record.is-error { border-left-color: var(--znxstudio-error, #e06c75); }
+.znxstudio-log-record.is-warn { border-left-color: var(--z-warn); }
+.znxstudio-log-record.is-error { border-left-color: var(--z-error); }
 .znxstudio-log-time { color: var(--z-fg-muted); }
 .znxstudio-log-level { font-size: 10px; font-weight: 700; color: var(--z-fg-muted); }
 .znxstudio-log-record.is-debug .znxstudio-log-level { color: var(--z-accent); }
 .znxstudio-log-record.is-info .znxstudio-log-level { color: var(--znxstudio-info, #75beff); }
-.znxstudio-log-record.is-warn .znxstudio-log-level { color: var(--znxstudio-warning, #d19a66); }
-.znxstudio-log-record.is-error .znxstudio-log-level { color: var(--znxstudio-error, #e06c75); }
+.znxstudio-log-record.is-warn .znxstudio-log-level { color: var(--z-warn); }
+.znxstudio-log-record.is-error .znxstudio-log-level { color: var(--z-error); }
 .znxstudio-log-source {
   overflow: hidden;
   color: var(--z-fg-muted);
@@ -7592,8 +7867,8 @@ button.znxstudio-solution-action:focus-visible {
   border-left: 3px solid transparent;
 }
 .znxstudio-health-check.is-pass { border-left-color: var(--znxstudio-success, #6cc78a); }
-.znxstudio-health-check.is-warn { border-left-color: var(--znxstudio-warning, #d19a66); }
-.znxstudio-health-check.is-fail { border-left-color: var(--znxstudio-error, #e06c75); }
+.znxstudio-health-check.is-warn { border-left-color: var(--z-warn); }
+.znxstudio-health-check.is-fail { border-left-color: var(--z-error); }
 /* An unmeasured check reads as unknown, never as a quiet pass. */
 .znxstudio-health-check.is-unknown { border-left-color: var(--z-fg-muted); opacity: 0.8; }
 .znxstudio-health-label { font-weight: 600; flex: 0 0 auto; }
@@ -8187,7 +8462,7 @@ button.znxstudio-solution-action:focus-visible {
   outline: none;
 }
 .znxstudio-settings-ui-control input.is-invalid {
-  border-color: #e5484d;
+  border-color: var(--z-error);
 }
 .znxstudio-settings-ui-control input[type='checkbox'] {
   width: 16px;
@@ -8219,7 +8494,7 @@ button.znxstudio-solution-action:focus-visible {
 .znxstudio-modal-backdrop {
   position: fixed;
   inset: 0;
-  background: rgba(0, 0, 0, 0.5);
+  background: var(--z-backdrop-heavy);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -8297,7 +8572,7 @@ button.znxstudio-solution-action:focus-visible {
   font-size: 12px;
   cursor: pointer;
 }
-.znxstudio-trust-banner-btn:hover { background: rgba(255, 255, 255, 0.12); }
+.znxstudio-trust-banner-btn:hover { background: var(--z-bg-hover); }
 
 /* Keep identity geometry authoritative over primitives declared later. */
 .znxstudio-modal,
@@ -8429,7 +8704,7 @@ button.znxstudio-solution-action:focus-visible {
   min-height: 27px;
   padding: 2px 6px;
   background:
-    linear-gradient(90deg, color-mix(in srgb, var(--z-status-bg) 82%, #241a4f), color-mix(in srgb, var(--z-status-bg) 88%, #083c49));
+    linear-gradient(90deg, color-mix(in srgb, var(--z-status-bg) 82%, var(--z-status-tint-a)), color-mix(in srgb, var(--z-status-bg) 88%, var(--z-status-tint-b)));
 }
 .znxstudio-statusbar::before {
   content: '';
@@ -8448,8 +8723,8 @@ button.znxstudio-solution-action:focus-visible {
 }
 .znxstudio-status-item.is-action:hover,
 .znxstudio-status-btn:hover {
-  background: rgba(255, 255, 255, 0.13);
-  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.09);
+  background: color-mix(in srgb, var(--z-status-fg) 13%, transparent);
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--z-status-fg) 9%, transparent);
 }
 
 .znxstudio-breadcrumbs {

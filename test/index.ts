@@ -141,6 +141,7 @@ import './uierrors.test';
 import './conflictrecovery.test';
 import './workbenchicons.test';
 import './designidentity.test';
+import './theme.test';
 import './emitterdisposal.test';
 import './statuspolicy.test';
 import './workspaces.test';

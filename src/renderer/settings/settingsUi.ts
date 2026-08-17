@@ -32,6 +32,15 @@ export interface SchemaLike {
   properties?: Record<string, SchemaProperty>;
 }
 
+/** Keys that belong in the Appearance group instead of their prefix-default group. */
+const APPEARANCE_KEYS = new Set([
+  'workbench.theme',
+  'workbench.zoomLevel',
+  'editor.fontSize',
+  'editor.fontFamily',
+  'editor.keywordColor',
+]);
+
 /** Prefix → friendly group. Most specific prefixes first (ai.completion before ai). */
 const GROUPS: { prefix: string; name: string }[] = [
   { prefix: 'editor.', name: 'Editor' },
@@ -48,6 +57,7 @@ const GROUPS: { prefix: string; name: string }[] = [
 ];
 
 export const GROUP_ORDER = [
+  'Appearance',
   'Editor',
   'Files',
   'Workbench',
@@ -62,6 +72,7 @@ export const GROUP_ORDER = [
 ];
 
 function matchGroup(key: string): { prefix: string; name: string } {
+  if (APPEARANCE_KEYS.has(key)) return { prefix: '', name: 'Appearance' };
   for (const group of GROUPS) {
     if (key.startsWith(group.prefix)) return group;
   }

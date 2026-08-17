@@ -148,8 +148,9 @@ export const SETTINGS_JSON_SCHEMA = {
     },
     'workbench.theme': {
       type: 'string',
-      description: 'Active color theme.',
+      description: 'Active color theme. "system" follows the OS light/dark preference.',
       enum: [
+        'system',
         'znxstudio-dark',
         'znxstudio-light',
         'znxstudio-tide',
@@ -363,7 +364,7 @@ export const SETTINGS_DESCRIPTIONS: { key: keyof ZnxStudioSettings; description:
   { key: 'editor.tabSize', description: 'Spaces per tab.' },
   { key: 'editor.formatOnSave', description: 'Format the document on every explicit save.' },
   { key: 'editor.keywordColor', description: 'Keyword syntax color (hex, e.g. #ff5c9d).' },
-  { key: 'workbench.theme', description: 'Active color theme (Dark, Light, Tide, Dune, or high contrast).' },
+  { key: 'workbench.theme', description: 'Active color theme. "System" follows the OS light/dark preference.' },
   { key: 'files.autosave', description: 'Auto-save changed documents.' },
   { key: 'files.autosaveMode', description: 'When to auto-save: off, afterDelay, onFocusChange, onWindowChange.' },
   { key: 'files.autosaveDelay', description: 'Autosave delay in milliseconds.' },

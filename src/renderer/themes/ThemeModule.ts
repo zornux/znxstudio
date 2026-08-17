@@ -16,6 +16,7 @@ import { DEFAULT_KEYWORD_COLOR } from '../settings/SettingsSchema';
 import { ZORNUX_MONARCH } from '../language/languages/zornux/grammar';
 
 const THEMES = [
+  'system',
   'znxstudio-dark',
   'znxstudio-light',
   'znxstudio-tide',
@@ -24,6 +25,7 @@ const THEMES = [
   'znxstudio-hc-light',
 ] as const;
 const THEME_LABELS: Record<string, string> = {
+  system: 'System',
   'znxstudio-dark': 'Dark',
   'znxstudio-light': 'Light',
   'znxstudio-tide': 'Tide',
@@ -48,6 +50,8 @@ export class ThemeModule implements IModule, ThemeService {
   private readonly external = new Map<string, ExternalThemeData>();
   /** Inline `--z-*` custom properties currently set on <html> for an external theme. */
   private appliedVars: string[] = [];
+  private systemMediaQuery: MediaQueryList | undefined;
+  private systemListener: (() => void) | undefined;
 
   private readonly changeEmitter = new Emitter<string>();
   readonly onDidChange = this.changeEmitter.event;
@@ -126,34 +130,70 @@ export class ThemeModule implements IModule, ThemeService {
    * token rule on top of each base theme so it survives a theme switch.
    */
   private defineThemes(): void {
-    const keywordRule = { token: 'keyword', foreground: this.keywordColor.replace('#', '') };
-    // Comments get ONE solid, best-practice colour (green, as in Java/most IDEs),
-    // set explicitly so a whole comment reads as a single run — no keyword pink
-    // bleeding through — and stays consistent instead of inheriting a base-theme
-    // default. `comment` covers both `#` line comments and `/* … */` blocks.
-    const darkComment = { token: 'comment', foreground: '6A9955' };
-    const lightComment = { token: 'comment', foreground: '008000' };
-    const hcDarkComment = { token: 'comment', foreground: '7CA668' };
+    const kw = this.keywordColor.replace('#', '');
+    const kwRule = { token: 'keyword', foreground: kw, fontStyle: 'bold' };
+
     monaco.editor.defineTheme('znxstudio-dark', {
       base: 'vs-dark',
       inherit: true,
-      rules: [keywordRule, darkComment],
-      colors: { 'editor.background': '#1a1b1e' },
+      rules: [
+        kwRule,
+        { token: 'comment', foreground: '6A9955', fontStyle: 'italic' },
+        { token: 'string', foreground: 'CE9178' },
+        { token: 'string.quote', foreground: 'CE9178' },
+        { token: 'number', foreground: 'B5CEA8' },
+        { token: 'operator', foreground: 'D4D4D4' },
+        { token: 'identifier', foreground: '9CDCFE' },
+        { token: 'type', foreground: '4EC9B0' },
+      ],
+      colors: {
+        'editor.background': '#1a1b1e',
+        'editor.foreground': '#d7d9de',
+        'editorLineNumber.foreground': '#4a4e57',
+        'editorLineNumber.activeForeground': '#a0a4ad',
+        'editor.selectionBackground': '#3a3f4b',
+        'editorCursor.foreground': '#7657e8',
+        'editor.lineHighlightBackground': '#ffffff08',
+        'editorBracketMatch.background': '#ffffff15',
+        'editorBracketMatch.border': '#88888880',
+      },
     });
     monaco.editor.defineTheme('znxstudio-light', {
       base: 'vs',
       inherit: true,
-      rules: [keywordRule, lightComment],
-      colors: { 'editor.background': '#ffffff' },
+      rules: [
+        kwRule,
+        { token: 'comment', foreground: '008000', fontStyle: 'italic' },
+        { token: 'string', foreground: 'A31515' },
+        { token: 'string.quote', foreground: 'A31515' },
+        { token: 'number', foreground: '098658' },
+        { token: 'operator', foreground: '1f2328' },
+        { token: 'identifier', foreground: '001080' },
+        { token: 'type', foreground: '267F99' },
+      ],
+      colors: {
+        'editor.background': '#ffffff',
+        'editor.foreground': '#1f2328',
+        'editorLineNumber.foreground': '#b0b3b8',
+        'editorLineNumber.activeForeground': '#5a5d63',
+        'editor.selectionBackground': '#add6ff80',
+        'editorCursor.foreground': '#6547d5',
+        'editor.lineHighlightBackground': '#00000006',
+        'editorBracketMatch.background': '#00000012',
+        'editorBracketMatch.border': '#b0b0b080',
+      },
     });
     monaco.editor.defineTheme('znxstudio-tide', {
       base: 'vs-dark',
       inherit: true,
       rules: [
-        keywordRule,
-        { token: 'comment', foreground: '709A82' },
+        kwRule,
+        { token: 'comment', foreground: '709A82', fontStyle: 'italic' },
         { token: 'string', foreground: 'A7CF8D' },
+        { token: 'string.quote', foreground: 'A7CF8D' },
         { token: 'number', foreground: 'E0A76C' },
+        { token: 'operator', foreground: 'd7e4e5' },
+        { token: 'identifier', foreground: '8ECDD5' },
         { token: 'type', foreground: '72C3D4' },
       ],
       colors: {
@@ -163,16 +203,22 @@ export class ThemeModule implements IModule, ThemeService {
         'editorLineNumber.activeForeground': '#b7cbcf',
         'editor.selectionBackground': '#255b6670',
         'editorCursor.foreground': '#49c5b6',
+        'editor.lineHighlightBackground': '#ffffff06',
+        'editorBracketMatch.background': '#ffffff12',
+        'editorBracketMatch.border': '#70909880',
       },
     });
     monaco.editor.defineTheme('znxstudio-dune', {
       base: 'vs',
       inherit: true,
       rules: [
-        keywordRule,
-        { token: 'comment', foreground: '687A56' },
+        kwRule,
+        { token: 'comment', foreground: '687A56', fontStyle: 'italic' },
         { token: 'string', foreground: '7A5B2E' },
+        { token: 'string.quote', foreground: '7A5B2E' },
         { token: 'number', foreground: 'A24F35' },
+        { token: 'operator', foreground: '2f2a24' },
+        { token: 'identifier', foreground: '3D5A28' },
         { token: 'type', foreground: '176F73' },
       ],
       colors: {
@@ -182,18 +228,35 @@ export class ThemeModule implements IModule, ThemeService {
         'editorLineNumber.activeForeground': '#51483e',
         'editor.selectionBackground': '#9d70ac38',
         'editorCursor.foreground': '#7d438f',
+        'editor.lineHighlightBackground': '#00000005',
+        'editorBracketMatch.background': '#00000010',
+        'editorBracketMatch.border': '#9a8e7f80',
       },
     });
     monaco.editor.defineTheme('znxstudio-hc-dark', {
       base: 'hc-black',
       inherit: true,
-      rules: [keywordRule, hcDarkComment],
+      rules: [
+        kwRule,
+        { token: 'comment', foreground: '7CA668', fontStyle: 'italic' },
+        { token: 'string', foreground: 'CE9178' },
+        { token: 'number', foreground: 'B5CEA8' },
+        { token: 'identifier', foreground: '9CDCFE' },
+        { token: 'type', foreground: '4EC9B0' },
+      ],
       colors: { 'editor.background': '#000000', 'editor.foreground': '#ffffff' },
     });
     monaco.editor.defineTheme('znxstudio-hc-light', {
       base: 'hc-light',
       inherit: true,
-      rules: [keywordRule, lightComment],
+      rules: [
+        kwRule,
+        { token: 'comment', foreground: '008000', fontStyle: 'italic' },
+        { token: 'string', foreground: 'A31515' },
+        { token: 'number', foreground: '098658' },
+        { token: 'identifier', foreground: '001080' },
+        { token: 'type', foreground: '267F99' },
+      ],
       colors: { 'editor.background': '#ffffff', 'editor.foreground': '#000000' },
     });
   }
@@ -215,6 +278,23 @@ export class ThemeModule implements IModule, ThemeService {
     if (!THEMES.includes(name as (typeof THEMES)[number]) && !this.external.has(name)) {
       name = 'znxstudio-dark';
     }
+    // Tear down any previous system-theme listener.
+    this.detachSystemListener();
+
+    if (name === 'system') {
+      this.theme = 'system';
+      this.attachSystemListener();
+      const resolved = resolveSystemTheme();
+      this.clearExternalVars();
+      document.documentElement.dataset.theme = resolved;
+      monaco.editor.setTheme(resolved);
+      this.services?.tryGet<SettingsService>(ServiceKeys.Settings)?.set('workbench.theme', 'system');
+      persistThemeHint('system');
+      this.setStatus('system');
+      this.changeEmitter.fire('system');
+      return;
+    }
+
     if (this.external.has(name)) {
       this.applyExternal(this.external.get(name)!);
       return;
@@ -228,6 +308,7 @@ export class ThemeModule implements IModule, ThemeService {
     // Persist if settings is available (guarded to avoid a feedback loop —
     // SettingsService.set is a no-op when the value is unchanged).
     this.services?.tryGet<SettingsService>(ServiceKeys.Settings)?.set('workbench.theme', name);
+    persistThemeHint(name);
     this.setStatus(name);
     this.changeEmitter.fire(name);
   }
@@ -267,6 +348,7 @@ export class ThemeModule implements IModule, ThemeService {
     });
     monaco.editor.setTheme(monacoId);
     this.services?.tryGet<SettingsService>(ServiceKeys.Settings)?.set('workbench.theme', theme.id);
+    persistThemeHint(theme.type === 'dark' ? 'znxstudio-dark' : 'znxstudio-light');
     this.setStatus(theme.id);
     this.changeEmitter.fire(theme.id);
   }
@@ -287,6 +369,27 @@ export class ThemeModule implements IModule, ThemeService {
     });
   }
 
+  private attachSystemListener(): void {
+    this.systemMediaQuery = window.matchMedia('(prefers-color-scheme: dark)');
+    this.systemListener = () => {
+      if (this.theme !== 'system') return;
+      const resolved = resolveSystemTheme();
+      this.clearExternalVars();
+      document.documentElement.dataset.theme = resolved;
+      monaco.editor.setTheme(resolved);
+      this.changeEmitter.fire('system');
+    };
+    this.systemMediaQuery.addEventListener('change', this.systemListener);
+  }
+
+  private detachSystemListener(): void {
+    if (this.systemMediaQuery && this.systemListener) {
+      this.systemMediaQuery.removeEventListener('change', this.systemListener);
+    }
+    this.systemMediaQuery = undefined;
+    this.systemListener = undefined;
+  }
+
   toggle(): void {
     this.apply(this.theme === 'znxstudio-dark' ? 'znxstudio-light' : 'znxstudio-dark');
   }
@@ -300,11 +403,18 @@ export class ThemeModule implements IModule, ThemeService {
   }
 }
 
-/**
- * Accept a 6-digit hex color (with or without `#`) and return it normalized with
- * a leading `#`. Anything invalid falls back to the default, so a malformed
- * setting can never produce a broken Monaco theme rule.
- */
+function persistThemeHint(name: string): void {
+  try {
+    localStorage.setItem('znxstudio-theme', name);
+  } catch { /* quota or sandboxing — non-critical */ }
+}
+
+function resolveSystemTheme(): string {
+  return window.matchMedia('(prefers-color-scheme: dark)').matches
+    ? 'znxstudio-dark'
+    : 'znxstudio-light';
+}
+
 function sanitizeColor(value: unknown): string {
   if (typeof value === 'string' && /^#?[0-9a-fA-F]{6}$/.test(value.trim())) {
     const hex = value.trim().replace('#', '');

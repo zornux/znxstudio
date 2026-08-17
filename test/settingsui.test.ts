@@ -42,8 +42,8 @@ describe('settings UI — descriptors', () => {
 
     const font = list.find((d) => d.key === 'editor.fontSize')!;
     expect(font.type).toBe('number');
-    expect(font.group).toBe('Editor');
-    expect(font.title).toBe('Font Size');
+    expect(font.group).toBe('Appearance');
+    expect(font.title).toBe('Editor Font Size');
     expect(font.min).toBe(8);
     expect(font.max).toBe(40);
     // Friendly description wins over the schema description.
@@ -89,7 +89,7 @@ describe('settings UI — search + grouping', () => {
 
   test('grouping follows GROUP_ORDER with items sorted by title', () => {
     const groups = groupSettings(list);
-    expect(groups.map((g) => g.group)).toEqual(['Editor', 'Files', 'Workbench', 'AI', 'AI Completion']);
+    expect(groups.map((g) => g.group)).toEqual(['Appearance', 'Files', 'AI', 'AI Completion']);
     expect(groups[0].items[0].key).toBe('editor.fontSize');
   });
 });
