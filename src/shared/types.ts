@@ -69,6 +69,7 @@ export interface AppInfo {
 /** Detected classification of an opened workspace. */
 export type WorkspaceType =
   | 'zornux-api'
+  | 'zornux-mobile'
   | 'zoijs-frontend'
   | 'zornux-zoijs-fullstack'
   | 'generic';
@@ -689,6 +690,35 @@ export interface CollabClosedEvent {
   reason: string;
 }
 
+/* ----- Mobile (Android) ----- */
+
+export interface AndroidDevice {
+  id: string;
+  name: string;
+  type: 'physical' | 'emulator';
+  apiLevel: string | null;
+  status: 'device' | 'offline' | 'unauthorized';
+}
+
+export interface AndroidEmulator {
+  name: string;
+  apiLevel: string | null;
+}
+
+export interface MobileDoctorResult {
+  ok: boolean;
+  checks: { name: string; passed: boolean; detail: string }[];
+}
+
+export interface MobileRunStatus {
+  running: boolean;
+  deviceId: string | null;
+}
+
+export interface MobileLogEvent {
+  line: string;
+}
+
 /**
  * The typed surface exposed to the renderer via `window.znxstudio`.
  * This is the ONLY channel the renderer uses to reach the OS/filesystem.
@@ -912,5 +942,17 @@ export interface ZnxStudioApi {
     stop(): Promise<void>;
     onDiagnostics(callback: (message: LspDiagnosticsMessage) => void): Unsubscribe;
     onClosed(callback: (message: LspClosedMessage) => void): Unsubscribe;
+  };
+  /** Mobile development (Android). Available when `zornux mobile` is present. */
+  mobile: {
+    devices(): Promise<AndroidDevice[]>;
+    selectDevice(id: string): Promise<void>;
+    emulators(): Promise<AndroidEmulator[]>;
+    startEmulator(name: string): Promise<void>;
+    doctor(platform: string): Promise<MobileDoctorResult>;
+    runStart(deviceId: string, workspaceRoot: string): Promise<void>;
+    runStop(): Promise<void>;
+    status(): Promise<MobileRunStatus>;
+    onLogs(callback: (event: MobileLogEvent) => void): Unsubscribe;
   };
 }

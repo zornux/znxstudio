@@ -88,6 +88,7 @@ import { ProfilesModule } from '../profiles/ProfilesModule';
 import { TemplatesModule } from '../templates/TemplatesModule';
 import { WizardsModule } from '../wizards/WizardsModule';
 import { RunBuildModule } from '../run/RunBuildModule';
+import { MobileModule } from '../mobile/MobileModule';
 import { SettingsModule } from '../settings/SettingsModule';
 import { LayoutModule } from '../layout/LayoutModule';
 import { KeybindingsModule } from '../keybindings/KeybindingsModule';
@@ -258,6 +259,7 @@ export class Workbench {
       new ExplorerActionsModule(),
       new TerminalModule(),
       new RunBuildModule(),
+      new MobileModule(),
       new CommandPaletteModule(),
       new SearchEverywhereModule(),
       new KeybindingsModule(),

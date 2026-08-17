@@ -164,11 +164,21 @@ export class ProjectService {
       }
     }
 
+    let detectedType = detectType(project);
+
+    // When the JSON manifest alone detects a plain Zornux project, refine by
+    // consulting the authoritative `zornux.project` text-format manifest. If it
+    // declares `type = mobile`, upgrade the workspace type to 'zornux-mobile'.
+    if (detectedType === 'zornux-api' || detectedType === 'zornux-zoijs-fullstack') {
+      const zornuxType = await readZornuxProjectType(folder);
+      if (zornuxType === 'mobile') detectedType = 'zornux-mobile';
+    }
+
     return {
       root: folder,
       isZnxStudioProject,
       project,
-      detectedType: detectType(project),
+      detectedType,
       diagnostics,
     };
   }
@@ -261,10 +271,36 @@ function detectType(project: ZnxStudioProject | null): WorkspaceType {
   const hasZornux = langs.includes('zornux') || declared.includes('zornux');
   const hasZoijs = frameworks.includes('zoijs') || declared.includes('zoijs');
 
+  // Mobile detection: the manifest declares type "mobile" and targets Zornux.
+  if (hasZornux && declared === 'mobile') return 'zornux-mobile';
+
   if (hasZornux && hasZoijs) return 'zornux-zoijs-fullstack';
   if (hasZoijs) return 'zoijs-frontend';
   if (hasZornux) return 'zornux-api';
   return 'generic';
+}
+
+/**
+ * Check whether a workspace's `zornux.project` text-format manifest declares
+ * `type = mobile`. Called by `loadWorkspace` to refine the detected type when
+ * the JSON manifest alone is ambiguous (the JSON `type` field may be a freeform
+ * string while the text-format manifest is authoritative for the CLI).
+ */
+async function readZornuxProjectType(folder: string): Promise<string | null> {
+  try {
+    const raw = await fs.readFile(join(folder, 'zornux.project'), 'utf8');
+    for (const line of raw.replace(/\r\n?/g, '\n').split('\n')) {
+      const trimmed = line.trim();
+      if (trimmed.startsWith('#') || trimmed.length === 0) continue;
+      const eq = trimmed.indexOf('=');
+      if (eq <= 0) continue;
+      const key = trimmed.slice(0, eq).trim().toLowerCase();
+      if (key === 'type') return trimmed.slice(eq + 1).trim().toLowerCase();
+    }
+  } catch {
+    // No zornux.project file — not a mobile project via the text manifest.
+  }
+  return null;
 }
 
 function asStringArray(value: unknown): string[] | undefined {

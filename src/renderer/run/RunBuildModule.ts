@@ -178,6 +178,12 @@ export class RunBuildModule implements IModule {
     const entry = this.zornuxEntry(info);
     const compilerAvailable = compiler ? (await compiler.info()).available : false;
 
+    // Mobile projects use `zornux mobile build android` instead of the regular build.
+    if (info.detectedType === 'zornux-mobile') {
+      await this.mobileBuild(info);
+      return;
+    }
+
     if (compiler && compilerAvailable && entry) {
       await this.compilerBuild(compiler, entry, info);
       return;
@@ -277,6 +283,12 @@ export class RunBuildModule implements IModule {
     const entry = this.zornuxEntry(info);
     const compilerInfo = compiler ? await compiler.info() : null;
 
+    // Mobile projects use `zornux mobile run android` with the selected device.
+    if (info.detectedType === 'zornux-mobile') {
+      await this.mobileRun(info);
+      return;
+    }
+
     if (compiler && compilerInfo?.available && compilerInfo.path && entry) {
       // Thread the workspace's active environment profile (Phase 5F) into run.
       const profile = this.context.services.tryGet<ProfileService>(ServiceKeys.Profile)?.active();
@@ -319,6 +331,68 @@ export class RunBuildModule implements IModule {
       entry ? 'Zornux compiler not available to run.' : 'Open a .zx file or add src/main.zx to run.',
       'error',
     );
+  }
+
+  /* ----- Mobile (Android) ----- */
+
+  /** Build a mobile project via `zornux mobile build android`, streamed through the task service. */
+  private async mobileBuild(info: WorkspaceInfo): Promise<void> {
+    const compiler = this.context.services.tryGet<CompilerService>(ServiceKeys.Compiler);
+    const compilerInfo = compiler ? await compiler.info() : null;
+    const compilerPath = compilerInfo?.available && compilerInfo.path ? compilerInfo.path : 'zornux';
+
+    const command = `"${compilerPath}" mobile build android`;
+    await this.streamTask('mobile-build', command, info.root, `> zornux mobile build android`);
+  }
+
+  /**
+   * Run a mobile project via `zornux mobile run android --device <selected>`.
+   * Uses the persistent run process managed by MobileService for log streaming.
+   */
+  private async mobileRun(info: WorkspaceInfo): Promise<void> {
+    const status = await window.znxstudio.mobile.status();
+    if (status.running) {
+      this.context.layout.showToast('Mobile app is already running. Stop it first.', 'info');
+      return;
+    }
+
+    // Discover devices and pick the first available, or prompt for selection.
+    const devices = await window.znxstudio.mobile.devices();
+    const available = devices.filter((d) => d.status === 'device');
+    if (available.length === 0) {
+      this.context.layout.showToast('No connected Android devices found. Connect a device or start an emulator.', 'error');
+      return;
+    }
+
+    let targetId = available[0].id;
+    if (available.length > 1) {
+      const quickPick = this.context.services.tryGet<QuickPickService>(ServiceKeys.QuickPick);
+      if (quickPick) {
+        const selected = await quickPick.pick(
+          available.map((d) => ({
+            label: `${d.name} (${d.type})`,
+            description: d.id,
+            value: d.id,
+          })),
+          { placeholder: 'Select a device to run on' },
+        );
+        if (!selected) return;
+        targetId = selected;
+      }
+    }
+
+    const output = this.output();
+    output?.clear();
+    output?.show();
+    output?.appendLine(`> zornux mobile run android --device ${targetId}`);
+    this.status()?.setItem('runbuild.status', { text: '▶ mobile…', side: 'right', priority: 30 });
+
+    try {
+      await window.znxstudio.mobile.runStart(targetId, info.root);
+    } catch (error) {
+      output?.appendLine(`Failed to start mobile run: ${(error as Error).message}`);
+      this.status()?.setItem('runbuild.status', { text: '✗ mobile error', side: 'right', priority: 30, autoHideMs: 4000 });
+    }
   }
 
   /* ----- generic manifest script (fallback + palette "Run Script") ----- */
@@ -394,7 +468,8 @@ export class RunBuildModule implements IModule {
       return active;
     }
     const targetsZornux =
-      info.detectedType === 'zornux-api' || info.detectedType === 'zornux-zoijs-fullstack';
+      info.detectedType === 'zornux-api' || info.detectedType === 'zornux-zoijs-fullstack' ||
+      info.detectedType === 'zornux-mobile';
     if (targetsZornux) return `${info.root.replace(/[\\/]+$/, '')}/src/main.zx`;
     return null;
   }

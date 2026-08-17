@@ -10,6 +10,7 @@ import { joinPath } from '../explorer/paths';
 
 const TYPE_LABEL: Record<WorkspaceType, string> = {
   'zornux-api': 'Zornux API',
+  'zornux-mobile': 'Zornux Mobile',
   'zoijs-frontend': 'Zoijs Frontend',
   'zornux-zoijs-fullstack': 'Zornux + Zoijs',
   generic: 'Generic',
@@ -17,6 +18,7 @@ const TYPE_LABEL: Record<WorkspaceType, string> = {
 
 const TYPE_ICON: Record<WorkspaceType, string> = {
   'zornux-api': 'Z',
+  'zornux-mobile': 'M',
   'zoijs-frontend': 'UI',
   'zornux-zoijs-fullstack': '◇',
   generic: '▧',

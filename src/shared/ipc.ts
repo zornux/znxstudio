@@ -156,6 +156,17 @@ export const IpcChannels = {
   TrustRestricted: 'trust:restricted',
   TrustChanged: 'trust:changed',
 
+  // Mobile development (Android)
+  MobileDeviceList: 'mobile:devices',
+  MobileDeviceSelect: 'mobile:select-device',
+  MobileEmulatorList: 'mobile:emulators',
+  MobileEmulatorStart: 'mobile:start-emulator',
+  MobileDoctor: 'mobile:doctor',
+  MobileLogs: 'mobile:logs',
+  MobileRunStart: 'mobile:run-start',
+  MobileRunStop: 'mobile:run-stop',
+  MobileRunStatus: 'mobile:run-status',
+
   // Language server (LSP)
   LspStart: 'lsp:start',
   LspRequest: 'lsp:request',

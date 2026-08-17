@@ -18,6 +18,7 @@ import { examplePath } from '../core/selftestFixtures';
 
 const TYPE_LABELS: Record<WorkspaceType, string> = {
   'zornux-api': 'Zornux API',
+  'zornux-mobile': 'Zornux Mobile',
   'zoijs-frontend': 'Zoijs Frontend',
   'zornux-zoijs-fullstack': 'Zornux + Zoijs',
   generic: 'Generic',

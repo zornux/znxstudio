@@ -13,6 +13,7 @@ import type {
   CollabPeerJoinedEvent,
   CollabPeerLeftEvent,
   CollabClosedEvent,
+  MobileLogEvent,
   Unsubscribe,
   ZnxStudioApi,
 } from '../shared/types';
@@ -229,6 +230,17 @@ const api: ZnxStudioApi = {
     stop: () => ipcRenderer.invoke(IpcChannels.LspStop),
     onDiagnostics: (callback) => subscribe<LspDiagnosticsMessage>(IpcChannels.LspDiagnostics, callback),
     onClosed: (callback) => subscribe<LspClosedMessage>(IpcChannels.LspClosed, callback),
+  },
+  mobile: {
+    devices: () => ipcRenderer.invoke(IpcChannels.MobileDeviceList),
+    selectDevice: (id) => ipcRenderer.invoke(IpcChannels.MobileDeviceSelect, id),
+    emulators: () => ipcRenderer.invoke(IpcChannels.MobileEmulatorList),
+    startEmulator: (name) => ipcRenderer.invoke(IpcChannels.MobileEmulatorStart, name),
+    doctor: (platform) => ipcRenderer.invoke(IpcChannels.MobileDoctor, platform),
+    runStart: (deviceId, workspaceRoot) => ipcRenderer.invoke(IpcChannels.MobileRunStart, deviceId, workspaceRoot),
+    runStop: () => ipcRenderer.invoke(IpcChannels.MobileRunStop),
+    status: () => ipcRenderer.invoke(IpcChannels.MobileRunStatus),
+    onLogs: (callback) => subscribe<MobileLogEvent>(IpcChannels.MobileLogs, callback),
   },
 };
 

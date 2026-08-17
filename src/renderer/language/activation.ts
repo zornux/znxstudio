@@ -8,6 +8,7 @@ import type { WorkspaceInfo, WorkspaceType } from '../../shared/types';
  */
 const LANGUAGES_BY_TYPE: Record<WorkspaceType, string[]> = {
   'zornux-api': ['zornux'],
+  'zornux-mobile': ['zornux'],
   'zoijs-frontend': ['javascript', 'typescript', 'css', 'html'],
   'zornux-zoijs-fullstack': ['zornux', 'javascript', 'typescript', 'css', 'html'],
   generic: [],

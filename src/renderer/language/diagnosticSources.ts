@@ -25,4 +25,6 @@ export const DiagnosticSources = {
   ZornuxSecurity: 'zornux-security',
   /** Zoijs framework-intelligence diagnostics for .js/.ts files (Phase 6A). */
   Zoijs: 'zoijs',
+  /** Mobile build diagnostics from `zornux mobile build android`. */
+  ZornuxMobileBuild: 'zornux-mobile-build',
 } as const;

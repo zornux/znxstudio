@@ -19,6 +19,7 @@ import { registerTerminalIpc } from './terminalIpc';
 import { registerTrustIpc } from './trustIpc';
 import { registerUpdateIpc } from './updateIpc';
 import { registerMarketplaceIpc } from './marketplaceIpc';
+import { registerMobileIpc } from './mobileIpc';
 
 /**
  * Wires every privileged endpoint the renderer can reach. Each domain lives in
@@ -49,4 +50,5 @@ export function registerIpcHandlers(): void {
   registerWindowIpc();
   registerUpdateIpc();
   registerMarketplaceIpc();
+  registerMobileIpc();
 }

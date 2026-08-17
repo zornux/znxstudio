@@ -250,6 +250,11 @@ export const CommandIds = {
   ExplorerOpenInTerminal: 'znxstudio.explorer.openInTerminal',
   ExplorerRefresh: 'znxstudio.explorer.refresh',
   TerminalNewAt: 'znxstudio.terminal.newAt',
+  MobileShow: 'znxstudio.mobile.show',
+  MobileDoctor: 'znxstudio.mobile.doctor',
+  MobileRunStart: 'znxstudio.mobile.runStart',
+  MobileRunStop: 'znxstudio.mobile.runStop',
+  MobileRefreshDevices: 'znxstudio.mobile.refreshDevices',
 } as const;
 
 export type CommandId = (typeof CommandIds)[keyof typeof CommandIds];
