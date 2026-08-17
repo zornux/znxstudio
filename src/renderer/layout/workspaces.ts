@@ -78,9 +78,11 @@ export const WORKSPACES: WorkspaceDef[] = [
     ],
   },
   {
-    id: 'ai', label: 'AI', activity: 'ai-chat', panels: ['ai-review', 'ai-testgen', 'ai-docs', 'ai-architecture', 'ai-debug'], focus: 'ai-review',
+    id: 'ai', label: 'AI', activity: 'ai-chat', panels: ['ai-review', 'ai-testgen', 'ai-docs', 'ai-architecture', 'ai-debug', 'ai-inline'], focus: 'ai-review',
     toolbar: [
       { icon: '◇', label: 'Chat', command: CommandIds.AiChatShow },
+      { icon: '⚡', label: 'Agent', command: CommandIds.AiAgentStart },
+      { icon: '🔧', label: 'Fix', command: CommandIds.AiFixError },
       { icon: '❓', label: 'Explain', command: CommandIds.AiExplainError },
       { icon: '⌕', label: 'Review', command: CommandIds.AiReview },
       { icon: 'T', label: 'Generate Tests', command: CommandIds.AiTestGen },

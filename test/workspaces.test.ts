@@ -7,7 +7,7 @@ const PANEL_IDS = new Set([
   'continuous', 'testperf', 'mocking', 'query', 'data', 'migrations', 'orm', 'security-dashboard',
   'security-scan', 'security-secrets', 'security-dependencies', 'security-rules', 'cpu-profiler',
   'memory-profiler', 'perf-timeline', 'perf-hotspots', 'perf-allocations', 'profiler', 'ai-review',
-  'ai-testgen', 'ai-docs', 'ai-architecture', 'ai-debug', 'remote-envs', 'apidocs', 'samples', 'tutorial',
+  'ai-testgen', 'ai-docs', 'ai-architecture', 'ai-debug', 'ai-inline', 'remote-envs', 'apidocs', 'samples', 'tutorial',
   'exercises', 'dependencies', 'history', 'pull-requests', 'tasks', 'metrics', 'health', 'todo', 'preview',
   'fullstack',
 ]);
@@ -63,6 +63,6 @@ describe('workspaces (SB-4)', () => {
       }
     }
     // AI workspace matches the spec's action set.
-    expect(workspaceById('ai')?.toolbar?.map((a) => a.label)).toEqual(['Chat', 'Explain', 'Review', 'Generate Tests', 'Refactor']);
+    expect(workspaceById('ai')?.toolbar?.map((a) => a.label)).toEqual(['Chat', 'Agent', 'Fix', 'Explain', 'Review', 'Generate Tests', 'Refactor']);
   });
 });

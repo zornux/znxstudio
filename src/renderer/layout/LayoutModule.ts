@@ -524,6 +524,13 @@ export class LayoutModule implements IModule, LayoutService {
     return [
       m('Ask Znx', CommandIds.AiChatShow),
       m('New Chat', CommandIds.AiChatClear),
+      m('Start Agent', CommandIds.AiAgentStart),
+      { separator: true },
+      m('Fix Error', CommandIds.AiFixError),
+      m('Explain Selection', CommandIds.AiInlineExplain),
+      m('Rewrite Selection', CommandIds.AiInlineRewrite),
+      m('Simplify Selection', CommandIds.AiInlineSimplify),
+      m('Generate Code', CommandIds.AiInlineGenerate),
       { separator: true },
       m('Review Code', CommandIds.AiReview),
       m('Debug with AI', CommandIds.AiExplainError),

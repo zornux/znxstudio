@@ -276,6 +276,10 @@ const api: ZnxStudioApi = {
     sdkInstall: (component) => ipcRenderer.invoke(IpcChannels.AndroidToolchainSdkInstall, component),
     update: () => ipcRenderer.invoke(IpcChannels.AndroidToolchainUpdate),
   },
+  agentExec: {
+    run: (request) => ipcRenderer.invoke(IpcChannels.AgentExec, request),
+    cancel: (execId) => ipcRenderer.send(IpcChannels.AgentExecCancel, { execId }),
+  },
 };
 
 contextBridge.exposeInMainWorld('znxstudio', api);

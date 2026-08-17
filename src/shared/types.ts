@@ -1162,4 +1162,10 @@ export interface ZnxStudioApi {
     sdkInstall(component: string): Promise<void>;
     update(): Promise<void>;
   };
+
+  /** Sandboxed command execution for the AI agent (Phase 10L). */
+  agentExec: {
+    run(request: import('./ai/agentExec').AgentExecRequest): Promise<import('./ai/agentExec').AgentExecResult>;
+    cancel(execId: string): void;
+  };
 }

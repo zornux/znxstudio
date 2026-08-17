@@ -83,6 +83,10 @@ export const IpcChannels = {
   // AI (vendor-neutral provider layer, Phase 10)
   AiComplete: 'ai:complete',
   AiProbe: 'ai:probe',
+  // Agent execution (Phase 10L): sandboxed command execution for AI agent.
+  AgentExec: 'agent:exec',
+  AgentExecCancel: 'agent:exec-cancel',
+
   // Streaming (Phase 10, modernization): event-based, not invoke.
   AiStreamStart: 'ai:stream-start',
   AiStreamCancel: 'ai:stream-cancel',

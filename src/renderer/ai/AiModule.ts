@@ -26,6 +26,7 @@ import {
   type AiProviderId,
 } from '../../shared/ai/providers';
 import { renderAiSettings } from './AiSettingsView';
+import { ContextStore } from './context';
 
 /**
  * The vendor-neutral AI facade (Phase 10A). Owns provider configuration (read
@@ -50,6 +51,7 @@ export class AiModule implements IModule, AiService {
     this.status = context.services.tryGet<StatusService>(ServiceKeys.Status);
 
     context.services.register(ServiceKeys.Ai, this);
+    context.services.register(ServiceKeys.AiContext, new ContextStore());
     context.commands.register(CommandIds.AiConfigure, () => this.openSettings(), 'AI: Configure Provider');
 
     const editor = context.services.tryGet<EditorService>(ServiceKeys.Editor);
@@ -61,6 +63,7 @@ export class AiModule implements IModule, AiService {
       CommandIds.AiDocFile,
       CommandIds.AiTestGen,
       CommandIds.AiExplainError,
+      CommandIds.AiFixError,
     ]);
     context.commands.addEnablementRule((id) => {
       if (fileCommands.has(id)) return this.isEnabled() && (editor?.currentFile() ?? null) !== null;

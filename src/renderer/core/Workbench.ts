@@ -36,6 +36,9 @@ import { DocsModule } from '../ai/DocsModule';
 import { TestGenModule } from '../ai/TestGenModule';
 import { DebugAssistModule } from '../ai/DebugAssistModule';
 import { ArchitectureModule } from '../ai/ArchitectureModule';
+import { FixAssistModule } from '../ai/FixAssistModule';
+import { InlineAiModule } from '../ai/InlineAiModule';
+import { AgentModule } from '../ai/AgentModule';
 import { ExtensionsModule } from '../extensions/ExtensionsModule';
 import { ExtensionsManagerModule } from '../extensions/ExtensionsManagerModule';
 import { SourceControlModule } from '../scm/SourceControlModule';
@@ -203,6 +206,9 @@ export class Workbench {
       new TestGenModule(),
       new DebugAssistModule(),
       new ArchitectureModule(),
+      new FixAssistModule(),
+      new InlineAiModule(),
+      new AgentModule(),
       new ExtensionsModule(),
       new ExtensionsManagerModule(),
       new SourceControlModule(),

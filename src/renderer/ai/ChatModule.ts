@@ -9,6 +9,13 @@ import { CommandIds } from '../commands/CommandIds';
 import type { AiCompletionResult, AiMessage } from '../../shared/ai/providers';
 import { ChatSession, composeSystemPrompt } from './chatSession';
 import { renderAiMarkdown } from './aiMarkdown';
+import {
+  ContextStore,
+  fileContextItem,
+  scanDeclarations,
+  formatProjectMap,
+  type DeclarationSummary,
+} from './context';
 
 /**
  * AI Chat (Phase 10A). A conversational assistant in the sidebar, grounded in
@@ -25,6 +32,7 @@ export class ChatModule implements IModule {
   private ai!: AiService;
   private editor: EditorService | undefined;
   private readonly session = new ChatSession();
+  private contextStore!: ContextStore;
   private root!: HTMLElement;
   private log!: HTMLElement;
   private input!: HTMLTextAreaElement;
@@ -38,6 +46,7 @@ export class ChatModule implements IModule {
     this.context = context;
     this.ai = context.services.get<AiService>(ServiceKeys.Ai);
     this.editor = context.services.tryGet<EditorService>(ServiceKeys.Editor);
+    this.contextStore = context.services.tryGet<ContextStore>(ServiceKeys.AiContext) ?? new ContextStore();
 
     this.root = document.createElement('div');
     this.root.className = 'znxstudio-chat';
@@ -141,6 +150,30 @@ export class ChatModule implements IModule {
     this.sendButton.className = 'znxstudio-btn';
     this.sendButton.addEventListener('click', () => (this.busy ? this.stop() : void this.send()));
     this.updateSendButton();
+
+    // Context items section
+    const pinned = this.contextStore.pinned();
+    if (pinned.length > 0) {
+      const ctxList = document.createElement('div');
+      ctxList.className = 'znxstudio-chat-context-list';
+      for (const item of pinned) {
+        const chip = document.createElement('span');
+        chip.className = 'znxstudio-chat-context-chip';
+        chip.textContent = item.label;
+        chip.title = `${item.kind}: ${item.label} (${item.chars} chars)`;
+        const remove = document.createElement('button');
+        remove.className = 'znxstudio-chat-context-remove';
+        remove.textContent = '×';
+        remove.title = 'Remove from context';
+        remove.addEventListener('click', () => {
+          this.contextStore.remove(item.id);
+          this.render();
+        });
+        chip.appendChild(remove);
+        ctxList.appendChild(chip);
+      }
+      composer.appendChild(ctxList);
+    }
 
     composer.append(ctx, this.input, this.sendButton);
     this.root.appendChild(composer);
@@ -260,9 +293,11 @@ export class ChatModule implements IModule {
     this.busy = true;
     this.updateSendButton();
 
+    const contextBlock = this.contextStore.totalChars() > 0 ? this.contextStore.assemble() : null;
     const system = composeSystemPrompt({
       activeFile: this.includeFile ? this.editor?.currentFile() ?? null : null,
       code: this.includeFile ? this.editor?.activeText() ?? null : null,
+      additionalContext: contextBlock,
     });
 
     // Stream the reply: show plain text token-by-token, then swap in the rendered

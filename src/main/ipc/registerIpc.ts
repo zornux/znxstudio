@@ -1,3 +1,4 @@
+import { registerAgentExecIpc } from './agentExecIpc';
 import { registerAiIpc } from './aiIpc';
 import { registerCollabIpc } from './collabIpc';
 import { registerWindowIpc } from './windowIpc';
@@ -44,6 +45,7 @@ export function registerIpcHandlers(): void {
   registerPreviewIpc();
   registerSearchIpc();
   registerAiIpc();
+  registerAgentExecIpc();
   registerGitIpc();
   registerToolIpc();
   registerCollabIpc();

@@ -44,6 +44,10 @@ export interface ChatContext {
   activeFile?: string | null;
   /** Active file's source, included only when the user opts in. */
   code?: string | null;
+  /** Additional context assembled from the context store. */
+  additionalContext?: string | null;
+  /** Project structure map. */
+  projectMap?: string | null;
 }
 
 /**
@@ -57,10 +61,16 @@ export function composeSystemPrompt(context: ChatContext = {}): string {
     'Be concise and practical. When you show Zornux code, keep it idiomatic (English-readable keywords, column-0 `end`).',
     'If you are unsure about a Zornux detail, say so rather than inventing syntax.',
   ];
+  if (context.projectMap) {
+    lines.push('', 'Project structure:', context.projectMap);
+  }
   if (context.activeFile && context.code && context.code.trim()) {
     lines.push('', `The user is currently editing \`${context.activeFile}\`. Its contents:`, '```', truncateForContext(context.code), '```');
   } else if (context.activeFile) {
     lines.push('', `The user is currently editing \`${context.activeFile}\` (contents not shared).`);
+  }
+  if (context.additionalContext) {
+    lines.push('', 'Additional context:', context.additionalContext);
   }
   return lines.join('\n');
 }

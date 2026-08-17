@@ -101,6 +101,7 @@ export const ServiceKeys = {
   QuickPick: 'znxstudio.service.quickPick',
   InputBox: 'znxstudio.service.inputBox',
   Terminal: 'znxstudio.service.terminal',
+  AiContext: 'znxstudio.service.aiContext',
 } as const;
 
 /** A program to run in a new integrated-terminal tab. */
