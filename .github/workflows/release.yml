@@ -81,7 +81,7 @@ jobs:
           fi
 
           # Clean slate: delete any leftover draft release (idempotent).
-          gh release delete "$tag" --repo "$repo" --yes --cleanup-tag=false 2>/dev/null || true
+          gh release delete "$tag" --repo "$repo" --yes 2>/dev/null || true
 
           # Create a fresh draft release.
           gh release create "$tag" --repo "$repo" --title "$tag" --generate-notes --draft
@@ -123,9 +123,15 @@ jobs:
           TRUSTED_SIGNING_ENDPOINT: ${{ secrets.TRUSTED_SIGNING_ENDPOINT }}
           TRUSTED_SIGNING_ACCOUNT: ${{ secrets.TRUSTED_SIGNING_ACCOUNT }}
           TRUSTED_SIGNING_PROFILE: ${{ secrets.TRUSTED_SIGNING_PROFILE }}
-      - name: Generate checksums
+      - name: Generate and upload checksums
+        if: needs.validate.outputs.publish == 'true'
         shell: bash
-        run: cd release && sha256sum *.exe > SHA256SUMS.txt
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          cd release
+          sha256sum *.exe > SHA256SUMS-windows.txt
+          gh release upload "$GITHUB_REF_NAME" SHA256SUMS-windows.txt --clobber --repo "$GITHUB_REPOSITORY"
       - uses: actions/upload-artifact@v6
         with:
           name: znxstudio-windows
@@ -133,7 +139,7 @@ jobs:
             release/*.exe
             release/*.blockmap
             release/*.yml
-            release/SHA256SUMS.txt
+            release/SHA256SUMS-windows.txt
           if-no-files-found: error
 
   linux:
@@ -176,8 +182,9 @@ jobs:
         run: npx electron-builder --linux --publish "${{ needs.validate.outputs.publish == 'true' && 'always' || 'never' }}" --config electron-builder.yml -c.publish.releaseType=${{ needs.validate.outputs.release_type }} -c.publish.channel=${{ needs.validate.outputs.update_channel }}
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-      - name: Checksums and signature
+      - name: Checksums, signature, and upload
         env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           GPG_PASSPHRASE: ${{ secrets.GPG_PASSPHRASE }}
           GPG_KEY_ID: ${{ secrets.GPG_KEY_ID }}
         run: |
@@ -188,6 +195,7 @@ jobs:
             printf '%s' "$GPG_PASSPHRASE" | gpg --batch --yes --pinentry-mode loopback --passphrase-fd 0 --local-user "$KEY" --armor --detach-sign --output SHA256SUMS.txt.asc SHA256SUMS.txt
             gpg --armor --export "$KEY" > znxstudio-signing-public.asc
             gpg --verify SHA256SUMS.txt.asc SHA256SUMS.txt
+            gh release upload "$GITHUB_REF_NAME" SHA256SUMS.txt SHA256SUMS.txt.asc znxstudio-signing-public.asc --clobber --repo "$GITHUB_REPOSITORY"
           fi
       - uses: actions/upload-artifact@v6
         with:
@@ -209,25 +217,17 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
-      - uses: actions/download-artifact@v7
-        with: { path: artifacts }
-      - name: Attach signed manifests to the existing release
+      - name: Publish the draft release
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          uploaded=0
-          while IFS= read -r -d '' file; do
-            for attempt in 1 2 3; do
-              if gh release upload "$GITHUB_REF_NAME" "$file" --clobber --repo "$GITHUB_REPOSITORY"; then
-                uploaded=$((uploaded + 1))
-                break
-              fi
-              echo "::warning::Upload attempt $attempt failed for $(basename "$file"), retrying..."
-              sleep $((attempt * 2))
-            done
-          done < <(find artifacts -type f \( -name 'SHA*SUMS.txt*' -o -name 'znxstudio-signing-public.asc' \) -print0)
-          if [ "$uploaded" -eq 0 ]; then
-            echo "::error::No manifest files were uploaded."
-            exit 1
-          fi
-          gh release edit "$GITHUB_REF_NAME" --repo "$GITHUB_REPOSITORY" --draft=false --prerelease=${{ needs.validate.outputs.prerelease }}
+          for attempt in 1 2 3 4 5; do
+            if gh release edit "$GITHUB_REF_NAME" --repo "$GITHUB_REPOSITORY" --draft=false --prerelease=${{ needs.validate.outputs.prerelease }}; then
+              echo "Release $GITHUB_REF_NAME published."
+              exit 0
+            fi
+            echo "::warning::Publish attempt $attempt failed, retrying in $((attempt * 5))s..."
+            sleep $((attempt * 5))
+          done
+          echo "::error::Failed to publish release after 5 attempts."
+          exit 1
