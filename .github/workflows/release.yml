@@ -83,8 +83,17 @@ jobs:
           # Clean slate: delete any leftover draft release (idempotent).
           gh release delete "$tag" --repo "$repo" --yes 2>/dev/null || true
 
-          # Create a fresh draft release.
-          gh release create "$tag" --repo "$repo" --title "$tag" --generate-notes --draft
+          # Create a fresh draft release (retry on transient API errors).
+          for attempt in 1 2 3 4 5; do
+            if gh release create "$tag" --repo "$repo" --title "$tag" --generate-notes --draft; then
+              echo "Draft release created."
+              exit 0
+            fi
+            echo "::warning::Create attempt $attempt failed, retrying in $((attempt * 5))s..."
+            sleep $((attempt * 5))
+          done
+          echo "::error::Failed to create draft release after 5 attempts."
+          exit 1
 
   windows:
     name: package (windows)
