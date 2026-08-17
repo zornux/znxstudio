@@ -9456,7 +9456,6 @@ a:focus-visible {
 .zd-screen-tab {
   padding: 4px 12px;
   border: 1px solid var(--z-border);
-  border-radius: 4px 4px 0 0;
   background: var(--z-bg-panel);
   color: var(--z-fg-muted);
   cursor: pointer;
@@ -9490,7 +9489,6 @@ a:focus-visible {
   background: var(--z-bg-input);
   color: var(--z-fg);
   border: 1px solid var(--z-border);
-  border-radius: 4px;
   padding: 3px 6px;
   font-size: var(--z-type-small);
 }
@@ -9501,7 +9499,6 @@ a:focus-visible {
   width: 26px;
   height: 26px;
   border: 1px solid var(--z-border);
-  border-radius: 4px;
   background: var(--z-bg-input);
   color: var(--z-fg);
   cursor: pointer;
@@ -9585,7 +9582,6 @@ a:focus-visible {
 .zd-node {
   position: relative;
   border: 1px solid transparent;
-  border-radius: 4px;
   margin: 2px 0;
   transition: border-color 0.15s, box-shadow 0.15s;
   cursor: pointer;
@@ -9709,7 +9705,6 @@ a:focus-visible {
   color: var(--zd-md-on-surface-subtle);
   font-size: 10px;
   border: 1px dashed var(--zd-md-surface-border-dashed);
-  border-radius: 4px;
   padding: 2px;
 }
 
@@ -9753,7 +9748,6 @@ a:focus-visible {
 .zd-drop-indicator {
   height: 2px;
   margin: 1px 4px;
-  border-radius: 1px;
   transition: background 0.15s, height 0.15s;
 }
 .zd-drop-indicator.zd-drop-active {
@@ -9764,7 +9758,6 @@ a:focus-visible {
   padding: 16px;
   text-align: center;
   border: 2px dashed var(--z-border);
-  border-radius: 8px;
   color: var(--z-fg-muted);
   font-size: var(--z-type-small);
   margin: 4px;
@@ -9780,7 +9773,6 @@ a:focus-visible {
   justify-content: center;
   min-height: 120px;
   border: 2px dashed var(--z-border);
-  border-radius: 12px;
   color: var(--zd-md-on-surface-subtle);
   font-size: 13px;
   margin: 16px;
@@ -9797,7 +9789,6 @@ a:focus-visible {
   z-index: 10000;
   pointer-events: none;
   padding: 4px 10px;
-  border-radius: 6px;
   background: var(--z-accent);
   color: var(--z-accent-fg);
   font-size: var(--z-type-small);
@@ -9813,7 +9804,6 @@ a:focus-visible {
   width: 100%;
   padding: 5px 8px;
   border: 1px solid var(--z-border);
-  border-radius: 4px;
   background: var(--z-bg-input);
   color: var(--z-fg);
   font-size: var(--z-type-small);
@@ -9852,7 +9842,6 @@ a:focus-visible {
   padding: 5px 12px 5px 20px;
   cursor: grab;
   user-select: none;
-  border-radius: 4px;
   margin: 1px 4px;
 }
 .zd-toolbox-item:hover { background: var(--z-hover); }
@@ -9893,7 +9882,6 @@ a:focus-visible {
   gap: 4px;
   padding: 3px 8px;
   cursor: pointer;
-  border-radius: 4px;
   margin: 1px 4px;
   font-size: var(--z-type-small);
 }
@@ -9979,7 +9967,6 @@ a:focus-visible {
   width: 100%;
   padding: 3px 6px;
   border: 1px solid var(--z-border);
-  border-radius: 3px;
   background: var(--z-bg-input);
   color: var(--z-fg);
   font-size: var(--z-type-small);
@@ -10008,7 +9995,6 @@ a:focus-visible {
   width: 100%;
   padding: 4px 6px;
   border: 1px solid var(--z-border);
-  border-radius: 3px;
   background: var(--z-bg-input);
   color: var(--z-fg);
   font-size: var(--z-type-small);
@@ -10022,7 +10008,6 @@ a:focus-visible {
   margin-top: 4px;
   padding: 2px 8px;
   border: 1px solid var(--z-border);
-  border-radius: 3px;
   background: var(--z-bg-input);
   color: var(--z-fg-muted);
   font-size: var(--z-type-caption);
@@ -10040,7 +10025,6 @@ a:focus-visible {
   min-width: 160px;
   padding: 4px;
   border: 1px solid var(--z-border);
-  border-radius: 6px;
   background: var(--z-bg-elevated);
   box-shadow: 0 4px 16px rgba(0, 0, 0, 0.3);
   font-family: var(--z-font-ui);
@@ -10051,7 +10035,6 @@ a:focus-visible {
   width: 100%;
   padding: 5px 10px;
   border: none;
-  border-radius: 4px;
   background: none;
   color: var(--z-fg);
   font-size: var(--z-type-small);
@@ -10078,7 +10061,6 @@ a:focus-visible {
   width: 28px;
   height: 28px;
   border: 1px solid var(--z-border);
-  border-radius: 4px;
   background: var(--z-bg-input);
   color: var(--z-fg);
   cursor: pointer;
@@ -10105,7 +10087,6 @@ a:focus-visible {
   margin-top: 4px;
   padding: 4px 0;
   border: 1px dashed var(--z-border);
-  border-radius: 4px;
   background: none;
   color: var(--z-fg-muted);
   font-size: var(--z-type-caption);

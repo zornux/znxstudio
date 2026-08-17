@@ -46,6 +46,7 @@ export class DesignerModule implements IModule {
   private clipboard: ReturnType<DesignerDocument['cloneNode']>[] = [];
   private syncPaused = false;
   private activityRegistered = false;
+  private detachObserver: (() => void) | null = null;
 
   activate(context: ModuleContext): void {
     this.context = context;
@@ -61,7 +62,7 @@ export class DesignerModule implements IModule {
     context.commands.register(CommandIds.DesignerDuplicate, () => this.duplicateSelected(), 'Designer: Duplicate');
     context.commands.register(CommandIds.DesignerSelectAll, () => this.canvas.selectAll(), 'Designer: Select All');
     context.commands.register(CommandIds.DesignerAddScreen, () => this.addScreen(), 'Designer: Add Screen');
-    context.commands.register(CommandIds.DesignerToggleSource, () => this.toggleSourceView(), 'Designer: Toggle Source');
+    context.commands.register(CommandIds.DesignerToggleSource, () => this.toggleDesigner(), 'Designer: Toggle Source');
 
     // Enablement: designer commands only for mobile workspaces.
     const designerCommands = [
@@ -239,7 +240,7 @@ export class DesignerModule implements IModule {
         id: 'znxstudio.designer',
         label: 'Designer',
         icon: '🎨',
-        onSelect: () => this.openDesigner(),
+        onSelect: () => this.toggleDesigner(),
         pinByDefault: true,
       });
       this.activityRegistered = true;
@@ -250,7 +251,15 @@ export class DesignerModule implements IModule {
     }
   }
 
-  // ---- Open / Close ----
+  // ---- Open / Close / Toggle ----
+
+  private toggleDesigner(): void {
+    if (this.visible) {
+      this.closeDesigner();
+    } else {
+      this.openDesigner();
+    }
+  }
 
   private openDesigner(): void {
     if (this.visible) return;
@@ -314,6 +323,9 @@ export class DesignerModule implements IModule {
     editor.showView(this.designerRoot);
     this.visible = true;
 
+    // Detect external dismissal (Esc / ✕ button removes our root from the DOM).
+    this.observeDetach();
+
     // Sidebar: show toolbox
     this.context.layout.setSideBar('Designer', this.buildSideBarContent());
 
@@ -332,6 +344,9 @@ export class DesignerModule implements IModule {
   private closeDesigner(): void {
     if (!this.visible) return;
 
+    this.detachObserver?.();
+    this.detachObserver = null;
+
     const editor = this.context.services.tryGet<EditorService>(ServiceKeys.Editor);
     if (editor) editor.hideView();
 
@@ -339,12 +354,19 @@ export class DesignerModule implements IModule {
     this.designerRoot = null;
   }
 
-  private toggleSourceView(): void {
-    if (this.visible) {
-      this.closeDesigner();
-    } else {
-      this.openDesigner();
-    }
+  private observeDetach(): void {
+    if (!this.designerRoot) return;
+    const root = this.designerRoot;
+    const observer = new MutationObserver(() => {
+      if (!root.isConnected) {
+        this.detachObserver?.();
+        this.detachObserver = null;
+        this.visible = false;
+        this.designerRoot = null;
+      }
+    });
+    observer.observe(document.body, { childList: true, subtree: true });
+    this.detachObserver = () => observer.disconnect();
   }
 
   // ---- Sidebar ----
