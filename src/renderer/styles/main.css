@@ -10326,7 +10326,17 @@ a:focus-visible {
   font-weight: 500;
   cursor: default;
 }
+.zd-node-button .zd-component-preview,
+.zd-node-input .zd-component-preview,
+.zd-node-slider .zd-component-preview,
+.zd-node-navbar .zd-component-preview,
+.zd-node-fab .zd-component-preview,
+.zd-node-list .zd-component-preview { display: flex; align-self: stretch; }
 .zd-node-button .zd-preview-button { width: 100%; box-sizing: border-box; }
+.zd-node-input .zd-preview-input { width: 100%; box-sizing: border-box; }
+.zd-node-navbar .zd-preview-navbar { width: 100%; box-sizing: border-box; }
+.zd-node-fab .zd-preview-fab { box-sizing: border-box; }
+.zd-node-list .zd-preview-list { width: 100%; }
 .zd-preview-button-primary { background: var(--zd-md-primary); color: var(--zd-md-on-primary); }
 .zd-preview-button-secondary { background: var(--zd-md-secondary-container); color: var(--zd-md-on-secondary-container); }
 .zd-preview-button-outline { border: 1px solid var(--zd-md-outline); color: var(--zd-md-primary); background: transparent; }

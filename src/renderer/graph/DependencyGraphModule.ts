@@ -7,6 +7,7 @@ import {
   type EditorService,
   type SettingsService,
   type StatusService,
+  type TrustService,
   type WorkspaceService,
 } from '../core/Contracts';
 import type { IModule, ModuleContext } from '../core/Module';
@@ -38,6 +39,7 @@ export class DependencyGraphModule implements IModule, DependencyGraphService {
   private context!: ModuleContext;
   private surface!: HTMLElement;
   private compiler: CompilerService | undefined;
+  private trust: TrustService | undefined;
   private current: DependencyGraphSnapshot | null = null;
   private lastCheckedHash: string | null = null;
   private lastDiagnosticUris: string[] = [];
@@ -48,6 +50,7 @@ export class DependencyGraphModule implements IModule, DependencyGraphService {
   async activate(context: ModuleContext): Promise<void> {
     this.context = context;
     this.compiler = context.services.tryGet<CompilerService>(ServiceKeys.Compiler);
+    this.trust = context.services.tryGet<TrustService>(ServiceKeys.Trust);
 
     this.surface = document.createElement('div');
     this.surface.className = 'znxstudio-deps';
@@ -69,6 +72,12 @@ export class DependencyGraphModule implements IModule, DependencyGraphService {
 
     const workspace = context.services.tryGet<WorkspaceService>(ServiceKeys.Workspace);
     workspace?.onDidChangeWorkspace(() => this.schedule(true, 0));
+
+    if (this.trust) {
+      context.subscriptions.push(this.trust.onDidChange((state) => {
+        if (state.trusted && this.workspaceInfo() && !this.current) this.schedule(true, 0);
+      }));
+    }
 
     // Rebuild the graph + re-check the project when a Zornux file is saved.
     const documents = context.services.tryGet<DocumentManager>(LanguageServiceKeys.Documents);
@@ -105,6 +114,12 @@ export class DependencyGraphModule implements IModule, DependencyGraphService {
       this.renderEmpty('No workspace open.');
       this.removeStatus();
       this.context.commands.notifyEnablementChanged();
+      return;
+    }
+
+    if (this.trust && !this.trust.isTrusted()) {
+      this.renderEmpty('Workspace is not trusted.');
+      this.removeStatus();
       return;
     }
 

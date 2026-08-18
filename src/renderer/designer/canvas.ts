@@ -295,6 +295,8 @@ export class DesignCanvas {
         const contentColor = previewColor(node.properties.contentColor);
         if (containerColor) btn.style.backgroundColor = containerColor;
         if (contentColor) btn.style.color = contentColor;
+        const cr = node.properties.cornerRadius;
+        if (cr !== undefined) btn.style.borderRadius = `${Math.max(0, Number(cr))}px`;
         preview.appendChild(btn);
         break;
       }
@@ -307,6 +309,7 @@ export class DesignCanvas {
         if (node.properties.inputType === 'multiline') inp.style.minHeight = '64px';
         if (node.properties.isError === true) inp.classList.add('is-error');
         if (node.properties.readOnly === true) inp.classList.add('is-readonly');
+        if (node.properties.cornerRadius !== undefined) inp.style.borderRadius = `${Math.max(0, Number(node.properties.cornerRadius))}px`;
         preview.appendChild(inp);
         if (node.properties.supportingText) {
           const supporting = document.createElement('small');
@@ -351,7 +354,7 @@ export class DesignCanvas {
         const imageHeight = previewSize(node.properties.height);
         if (imageHeight) img.style.height = imageHeight;
         img.style.objectFit = String(node.properties.fit ?? 'contain') as CSSStyleDeclaration['objectFit'];
-        img.style.borderRadius = `${Number(node.properties.cornerRadius) || 0}px`;
+        if (node.properties.cornerRadius !== undefined) img.style.borderRadius = `${Math.max(0, Number(node.properties.cornerRadius))}px`;
         const tint = previewColor(node.properties.tintColor);
         if (tint) img.style.color = tint;
         preview.appendChild(img);
@@ -367,7 +370,7 @@ export class DesignCanvas {
       case 'card': {
         preview.classList.add('zd-preview-card');
         preview.textContent = 'Card';
-        preview.style.borderRadius = `${Math.max(0, Number(node.properties.cornerRadius) || 0)}px`;
+        if (node.properties.cornerRadius !== undefined) preview.style.borderRadius = `${Math.max(0, Number(node.properties.cornerRadius))}px`;
         preview.style.boxShadow = `0 ${Math.max(1, Number(node.properties.elevation) || 0)}px ${Math.max(2, Number(node.properties.elevation) || 0) * 2}px rgba(0,0,0,.18)`;
         break;
       }
@@ -436,6 +439,7 @@ export class DesignCanvas {
       case 'dropdown': {
         preview.classList.add('zd-preview-control');
         preview.textContent = `${String(node.properties.label ?? 'Select')}  ▾`;
+        if (node.properties.cornerRadius !== undefined) preview.style.borderRadius = `${Math.max(0, Number(node.properties.cornerRadius))}px`;
         break;
       }
       case 'navbar': {
@@ -444,6 +448,7 @@ export class DesignCanvas {
         bar.textContent = `${node.properties.showBack === true ? '‹  ' : ''}${String(node.properties.title ?? 'Title')}`;
         if (node.properties.barStyle === 'large') bar.style.fontSize = '28px';
         if (node.properties.barStyle === 'medium') bar.style.fontSize = '22px';
+        if (node.properties.cornerRadius !== undefined) bar.style.borderRadius = `${Math.max(0, Number(node.properties.cornerRadius))}px`;
         preview.appendChild(bar);
         break;
       }
@@ -452,6 +457,7 @@ export class DesignCanvas {
         fab.className = 'zd-preview-fab';
         fab.textContent = String(node.properties.iconName ?? '+');
         fab.classList.add(`zd-preview-fab-${node.properties.fabSize ?? 'regular'}`);
+        if (node.properties.cornerRadius !== undefined) fab.style.borderRadius = `${Math.max(0, Number(node.properties.cornerRadius))}px`;
         preview.appendChild(fab);
         if (node.properties.label) preview.append(` ${String(node.properties.label)}`);
         break;
@@ -470,6 +476,7 @@ export class DesignCanvas {
         preview.classList.add('zd-preview-chip', `zd-preview-chip-${node.properties.chipStyle ?? 'filled'}`);
         preview.textContent = String(node.properties.label ?? 'Chip');
         if (node.properties.selected === true) preview.classList.add('is-selected');
+        if (node.properties.cornerRadius !== undefined) preview.style.borderRadius = `${Math.max(0, Number(node.properties.cornerRadius))}px`;
         break;
       }
       case 'badge': {
@@ -481,6 +488,7 @@ export class DesignCanvas {
         preview.classList.add('zd-preview-snackbar');
         preview.textContent = String(node.properties.message ?? 'Action completed');
         if (node.properties.action) preview.textContent += `   ${String(node.properties.action).toUpperCase()}`;
+        if (node.properties.cornerRadius !== undefined) preview.style.borderRadius = `${Math.max(0, Number(node.properties.cornerRadius))}px`;
         break;
       }
       case 'dialog': {
@@ -490,6 +498,7 @@ export class DesignCanvas {
         const actions = document.createElement('small');
         actions.textContent = `${String(node.properties.cancelLabel ?? 'Cancel')}   ${String(node.properties.confirmLabel ?? 'OK')}`;
         preview.append(title, actions);
+        if (node.properties.cornerRadius !== undefined) preview.style.borderRadius = `${Math.max(0, Number(node.properties.cornerRadius))}px`;
         break;
       }
       default: {
