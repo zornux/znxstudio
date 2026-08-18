@@ -81,6 +81,7 @@ export class ExtensionInstaller {
       version,
       sha256: `sha256:${actual}`,
       manifestHash: sha256Hex(JSON.stringify(parsed.manifest)),
+      extensionHash: sha256Hex(JSON.stringify(result.extension)),
       installedAt: new Date().toISOString(),
       enabled: true,
     };
@@ -118,6 +119,13 @@ export class ExtensionInstaller {
     const quarantined: { id: string; reason: string }[] = [];
     for (const { record, extension } of await this.store.list()) {
       if (!record.enabled) continue;
+      if (record.extensionHash) {
+        const currentHash = sha256Hex(JSON.stringify(extension));
+        if (currentHash !== record.extensionHash) {
+          quarantined.push({ id: extension.id, reason: 'On-disk extension data has been modified since installation.' });
+          continue;
+        }
+      }
       const revalidated = validateExtensionManifest(
         toManifest(extension),
         { publisherHandle: record.publisher, slug: record.slug, version: record.version },

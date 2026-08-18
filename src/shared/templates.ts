@@ -25,6 +25,8 @@ export interface ProjectTemplate {
   type: WorkspaceType;
   /** Run the real `zornux init` first for an authoritative zornux.project. */
   runZornuxInit: boolean;
+  /** Copy the ZoiJS runtime into this relative directory so the project works out-of-box. */
+  vendorZoijsDir?: string;
   /** Files written after init (may override init's src/main.zx). */
   files: TemplateFile[];
 }
@@ -32,6 +34,7 @@ export interface ProjectTemplate {
 /** A concrete, rendered scaffold (placeholders resolved). */
 export interface RenderedTemplate {
   runZornuxInit: boolean;
+  vendorZoijsDir?: string;
   files: TemplateFile[];
 }
 
@@ -120,8 +123,7 @@ const zoijsIndexHtml = (mainSrc: string): string =>
   '<!doctype html>\n<html lang="en">\n  <head>\n    <meta charset="utf-8" />\n' +
   '    <meta name="viewport" content="width=device-width, initial-scale=1" />\n' +
   '    <title>${name}</title>\n' +
-  '    <!-- No build step: bare specifiers resolve via this import map.\n' +
-  '         Vendor Zoijs into ./vendor/zoijs/ (copy from your Zoijs install). -->\n' +
+  '    <!-- No build step: bare specifiers resolve via this import map. -->\n' +
   '    <script type="importmap">\n' +
   '      {\n' +
   '        "imports": {\n' +
@@ -234,6 +236,7 @@ export const PROJECT_TEMPLATES: readonly ProjectTemplate[] = [
     icon: '🧩',
     type: 'zornux-zoijs-fullstack',
     runZornuxInit: true,
+    vendorZoijsDir: 'web/vendor/zoijs',
     files: [
       { path: 'src/main.zx', content: 'show "${name} backend online."\n' },
       { path: 'web/index.html', content: zoijsIndexHtml('/web/main.js') },
@@ -250,6 +253,7 @@ export const PROJECT_TEMPLATES: readonly ProjectTemplate[] = [
     icon: '🎨',
     type: 'zoijs-frontend',
     runZornuxInit: false,
+    vendorZoijsDir: 'vendor/zoijs',
     files: [
       { path: 'index.html', content: zoijsIndexHtml('/src/main.js') },
       { path: 'src/main.js', content: zoijsMain('./App.js') },
@@ -276,7 +280,7 @@ export function renderTemplate(template: ProjectTemplate, name: string): Rendere
     path: file.path,
     content: substitute(file.content, name, macros),
   }));
-  return { runZornuxInit: template.runZornuxInit, files };
+  return { runZornuxInit: template.runZornuxInit, vendorZoijsDir: template.vendorZoijsDir, files };
 }
 
 function substitute(content: string, name: string, macros: Record<string, string>): string {

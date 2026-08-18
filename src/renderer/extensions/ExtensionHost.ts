@@ -58,7 +58,11 @@ export class ExtensionHost {
 
   async deactivateAll(): Promise<void> {
     for (const module of [...this.activated].reverse()) {
-      await module.deactivate?.();
+      try {
+        await module.deactivate?.();
+      } catch (error) {
+        console.error(`[ZnxStudio] failed to deactivate module ${module.id}:`, error);
+      }
     }
   }
 

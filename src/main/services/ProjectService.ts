@@ -1,6 +1,8 @@
 import { spawn } from 'node:child_process';
+import { existsSync } from 'node:fs';
 import { promises as fs } from 'node:fs';
-import { basename, dirname, join } from 'node:path';
+import { basename, dirname, join, resolve } from 'node:path';
+import { app } from 'electron';
 import type {
   CreateProjectOptions,
   CreatedProject,
@@ -90,9 +92,50 @@ export class ProjectService {
         await fs.writeFile(target, file.content, 'utf8');
       }
 
+      if (request.vendorZoijsDir) {
+        await this.vendorZoijsRuntime(projectDir, request.vendorZoijsDir);
+      }
+
       return { ok: true, path: projectDir, name: request.name };
     } catch (error) {
       return { ok: false, path: projectDir, name: request.name, error: (error as Error).message };
+    }
+  }
+
+  /**
+   * Copy the ZoiJS runtime into `<projectDir>/vendor/zoijs/` so the import map
+   * resolves out-of-box. Source: the sibling `Xornux frontend documentation`
+   * checkout (or the ZORNUX_ZOIJS_DOCS_DIR env override). Silently skips if the
+   * source is not available — the project still works, it just needs a manual
+   * vendor step.
+   */
+  private async vendorZoijsRuntime(projectDir: string, targetRelDir: string): Promise<void> {
+    const srcDir = this.resolveZoijsVendorSource();
+    if (!srcDir) return;
+    await this.copyDirRecursive(srcDir, join(projectDir, targetRelDir));
+  }
+
+  private resolveZoijsVendorSource(): string | null {
+    const override = process.env.ZORNUX_ZOIJS_DOCS_DIR;
+    if (override) {
+      const candidate = join(override, 'vendor', 'zoijs');
+      return existsSync(candidate) ? candidate : null;
+    }
+    const sibling = resolve(app.getAppPath(), '..', 'Xornux frontend documentation', 'vendor', 'zoijs');
+    return existsSync(sibling) ? sibling : null;
+  }
+
+  private async copyDirRecursive(src: string, dest: string): Promise<void> {
+    await fs.mkdir(dest, { recursive: true });
+    const entries = await fs.readdir(src, { withFileTypes: true });
+    for (const entry of entries) {
+      const srcPath = join(src, entry.name);
+      const destPath = join(dest, entry.name);
+      if (entry.isDirectory()) {
+        await this.copyDirRecursive(srcPath, destPath);
+      } else {
+        await fs.copyFile(srcPath, destPath);
+      }
     }
   }
 
@@ -271,8 +314,7 @@ function detectType(project: ZnxStudioProject | null): WorkspaceType {
   const hasZornux = langs.includes('zornux') || declared.includes('zornux');
   const hasZoijs = frameworks.includes('zoijs') || declared.includes('zoijs');
 
-  // Mobile detection: the manifest declares type "mobile" and targets Zornux.
-  if (hasZornux && declared === 'mobile') return 'zornux-mobile';
+  if (hasZornux && (declared === 'mobile' || declared === 'zornux-mobile')) return 'zornux-mobile';
 
   if (hasZornux && hasZoijs) return 'zornux-zoijs-fullstack';
   if (hasZoijs) return 'zoijs-frontend';

@@ -417,7 +417,13 @@ export class DesignerModule implements IModule {
     for (const state of screen.states) {
       const row = document.createElement('div');
       row.className = 'zd-state-row';
-      row.innerHTML = `<span class="zd-state-name">${state.name}</span> = <span class="zd-state-value">${state.initialValue}</span>`;
+      const nameSpan = document.createElement('span');
+      nameSpan.className = 'zd-state-name';
+      nameSpan.textContent = state.name;
+      const valSpan = document.createElement('span');
+      valSpan.className = 'zd-state-value';
+      valSpan.textContent = state.initialValue;
+      row.append(nameSpan, ' = ', valSpan);
       container.appendChild(row);
     }
 

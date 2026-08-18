@@ -6,6 +6,7 @@ import { MarketplaceRegistryService } from '../services/MarketplaceRegistryServi
 import { InstalledExtensionsStore } from '../services/InstalledExtensionsStore';
 import { ExtensionInstaller } from '../services/ExtensionInstaller';
 import type { MarketplaceSearchParams } from '../services/MarketplaceRegistryService';
+import { sharedWorkspaceTrust } from '../services/WorkspaceTrustService';
 
 /**
  * Marketplace + extension endpoints. The main process owns integrity (checksum), manifest
@@ -34,9 +35,10 @@ export function registerMarketplaceIpc(): void {
   ipcMain.handle(IpcChannels.MarketplaceDetail, (_e, p: { publisher: string; slug: string }) =>
     installer().then((i) => i.detail(p.publisher, p.slug)),
   );
-  ipcMain.handle(IpcChannels.ExtensionsInstall, (_e, p: { publisher: string; slug: string; version: string }) =>
-    installer().then((i) => i.install(p.publisher, p.slug, p.version)),
-  );
+  ipcMain.handle(IpcChannels.ExtensionsInstall, (_e, p: { publisher: string; slug: string; version: string }) => {
+    sharedWorkspaceTrust().assertTrusted('Install Extension');
+    return installer().then((i) => i.install(p.publisher, p.slug, p.version));
+  });
   ipcMain.handle(IpcChannels.ExtensionsUninstall, (_e, p: { publisher: string; slug: string; version: string }) =>
     installer().then((i) => i.uninstall(p.publisher, p.slug, p.version)),
   );

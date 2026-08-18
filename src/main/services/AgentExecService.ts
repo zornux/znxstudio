@@ -115,6 +115,13 @@ export class AgentExecService {
     }
   }
 
+  dispose(): void {
+    for (const [id, child] of this.active) {
+      this.killTree(child);
+      this.active.delete(id);
+    }
+  }
+
   private killTree(child: ChildProcess): void {
     try {
       if (child.pid != null) {

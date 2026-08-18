@@ -317,6 +317,17 @@ export class Workbench {
     await this.auditAccessibility();
     await this.auditSecurity();
     await this.auditStartup();
+
+    window.addEventListener('beforeunload', () => {
+      void this.shutdown();
+    });
+  }
+
+  private async shutdown(): Promise<void> {
+    await this.extensions.deactivateAll();
+    for (const disposable of [...this.subscriptions].reverse()) {
+      try { disposable.dispose(); } catch { /* ignore */ }
+    }
   }
 
   /** 20D: log the startup cost + slowest module activations. Self-test only. */

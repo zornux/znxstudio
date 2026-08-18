@@ -23,6 +23,7 @@ export interface InstallRecord {
   version: string;
   sha256: string;
   manifestHash: string;
+  extensionHash?: string;
   installedAt: string;
   enabled: boolean;
 }

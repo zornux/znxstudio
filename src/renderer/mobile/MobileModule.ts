@@ -71,6 +71,7 @@ export class MobileModule implements IModule {
   private deviceSelectorEl: HTMLDivElement | null = null;
   private projectSettingsEl: HTMLDivElement | null = null;
   private activityItemRegistered = false;
+  private devicePollTimer: ReturnType<typeof setInterval> | null = null;
 
   activate(context: ModuleContext): void {
     this.context = context;
@@ -124,6 +125,7 @@ export class MobileModule implements IModule {
       if (this.isMobileWorkspace()) {
         this.ensureActivityItem();
       } else {
+        this.stopDevicePolling();
         this.status()?.removeItem?.('android.device');
         this.status()?.removeItem?.('android.toolchain');
         this.status()?.removeItem?.('mobile.status');
@@ -165,6 +167,10 @@ export class MobileModule implements IModule {
       this.updateSessionStateUI();
     });
     context.subscriptions.push({ dispose: () => this.sessionStateUnsubscribe?.() });
+  }
+
+  deactivate(): void {
+    this.stopDevicePolling();
   }
 
   /* ===== Activity bar + workspace detection ===== */
@@ -340,9 +346,10 @@ export class MobileModule implements IModule {
     this.context.layout.setSideBar('Android', view);
     this.context.layout.focusSideBar();
 
-    // Populate lists and check initial state.
+    // Populate lists and check initial state; start polling for device changes.
     void this.refreshDevices();
     void this.refreshEmulators();
+    this.startDevicePolling();
     void this.refreshToolchainStatus();
     void this.loadProjectConfig();
     this.renderDoctorStatus();
@@ -375,12 +382,76 @@ export class MobileModule implements IModule {
 
   /* ===== Device management ===== */
 
+  private startDevicePolling(): void {
+    this.stopDevicePolling();
+    this.devicePollTimer = setInterval(() => void this.pollDevices(), 3000);
+  }
+
+  private stopDevicePolling(): void {
+    if (this.devicePollTimer !== null) {
+      clearInterval(this.devicePollTimer);
+      this.devicePollTimer = null;
+    }
+  }
+
+  private async pollDevices(): Promise<void> {
+    let next: AndroidDevice[];
+    try {
+      next = await window.znxstudio.mobile.devices();
+    } catch {
+      return;
+    }
+
+    const prevIds = new Set(this.devices.filter((d) => d.status === 'device').map((d) => d.id));
+    const nextIds = new Set(next.filter((d) => d.status === 'device').map((d) => d.id));
+
+    if (setsEqual(prevIds, nextIds)) return;
+
+    // Notify on connects/disconnects.
+    for (const d of next) {
+      if (d.status === 'device' && !prevIds.has(d.id)) {
+        this.context.layout.showToast(`Android device connected: ${d.name}`, 'info');
+      }
+    }
+    for (const d of this.devices) {
+      if (d.status === 'device' && !nextIds.has(d.id)) {
+        this.context.layout.showToast(`Android device disconnected: ${d.name}`, 'info');
+      }
+    }
+
+    this.devices = next;
+
+    // Invalidate selection if the chosen device disappeared.
+    if (this.selectedDeviceId && !nextIds.has(this.selectedDeviceId)) {
+      this.selectedDeviceId = null;
+    }
+
+    // Auto-select when a device appears and nothing is selected.
+    if (!this.selectedDeviceId && nextIds.size > 0) {
+      this.selectedDeviceId = next.find((d) => d.status === 'device')?.id ?? null;
+    }
+
+    this.renderDeviceList();
+    this.setDeviceStatusBar();
+  }
+
   private async refreshDevices(): Promise<void> {
     try {
       this.devices = await window.znxstudio.mobile.devices();
     } catch {
       this.devices = [];
     }
+
+    // Auto-select when a device appears and nothing is selected.
+    if (!this.selectedDeviceId) {
+      const available = this.devices.find((d) => d.status === 'device');
+      if (available) this.selectedDeviceId = available.id;
+    }
+    // Invalidate selection if the chosen device disappeared.
+    if (this.selectedDeviceId && !this.devices.some((d) => d.id === this.selectedDeviceId && d.status === 'device')) {
+      this.selectedDeviceId = null;
+    }
+
     this.renderDeviceList();
     this.setDeviceStatusBar();
   }
@@ -492,7 +563,6 @@ export class MobileModule implements IModule {
       const startBtn = this.createButton('Start', () => {
         void window.znxstudio.mobile.startEmulator(emu.name);
         this.context.layout.showToast(`Starting emulator: ${emu.name}`, 'info');
-        setTimeout(() => void this.refreshDevices(), 5000);
       });
       startBtn.style.fontSize = '11px';
       row.appendChild(startBtn);
@@ -1465,4 +1535,10 @@ function formatBytes(bytes: number): string {
   if (bytes < 1024) return `${bytes} B`;
   if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
   return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+}
+
+function setsEqual(a: Set<string>, b: Set<string>): boolean {
+  if (a.size !== b.size) return false;
+  for (const v of a) if (!b.has(v)) return false;
+  return true;
 }

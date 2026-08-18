@@ -103,7 +103,7 @@ export function buildNewProjectPlan(state: NewProjectState): NewProjectPlan {
   // Adding dependencies also needs the compiler (5D), so require it if either applies.
   const requiresCompiler = rendered.runZornuxInit || dependencies.length > 0;
   return {
-    scaffold: { name, location: state.location, runZornuxInit: rendered.runZornuxInit, files: rendered.files },
+    scaffold: { name, location: state.location, runZornuxInit: rendered.runZornuxInit, vendorZoijsDir: rendered.vendorZoijsDir, files: rendered.files },
     requiresCompiler,
     dependencies,
     profile: state.profile,

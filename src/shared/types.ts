@@ -516,6 +516,8 @@ export interface ScaffoldRequest {
   /** Files written after init (may override init's placeholders). */
   files: ScaffoldFile[];
   compilerPath?: string | null;
+  /** Copy the ZoiJS runtime into this relative directory (e.g. "vendor/zoijs" or "web/vendor/zoijs"). */
+  vendorZoijsDir?: string;
 }
 
 export interface ScaffoldResult {

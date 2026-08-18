@@ -6,6 +6,7 @@ import {
   type CollabJoinOptions,
   type CollabMessage,
 } from '../services/CollabService';
+import { sharedWorkspaceTrust } from '../services/WorkspaceTrustService';
 
 /**
  * Collaboration bridge (Phase 16A). The renderer never touches a socket: it asks
@@ -24,8 +25,14 @@ export function registerCollabIpc(): void {
     onClosed: (reason) => broadcastToRenderer(IpcChannels.CollabClosed, { reason }),
   });
 
-  ipcMain.handle(IpcChannels.CollabHost, (_event, options: CollabHostOptions) => collab.host(options));
-  ipcMain.handle(IpcChannels.CollabJoin, (_event, options: CollabJoinOptions) => collab.join(options));
+  ipcMain.handle(IpcChannels.CollabHost, (_event, options: CollabHostOptions) => {
+    sharedWorkspaceTrust().assertTrusted('Collaboration Host');
+    return collab.host(options);
+  });
+  ipcMain.handle(IpcChannels.CollabJoin, (_event, options: CollabJoinOptions) => {
+    sharedWorkspaceTrust().assertTrusted('Collaboration Join');
+    return collab.join(options);
+  });
   ipcMain.handle(IpcChannels.CollabSend, (_event, payload: unknown) => {
     collab.broadcast(payload);
   });

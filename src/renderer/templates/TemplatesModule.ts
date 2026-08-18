@@ -116,6 +116,7 @@ export class TemplatesModule implements IModule {
         name,
         location,
         runZornuxInit: rendered.runZornuxInit,
+        vendorZoijsDir: rendered.vendorZoijsDir,
         files: rendered.files,
         compilerPath,
       });

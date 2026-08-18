@@ -1,4 +1,4 @@
-import { ipcMain } from 'electron';
+import { app, ipcMain } from 'electron';
 import { IpcChannels } from '../../shared/ipc';
 import type { AgentExecRequest } from '../../shared/ai/agentExec';
 import { AgentExecService } from '../services/AgentExecService';
@@ -16,4 +16,6 @@ export function registerAgentExecIpc(): void {
   ipcMain.on(IpcChannels.AgentExecCancel, (_event, payload: { execId: string }) => {
     service.cancel(payload.execId);
   });
+
+  app.on('will-quit', () => service.dispose());
 }

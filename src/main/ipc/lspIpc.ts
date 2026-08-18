@@ -2,12 +2,23 @@ import { app, ipcMain } from 'electron';
 import { IpcChannels } from '../../shared/ipc';
 import type { LspStartConfig } from '../../shared/types';
 import { LanguageServerService } from '../services/LanguageServerService';
+import { sharedWorkspaceTrust } from '../services/WorkspaceTrustService';
+import { confineToRoots } from '../util/pathBoundary';
 
 /** `zornux lsp` language-server session bridge (Phase LSP). */
 export function registerLspIpc(): void {
   const lsp = new LanguageServerService();
+  const trust = sharedWorkspaceTrust();
 
-  ipcMain.handle(IpcChannels.LspStart, (event, config: LspStartConfig) => lsp.start(config, event.sender));
+  ipcMain.handle(IpcChannels.LspStart, (event, config: LspStartConfig) => {
+    trust.assertTrusted('Language Server');
+    if (config.rootPath) {
+      const safe = confineToRoots(config.rootPath, trust.getRoots());
+      if (!safe) throw new Error('Path is outside workspace boundaries.');
+      config = { ...config, rootPath: safe };
+    }
+    return lsp.start(config, event.sender);
+  });
   ipcMain.handle(IpcChannels.LspRequest, (_event, payload: { method: string; params?: unknown }) =>
     lsp.request(payload.method, payload.params),
   );
@@ -15,6 +26,5 @@ export function registerLspIpc(): void {
     lsp.notify(payload.method, payload.params),
   );
   ipcMain.handle(IpcChannels.LspStop, () => lsp.stop());
-  // Terminate the language server on quit so `zornux lsp` isn't left running.
   app.on('will-quit', () => { void lsp.stop(); });
 }

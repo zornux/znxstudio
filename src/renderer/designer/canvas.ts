@@ -247,14 +247,19 @@ export class DesignCanvas {
       case 'checkbox': {
         const cb = document.createElement('div');
         cb.className = 'zd-preview-checkbox';
-        cb.innerHTML = `<span class="zd-cb-box">☐</span> ${String(node.properties.label ?? '')}`;
+        const cbBox = document.createElement('span');
+        cbBox.className = 'zd-cb-box';
+        cbBox.textContent = '☐';
+        cb.append(cbBox, ' ', String(node.properties.label ?? ''));
         preview.appendChild(cb);
         break;
       }
       case 'switch': {
         const sw = document.createElement('div');
         sw.className = 'zd-preview-switch';
-        sw.innerHTML = `<span class="zd-sw-track"></span> ${String(node.properties.label ?? '')}`;
+        const swTrack = document.createElement('span');
+        swTrack.className = 'zd-sw-track';
+        sw.append(swTrack, ' ', String(node.properties.label ?? ''));
         preview.appendChild(sw);
         break;
       }
