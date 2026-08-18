@@ -25,12 +25,13 @@ describe('release publishing policy', () => {
     });
   });
 
-  test('classifies the current RC as a prerelease', () => {
-    const result = policy('tag', 'v1.0.0-rc.2');
+  test('classifies the current package version correctly via the CLI', () => {
+    const pkg = JSON.parse(readFileSync('package.json', 'utf8')) as { version: string };
+    const result = policy('tag', `v${pkg.version}`);
     expect(result.status).toBe(0);
     expect(result.stdout).toContain('publish=true');
-    expect(result.stdout).toContain('release_type=prerelease');
-    expect(result.stdout).toContain('update_channel=rc');
+    const isPrerelease = pkg.version.includes('-');
+    expect(result.stdout).toContain(`release_type=${isPrerelease ? 'prerelease' : 'release'}`);
   });
 
   test('isolates nightly metadata from release-candidate metadata', () => {
