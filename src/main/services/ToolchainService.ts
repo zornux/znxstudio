@@ -6,6 +6,7 @@ import type { WebContents } from 'electron';
 import { IpcChannels } from '../../shared/ipc';
 import type { ToolchainComponent, ToolchainStatus, ToolchainSetupProgress } from '../../shared/types';
 import { ZORNUX_EXE, zornuxCandidates } from '../util/zornuxRuntime';
+import { probeAndroidEnvironment } from './AndroidEnvironmentProbe';
 
 const CLI_TIMEOUT_MS = 30_000;
 
@@ -40,45 +41,9 @@ export class ToolchainService {
     return join(homedir(), '.zornux', 'toolchains', 'android');
   }
 
-  /**
-   * Run `zornux mobile doctor android --json` and return structured toolchain
-   * status. Determines readiness from whether all required checks pass.
-   */
+  /** IDE-owned status probe; it does not depend on compiler-formatted output. */
   async status(): Promise<ToolchainStatus> {
-    let code: number | null = null;
-    let stdout = '';
-    try {
-      const result = await this.exec(['mobile', 'doctor', 'android', '--json']);
-      code = result.code;
-      stdout = result.stdout;
-    } catch {
-      return { ready: false, managedPath: existsSync(ToolchainService.managedPath()) ? ToolchainService.managedPath() : null, components: [] };
-    }
-    const managed = ToolchainService.managedPath();
-    const managedExists = existsSync(managed);
-
-    try {
-      const parsed = JSON.parse(stdout);
-      if (typeof parsed === 'object' && parsed !== null && Array.isArray(parsed.checks)) {
-        const components = this.mapChecksToComponents(parsed.checks);
-        const ready = code === 0 && components
-          .filter((c) => c.required)
-          .every((c) => c.installed);
-        return {
-          ready,
-          managedPath: managedExists ? managed : null,
-          components,
-        };
-      }
-    } catch {
-      // Parse failure — fall through to default.
-    }
-
-    return {
-      ready: false,
-      managedPath: managedExists ? managed : null,
-      components: [],
-    };
+    return (await probeAndroidEnvironment()).toolchain;
   }
 
   /**
@@ -152,30 +117,9 @@ export class ToolchainService {
     });
   }
 
-  /**
-   * List installable/installed SDK components. Runs doctor and maps the results
-   * to components with install status. Falls back to a static list based on
-   * what exists in the managed path.
-   */
+  /** List components from the same IDE-owned environment probe as Doctor. */
   async sdkList(): Promise<ToolchainComponent[]> {
-    let stdout = '';
-    try {
-      const result = await this.exec(['mobile', 'doctor', 'android', '--json']);
-      stdout = result.stdout;
-    } catch {
-      return this.staticComponentProbe();
-    }
-
-    try {
-      const parsed = JSON.parse(stdout);
-      if (typeof parsed === 'object' && parsed !== null && Array.isArray(parsed.checks)) {
-        return this.mapChecksToComponents(parsed.checks);
-      }
-    } catch {
-      // Parse failure — fall back to static probing.
-    }
-
-    return this.staticComponentProbe();
+    return (await probeAndroidEnvironment()).toolchain.components;
   }
 
   /**
@@ -319,6 +263,8 @@ export class ToolchainService {
     const jdkPath = join(managed, 'jdk');
     if (existsSync(jdkPath)) {
       env.JAVA_HOME = jdkPath;
+    } else if (process.env.JAVA_HOME && existsSync(process.env.JAVA_HOME)) {
+      env.JAVA_HOME = process.env.JAVA_HOME;
     }
 
     const sdkPath = join(managed, 'sdk');
@@ -337,7 +283,7 @@ export class ToolchainService {
 
       if (pathAdditions.length > 0) {
         const sep = process.platform === 'win32' ? ';' : ':';
-        env.PATH = pathAdditions.join(sep);
+        env.PATH = `${pathAdditions.join(sep)}${sep}${process.env.PATH ?? ''}`;
       }
     }
 
@@ -361,7 +307,7 @@ export class ToolchainService {
   private exec(args: string[]): Promise<ExecResult> {
     const command = this.locateCompiler();
     return new Promise<ExecResult>((resolve, reject) => {
-      const child = spawn(command, args, { windowsHide: true });
+      const child = spawn(command, args, { windowsHide: true, env: { ...process.env, ...this.managedEnv() } });
       let stdout = '';
       let stderr = '';
       let settled = false;
@@ -465,7 +411,9 @@ export class ToolchainService {
       components.push({
         name: probe.name,
         required: probe.required,
-        installed: existsSync(join(managed, probe.subPath)),
+        installed: probe.name === 'JDK'
+          ? existsSync(join(managed, probe.subPath)) || Boolean(process.env.JAVA_HOME && existsSync(process.env.JAVA_HOME))
+          : existsSync(join(managed, probe.subPath)),
         version: null,
         requiredVersion: null,
         updateAvailable: false,

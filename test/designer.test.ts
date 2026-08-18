@@ -11,7 +11,8 @@ import {
   DesignerDocument,
   resetIdCounter,
 } from '../src/renderer/designer/designerDocument';
-import { parseSource, emitSource, sourceNeedsUpdate } from '../src/renderer/designer/sourceSync';
+import { parseSource, emitSource, preserveSourceComments, sourceNeedsUpdate, updateSourceRanges } from '../src/renderer/designer/sourceSync';
+import { containerStyles, nodeLayoutStyles, previewColor, previewSize, visualStyles } from '../src/renderer/designer/propertyStyles';
 
 // ---------------------------------------------------------------------------
 // Component model
@@ -92,12 +93,112 @@ describe('ComponentModel', () => {
     }
   });
 
+  test('every component has unique property keys and source attributes', () => {
+    for (const component of COMPONENT_CATALOG) {
+      const keys = component.properties.map((property) => property.key);
+      expect(new Set(keys).size).toBe(keys.length);
+      const attrs = component.properties.map((property) => property.zxAttr).filter(Boolean);
+      expect(new Set(attrs).size).toBe(attrs.length);
+    }
+  });
+
+  test('every component supports consistent canvas position, size, and alignment metadata', () => {
+    for (const component of COMPONENT_CATALOG) {
+      const properties = new Map(component.properties.map((property) => [property.key, property]));
+      expect(properties.get('positionMode')?.options).toEqual(['flow', 'freeform']);
+      expect(properties.get('x')?.type).toBe('number');
+      expect(properties.get('y')?.type).toBe('number');
+    }
+  });
+
   test('event descriptors have zxKeyword', () => {
     for (const c of COMPONENT_CATALOG) {
       for (const e of c.events) {
         expect(e.zxKeyword.length).toBeGreaterThan(0);
       }
     }
+  });
+
+  test('every component exposes professional layout, appearance, interaction, test, and accessibility properties', () => {
+    const required = [
+      'width', 'height', 'alignment', 'padding', 'backgroundColor', 'borderColor',
+      'borderWidth', 'cornerRadius', 'opacity', 'clickable', 'focusable',
+      'contentDescription', 'semanticRole', 'testTag',
+    ];
+    for (const component of COMPONENT_CATALOG) {
+      const keys = component.properties.map((property) => property.key);
+      for (const key of required) expect(keys).toContain(key);
+    }
+  });
+
+  test('interactive controls expose click/toggle actions and editable colors', () => {
+    const checkbox = getDescriptor('checkbox')!;
+    expect(checkbox.properties.find((property) => property.key === 'checked')?.type).toBe('boolean');
+    expect(checkbox.properties.find((property) => property.key === 'checkColor')?.type).toBe('color');
+    expect(checkbox.properties.find((property) => property.key === 'clickable')?.defaultValue).toBe(true);
+    expect(checkbox.events.map((event) => event.key)).toContain('toggled');
+    expect(checkbox.events.map((event) => event.key)).toContain('tapped');
+    expect(getDescriptor('button')!.properties.find((property) => property.key === 'containerColor')?.type).toBe('color');
+    for (const component of COMPONENT_CATALOG) {
+      for (const property of component.properties.filter((candidate) => candidate.key === 'color' || candidate.key.endsWith('Color'))) {
+        expect(property.type).toBe('color');
+      }
+    }
+    const opacity = getDescriptor('button')!.properties.find((property) => property.key === 'opacity')!;
+    expect(opacity.min).toBe(0);
+    expect(opacity.max).toBe(1);
+  });
+});
+
+describe('Designer property styles', () => {
+  test('accepts custom and semantic colors for previews', () => {
+    expect(previewColor('#12AEEF')).toBe('#12AEEF');
+    expect(previewColor('primary')).toBe('#6750A4');
+    expect(previewColor('not-a-color')).toBeFalsy();
+  });
+  test('normalizes mobile and responsive dimensions', () => {
+    expect(previewSize('120dp')).toBe('120px');
+    expect(previewSize('50%')).toBe('50%');
+    expect(previewSize('match')).toBe('100%');
+    expect(previewSize('wrap_content')).toBe('auto');
+    expect(previewSize('nonsense')).toBeFalsy();
+  });
+
+  test('centers a sized button and applies its box model', () => {
+    const doc = new DesignerDocument();
+    const button = doc.createNode('button', { properties: {
+      alignment: 'center', width: '180dp', height: '48dp', padding: 12,
+      marginTop: 8, visible: true,
+    } });
+    expect(nodeLayoutStyles(button).alignSelf).toBe('center');
+    expect(nodeLayoutStyles(button).width).toBe('180px');
+    expect(nodeLayoutStyles(button).height).toBe('48px');
+    expect(nodeLayoutStyles(button).marginTop).toBe('8px');
+    expect(visualStyles(button).padding).toBe('12px');
+  });
+
+  test('maps container direction, alignment, spacing, and grid columns', () => {
+    const doc = new DesignerDocument();
+    const row = doc.createNode('row', { properties: {
+      spacing: 10, mainAlignment: 'space_between', crossAlignment: 'center',
+    } });
+    expect(containerStyles(row).flexDirection).toBe('row');
+    expect(containerStyles(row).gap).toBe('10px');
+    expect(containerStyles(row).justifyContent).toBe('space-between');
+    expect(containerStyles(row).alignItems).toBe('center');
+
+    const grid = doc.createNode('grid', { properties: { columns: 3 } });
+    expect(containerStyles(grid).gridTemplateColumns).toBe('repeat(3, minmax(0, 1fr))');
+  });
+
+  test('maps freeform coordinates into positioned canvas styles', () => {
+    const doc = new DesignerDocument();
+    const button = doc.createNode('button', { properties: {
+      positionMode: 'freeform', x: 72, y: 144,
+    } });
+    expect(nodeLayoutStyles(button).position).toBe('absolute');
+    expect(nodeLayoutStyles(button).left).toBe('72px');
+    expect(nodeLayoutStyles(button).top).toBe('144px');
   });
 });
 
@@ -477,6 +578,49 @@ describe('SourceSync', () => {
     expect(reparsed.getScreens()[0].rootChildren.length).toBe(1);
   });
 
+  test('every visual component and property round-trips through editable source', () => {
+    resetIdCounter();
+    const doc = new DesignerDocument();
+    doc.appName = 'Round "Trip"';
+    doc.startScreen = 'Home';
+    doc.addScreen('Home');
+    for (const descriptor of COMPONENT_CATALOG) {
+      const node = doc.createNode(descriptor.kind);
+      for (const property of descriptor.properties) {
+        if (property.type === 'boolean') node.properties[property.key] = !Boolean(property.defaultValue);
+        else if (property.type === 'number') node.properties[property.key] = Number(property.defaultValue) + 7;
+        else if (property.type === 'enum') node.properties[property.key] = property.options?.at(-1) ?? property.defaultValue;
+        else node.properties[property.key] = property.zxAttr === ''
+          ? `Edited "${property.key}" \\ value`
+          : `edited "${property.key}" \\ value`;
+      }
+      if (descriptor.events[0]) node.events.push({ eventKey: descriptor.events[0].key, body: 'show "edited"' });
+      doc.addChild(null, node);
+    }
+
+    const reparsed = parseSource(emitSource(doc));
+    expect(reparsed.appName).toBe(doc.appName);
+    expect(reparsed.activeScreen()!.rootChildren.length).toBe(COMPONENT_CATALOG.length);
+    for (let index = 0; index < COMPONENT_CATALOG.length; index++) {
+      const expected = doc.activeScreen()!.rootChildren[index];
+      const actual = reparsed.activeScreen()!.rootChildren[index];
+      expect(actual.kind).toBe(expected.kind);
+      expect(actual.properties).toEqual(expected.properties);
+      expect(actual.events.map((event) => event.eventKey)).toEqual(expected.events.map((event) => event.eventKey));
+    }
+  });
+
+  test('edited labels preserve quotes, newlines, and literal escape sequences', () => {
+    const doc = new DesignerDocument();
+    doc.appName = 'Escapes';
+    doc.startScreen = 'Home';
+    doc.addScreen('Home');
+    const button = doc.createNode('button', { properties: { label: 'Say "hello"\nPath \\new' } });
+    doc.addChild(null, button);
+    const reparsed = parseSource(emitSource(doc));
+    expect(reparsed.activeScreen()!.rootChildren[0].properties.label).toBe(button.properties.label);
+  });
+
   test('emitSource from empty document', () => {
     const doc = new DesignerDocument();
     doc.appName = 'Empty';
@@ -531,5 +675,34 @@ describe('SourceSync', () => {
     const row = col.children[0];
     expect(row.kind).toBe('row');
     expect(row.children.length).toBe(2);
+  });
+
+  test('refreshes source ranges without replacing stable designer node IDs', () => {
+    const doc = new DesignerDocument();
+    doc.appName = 'Ranges';
+    doc.startScreen = 'Home';
+    doc.addScreen('Home');
+    const column = doc.createNode('column');
+    const button = doc.createNode('button', { properties: { label: 'Save' } });
+    doc.addChild(null, column);
+    doc.addChild(column.id, button);
+    const columnId = column.id;
+    const buttonId = button.id;
+
+    const source = emitSource(doc);
+    updateSourceRanges(doc, source);
+
+    expect(column.id).toBe(columnId);
+    expect(button.id).toBe(buttonId);
+    expect(column.sourceRange?.start).toBe(3);
+    expect(button.sourceRange?.start).toBe(4);
+  });
+
+  test('preserves developer comments when visual changes regenerate source', () => {
+    const original = 'mobile app "Demo"\n\n# home screen\nscreen Home\n    # primary action\n    button "Save"\nend\n\nstart with Home\n';
+    const regenerated = 'mobile app "Demo"\n\nscreen Home\n    button "Updated"\nend\n\nstart with Home\n';
+    const merged = preserveSourceComments(original, regenerated);
+    expect(merged).toContain('# home screen\nscreen Home');
+    expect(merged).toContain('    # primary action\n    button "Updated"');
   });
 });

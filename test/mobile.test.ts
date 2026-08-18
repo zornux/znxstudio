@@ -3,8 +3,11 @@ import { IpcChannels } from '../src/shared/ipc';
 import { CommandIds } from '../src/renderer/commands/CommandIds';
 import { HARDENED_WEB_PREFERENCES } from '../src/shared/security';
 import { PROJECT_TEMPLATES, renderTemplate, type ProjectTemplate } from '../src/shared/templates';
-import { parseMobileBuildOutput, validateAndroidProjectConfig } from '../src/main/services/MobileService';
+import { parseAdbDevices, parseAvdNames, parseMobileBuildOutput, validateAndroidProjectConfig } from '../src/main/services/MobileService';
 import { MobileService } from '../src/main/services/MobileService';
+import { groupAndroidDevices, mobileSessionControls } from '../src/renderer/mobile/MobileModule';
+import { ensureAndroidRunTarget } from '../src/renderer/mobile/deviceTarget';
+import { countReadyAdbDevices } from '../src/main/services/AndroidEnvironmentProbe';
 import { mkdtemp, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
@@ -85,6 +88,102 @@ describe('mobile command IDs', () => {
 
   test('22 mobile commands registered', () => {
     expect(commands.length).toBe(22);
+  });
+});
+
+describe('Android deployment toolbar', () => {
+  test('groups physical and virtual deployment targets without losing status', () => {
+    const physical = { id: 'usb-1', name: 'Pixel', type: 'physical' as const, apiLevel: '35', status: 'device' as const };
+    const emulator = { id: 'emulator-5554', name: 'Pixel_8_API_35', type: 'emulator' as const, apiLevel: '35', status: 'offline' as const };
+    const grouped = groupAndroidDevices([emulator, physical]);
+    expect(grouped.physical).toEqual([physical]);
+    expect(grouped.virtual).toEqual([emulator]);
+  });
+
+  test('only enables launch with a ready target and no active session', () => {
+    expect(mobileSessionControls('idle', false).canLaunch).toBeFalsy();
+    expect(mobileSessionControls('idle', true).canLaunch).toBeTruthy();
+    expect(mobileSessionControls('running', true).canLaunch).toBeFalsy();
+    expect(mobileSessionControls('failed', true).canLaunch).toBeTruthy();
+  });
+
+  test('enables stop for active work but not while already stopping', () => {
+    expect(mobileSessionControls('building', true).canStop).toBeTruthy();
+    expect(mobileSessionControls('debugging', true).canStop).toBeTruthy();
+    expect(mobileSessionControls('stopping', true).canStop).toBeFalsy();
+    expect(mobileSessionControls('idle', true).canStop).toBeFalsy();
+  });
+
+  test('uses a ready physical device without launching an emulator', async () => {
+    let starts = 0;
+    const target = await ensureAndroidRunTarget({
+      api: {
+        devices: async () => [{ id: 'usb-1', name: 'Pixel', type: 'physical', apiLevel: '35', status: 'device' }],
+        emulators: async () => [],
+        startEmulator: async () => { starts += 1; },
+      },
+    });
+    expect(target).toBe('usb-1');
+    expect(starts).toBe(0);
+  });
+
+  test('automatically boots an installed AVD when no phone is connected', async () => {
+    let polls = 0;
+    let started = '';
+    const target = await ensureAndroidRunTarget({
+      api: {
+        devices: async () => {
+          polls += 1;
+          return polls < 3 ? [] : [{ id: 'emulator-5554', name: 'Pixel_8_API_35', type: 'emulator', apiLevel: '35', status: 'device' }];
+        },
+        emulators: async () => [{ name: 'Pixel_8_API_35', apiLevel: '35' }],
+        startEmulator: async (name) => { started = name; },
+      },
+      attempts: 3,
+      retryDelayMs: 0,
+      delay: async () => undefined,
+    });
+    expect(started).toBe('Pixel_8_API_35');
+    expect(target).toBe('emulator-5554');
+  });
+
+  test('returns no target when neither a device nor an AVD exists', async () => {
+    const target = await ensureAndroidRunTarget({
+      api: {
+        devices: async () => [],
+        emulators: async () => [],
+        startEmulator: async () => undefined,
+      },
+    });
+    expect(target).toBeNull();
+  });
+});
+
+describe('direct Android SDK discovery fallback', () => {
+  test('parses ready, offline, and unauthorized ADB targets', () => {
+    const devices = parseAdbDevices([
+      'List of devices attached',
+      'emulator-5554 device product:sdk model:sdk_gphone64_x86_64 device:emu64xa',
+      'R58M123 offline usb:1-2 model:Galaxy_S22',
+      'ABC123 unauthorized usb:1-3',
+      '',
+    ].join('\n'));
+    expect(devices).toHaveLength(3);
+    expect(devices[0]).toEqual({ id: 'emulator-5554', name: 'sdk gphone64 x86 64', type: 'emulator', apiLevel: null, status: 'device' });
+    expect(devices[1].status).toBe('offline');
+    expect(devices[2].status).toBe('unauthorized');
+  });
+
+  test('parses installed AVD names and infers conventional API suffixes', () => {
+    expect(parseAvdNames('ZnxStudio_Pixel_6_API_35\nTablet_API_34\n')).toEqual([
+      { name: 'ZnxStudio_Pixel_6_API_35', apiLevel: '35' },
+      { name: 'Tablet_API_34', apiLevel: '34' },
+    ]);
+  });
+
+  test('Doctor counts only fully ready ADB deployment targets', () => {
+    const output = 'List of devices attached\nemulator-5554 device product:sdk\nUSB1 offline\nUSB2 unauthorized\n';
+    expect(countReadyAdbDevices(output)).toBe(1);
   });
 });
 

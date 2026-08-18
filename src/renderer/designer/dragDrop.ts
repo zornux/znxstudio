@@ -12,16 +12,20 @@ import { Emitter, type Event } from '../core/Emitter';
 
 export type DragSource =
   | { origin: 'toolbox'; componentKind: string }
-  | { origin: 'canvas'; nodeId: string };
+  | { origin: 'canvas'; nodeId: string; grabOffsetX: number; grabOffsetY: number };
 
 export interface DropTarget {
   parentId: string | null;
   index: number;
+  /** True when dropping on the freeform root canvas rather than a flow slot. */
+  freeform: boolean;
 }
 
 export interface DropResult {
   source: DragSource;
   target: DropTarget;
+  clientX: number;
+  clientY: number;
 }
 
 // ---------------------------------------------------------------------------
@@ -32,8 +36,11 @@ interface DropZoneEntry {
   element: HTMLElement;
   parentId: string | null;
   index: number;
+  freeform: boolean;
   accepts: (source: DragSource) => boolean;
 }
+
+const DROP_ZONE_HIT_SLOP = 8;
 
 // ---------------------------------------------------------------------------
 // DragDropManager
@@ -92,8 +99,9 @@ export class DragDropManager {
     parentId: string | null,
     index: number,
     accepts: (source: DragSource) => boolean = () => true,
+    freeform = false,
   ): () => void {
-    const entry: DropZoneEntry = { element, parentId, index, accepts };
+    const entry: DropZoneEntry = { element, parentId, index, accepts, freeform };
     this.dropZones.push(entry);
     return () => {
       const idx = this.dropZones.indexOf(entry);
@@ -115,22 +123,33 @@ export class DragDropManager {
 
     // Hit-test drop zones
     let best: DropZoneEntry | null = null;
+    let bestArea = Infinity;
     let bestDist = Infinity;
     for (const zone of this.dropZones) {
       if (!zone.accepts(this.activeDrag)) continue;
       const rect = zone.element.getBoundingClientRect();
+      // Insertion indicators are intentionally slim visually, but should not
+      // require pixel-perfect aim. Give short dimensions a comfortable hit
+      // target while leaving normal-sized container/canvas zones unchanged.
+      const slopX = rect.width < DROP_ZONE_HIT_SLOP * 2 ? DROP_ZONE_HIT_SLOP : 0;
+      const slopY = rect.height < DROP_ZONE_HIT_SLOP * 2 ? DROP_ZONE_HIT_SLOP : 0;
       const cx = rect.left + rect.width / 2;
       const cy = rect.top + rect.height / 2;
       const dx = e.clientX - cx;
       const dy = e.clientY - cy;
       if (
-        e.clientX >= rect.left &&
-        e.clientX <= rect.right &&
-        e.clientY >= rect.top &&
-        e.clientY <= rect.bottom
+        e.clientX >= rect.left - slopX &&
+        e.clientX <= rect.right + slopX &&
+        e.clientY >= rect.top - slopY &&
+        e.clientY <= rect.bottom + slopY
       ) {
+        const area = Math.max(rect.width, 1) * Math.max(rect.height, 1);
         const dist = dx * dx + dy * dy;
-        if (dist < bestDist) {
+        // Nested containers and insertion indicators must win over the canvas
+        // fallback. Area is a reliable proxy for specificity in the rendered
+        // tree; distance breaks ties between adjacent insertion indicators.
+        if (area < bestArea || (area === bestArea && dist < bestDist)) {
+          bestArea = area;
           bestDist = dist;
           best = zone;
         }
@@ -148,14 +167,17 @@ export class DragDropManager {
     }
   }
 
-  private onMouseUp(_e: MouseEvent): void {
+  private onMouseUp(e: MouseEvent): void {
     if (this.activeDrag && this.activeDropZone) {
       this._onDrop.fire({
         source: this.activeDrag,
         target: {
           parentId: this.activeDropZone.parentId,
           index: this.activeDropZone.index,
+          freeform: this.activeDropZone.freeform,
         },
+        clientX: e.clientX,
+        clientY: e.clientY,
       });
     }
 

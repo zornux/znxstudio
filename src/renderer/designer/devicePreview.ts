@@ -74,9 +74,20 @@ export class DeviceFrame {
     camera.setAttribute('aria-hidden', 'true');
     bezel.appendChild(camera);
 
+    const speaker = document.createElement('span');
+    speaker.className = 'zd-device-speaker';
+    speaker.setAttribute('aria-hidden', 'true');
+    bezel.appendChild(speaker);
+
+    const lowerSpeaker = document.createElement('span');
+    lowerSpeaker.className = 'zd-device-lower-speaker';
+    lowerSpeaker.setAttribute('aria-hidden', 'true');
+    bezel.appendChild(lowerSpeaker);
+
     const statusBar = document.createElement('div');
     statusBar.className = 'zd-device-statusbar';
     statusBar.innerHTML = `
+      <span class="zd-statusbar-app" aria-hidden="true"></span>
       <span class="zd-statusbar-time">12:00</span>
       <span class="zd-statusbar-icons" aria-hidden="true">
         <span class="zd-status-signal"></span>
@@ -92,7 +103,11 @@ export class DeviceFrame {
 
     const navBar = document.createElement('div');
     navBar.className = 'zd-device-navbar';
-    navBar.innerHTML = '<span class="zd-nav-pill"></span>';
+    navBar.innerHTML = `
+      <span class="zd-nav-button zd-nav-back" aria-hidden="true"></span>
+      <span class="zd-nav-button zd-nav-home" aria-hidden="true"></span>
+      <span class="zd-nav-button zd-nav-overview" aria-hidden="true"></span>
+    `;
     bezel.appendChild(navBar);
 
     this.applyDimensions();

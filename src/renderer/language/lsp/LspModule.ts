@@ -25,6 +25,7 @@ import {
 } from './lspSecurity';
 import { LspProviders, type LspProviderBackend } from './LspProviders';
 import { ZORNUX_SEMANTIC_LEGEND } from './semanticLegend';
+import { isMobileZornux } from '../languages/zornux/mobileSyntax';
 
 /** A language service that can be backed by the LSP server (LanguageServiceZornux). */
 interface LspBackedService {
@@ -69,6 +70,10 @@ export class LspModule implements IModule {
   private settings: SettingsService | undefined;
   /** Publish live ZX37xx findings as you type. Off by default, like the server. */
   private securityEnabled = false;
+  /** Mobile DSL documents are owned by the designer-aware local language
+   * service. Keeping them out of an older generic Zornux LSP prevents stale
+   * parser diagnostics from racing back after the mobile bucket is cleared. */
+  private readonly mobileDocuments = new Set<string>();
   /** Resolves once the initial server-start attempt settles (for the self-test). */
   private ready: Promise<void> = Promise.resolve();
 
@@ -104,6 +109,14 @@ export class LspModule implements IModule {
     // split them into their own buckets rather than letting one overwrite the other.
     this.client.onDiagnostics((uri, diagnostics) => {
       if (!this.engine) return;
+      const document = this.documents?.get(uri);
+      if (this.mobileDocuments.has(uri) || (document && isMobileZornux(document.getText()))) {
+        this.engine.clear(uri, LSP_DIAGNOSTIC_SOURCE);
+        const { security } = partitionDiagnostics(diagnostics);
+        if (security.length) this.engine.set(uri, SECURITY_SOURCE, toPlatformDiagnostics(security, SECURITY_SOURCE));
+        else this.engine.clear(uri, SECURITY_SOURCE);
+        return;
+      }
       const { compiler, security } = partitionDiagnostics(diagnostics);
 
       if (compiler.length) this.engine.set(uri, LSP_DIAGNOSTIC_SOURCE, toPlatformDiagnostics(compiler, LSP_DIAGNOSTIC_SOURCE));
@@ -127,7 +140,11 @@ export class LspModule implements IModule {
     if (this.documents) {
       context.subscriptions.push(this.documents.onDidOpen((doc) => this.syncOpen(doc)));
       context.subscriptions.push(this.documents.onDidChange((doc) => this.syncChange(doc)));
-      context.subscriptions.push(this.documents.onDidClose((doc) => this.client.didClose(doc.uri)));
+      context.subscriptions.push(this.documents.onDidClose((doc) => {
+        this.mobileDocuments.delete(doc.uri);
+        this.client.didClose(doc.uri);
+        this.engine?.clear(doc.uri, LSP_DIAGNOSTIC_SOURCE);
+      }));
     }
 
     // Restart against a new root when the workspace changes (enables project-aware
@@ -252,17 +269,44 @@ export class LspModule implements IModule {
   /** didOpen every already-open Zornux document (server (re)start / late join). */
   private openExistingDocuments(): void {
     for (const doc of this.documents?.all() ?? []) {
-      if (doc.languageId === 'zornux') this.client.didOpen(doc.uri, 'zornux', doc.version, doc.getText());
+      if (doc.languageId !== 'zornux') continue;
+      if (isMobileZornux(doc.getText())) {
+        this.mobileDocuments.add(doc.uri);
+        this.engine?.clear(doc.uri, LSP_DIAGNOSTIC_SOURCE);
+        continue;
+      }
+      this.mobileDocuments.delete(doc.uri);
+      this.client.didOpen(doc.uri, 'zornux', doc.version, doc.getText());
     }
   }
 
   private syncOpen(doc: ManagedDocument): void {
     if (doc.languageId !== 'zornux') return;
+    if (isMobileZornux(doc.model.getValue())) {
+      this.mobileDocuments.add(doc.uri);
+      this.client.didClose(doc.uri);
+      this.engine?.clear(doc.uri, LSP_DIAGNOSTIC_SOURCE);
+      return;
+    }
+    this.mobileDocuments.delete(doc.uri);
     this.client.didOpen(doc.uri, 'zornux', doc.document.version, doc.model.getValue());
   }
 
   private syncChange(doc: ManagedDocument): void {
     if (doc.languageId !== 'zornux') return;
+    const mobile = isMobileZornux(doc.model.getValue());
+    const wasMobile = this.mobileDocuments.has(doc.uri);
+    if (mobile) {
+      this.mobileDocuments.add(doc.uri);
+      this.client.didClose(doc.uri);
+      this.engine?.clear(doc.uri, LSP_DIAGNOSTIC_SOURCE);
+      return;
+    }
+    this.mobileDocuments.delete(doc.uri);
+    if (wasMobile) {
+      this.client.didOpen(doc.uri, 'zornux', doc.document.version, doc.model.getValue());
+      return;
+    }
     this.client.didChange(doc.uri, doc.document.version, doc.model.getValue());
   }
 

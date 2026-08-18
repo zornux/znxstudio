@@ -1,6 +1,7 @@
 import { describe, expect, test } from './harness';
 import { formatZornux } from '../src/renderer/language/languages/zornux/formatter';
 import { parseZornux } from '../src/renderer/language/languages/zornux/parser';
+import { lintMobileZornux } from '../src/renderer/language/languages/zornux/mobileSyntax';
 
 const opt = { tabSize: 2, insertSpaces: true };
 
@@ -37,5 +38,35 @@ describe('formatter', () => {
 
   test('leaves whitespace-only input unchanged', () => {
     expect(formatZornux('   \n\t\n', opt)).toBe('   \n\t\n');
+  });
+
+  test('formats mobile end-block hierarchy and is idempotent', () => {
+    const source = 'mobile app "Sweet_water"\n\nscreen Home\nstate greeting = "Hello"\ncolumn\ntext greeting\nend\nend\n\nstart with Home\n';
+    const expected = 'mobile app "Sweet_water"\n\nscreen Home\n  state greeting = "Hello"\n  column\n    text greeting\n  end\nend\n\nstart with Home\n';
+    const formatted = formatZornux(source, opt);
+    expect(formatted).toBe(expected);
+    expect(formatZornux(formatted, opt)).toBe(formatted);
+  });
+
+  test('accepts the generated mobile template without false diagnostics', () => {
+    const source = 'mobile app "Sweet_water"\n\nscreen Home\n    state greeting = "Hello from Sweet_water!"\n\n    column\n        text greeting\n    end\nend\n\nstart with Home\n';
+    expect(lintMobileZornux(source)).toHaveLength(0);
+  });
+
+  test('reports real mobile structural and navigation errors', () => {
+    const source = 'mobile app "Demo"\n\nscreen Home\n    column\n        text "Hello"\nend\n\nstart with Missing\n';
+    const codes = lintMobileZornux(source).map((diagnostic) => diagnostic.code);
+    expect(codes).toContain('zx-mobile-unclosed-block');
+    expect(codes).toContain('zx-mobile-unknown-screen');
+  });
+
+  test('blocks unsupported statements from an unsafe designer round trip', () => {
+    const source = 'mobile app "Demo"\n\nscreen Home\n    future_widget "Value"\nend\n\nstart with Home\n';
+    expect(lintMobileZornux(source).map((diagnostic) => diagnostic.code)).toContain('zx-mobile-unsupported-statement');
+  });
+
+  test('blocks unknown component attributes from an unsafe designer round trip', () => {
+    const source = 'mobile app "Demo"\n\nscreen Home\n    button "Save" mystery=true\nend\n\nstart with Home\n';
+    expect(lintMobileZornux(source).map((diagnostic) => diagnostic.code)).toContain('zx-mobile-unsupported-attribute');
   });
 });

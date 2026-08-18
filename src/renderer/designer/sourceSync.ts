@@ -45,15 +45,26 @@ function indentLevel(line: string): number {
 
 function parseQuotedString(raw: string): string {
   const match = raw.match(/^"((?:[^"\\]|\\.)*)"$/);
-  return match ? match[1] : raw;
+  if (!match) return raw;
+  let value = '';
+  for (let index = 0; index < match[1].length; index++) {
+    const character = match[1][index];
+    if (character !== '\\' || index + 1 >= match[1].length) {
+      value += character;
+      continue;
+    }
+    const escaped = match[1][++index];
+    value += escaped === 'n' ? '\n' : escaped === 'r' ? '\r' : escaped === 't' ? '\t' : escaped;
+  }
+  return value;
 }
 
 function parseInlineAttrs(rest: string): Record<string, string> {
   const attrs: Record<string, string> = {};
-  const re = /(\w+)\s*=\s*(?:"([^"]*)"|(\S+))/g;
+  const re = /(\w+)\s*=\s*(?:"((?:[^"\\]|\\.)*)"|(\S+))/g;
   let m: RegExpExecArray | null;
   while ((m = re.exec(rest)) !== null) {
-    attrs[m[1]] = m[2] ?? m[3];
+    attrs[m[1]] = m[2] !== undefined ? parseQuotedString(`"${m[2]}"`) : m[3];
   }
   return attrs;
 }
@@ -89,9 +100,12 @@ function parseComponentBlock(ctx: ParseContext, baseIndent: number): ComponentNo
   let primaryValue = '';
   let attrRest = rest;
   if (rest.startsWith('"')) {
-    const endQuote = rest.indexOf('"', 1);
+    let endQuote = -1;
+    for (let index = 1; index < rest.length; index++) {
+      if (rest[index] === '"' && rest[index - 1] !== '\\') { endQuote = index; break; }
+    }
     if (endQuote > 0) {
-      primaryValue = rest.substring(1, endQuote);
+      primaryValue = parseQuotedString(rest.substring(0, endQuote + 1));
       attrRest = rest.substring(endQuote + 1).trim();
     }
   } else {
@@ -237,9 +251,9 @@ export function parseSource(source: string): DesignerDocument {
     const trimmed = trimmedAt(ctx);
 
     // mobile app "Name"
-    const appMatch = trimmed.match(/^mobile\s+app\s+"([^"]+)"/);
+    const appMatch = trimmed.match(/^mobile\s+app\s+("(?:[^"\\]|\\.)*")/);
     if (appMatch) {
-      appName = appMatch[1];
+      appName = parseQuotedString(appMatch[1]);
       ctx.pos++;
       continue;
     }
@@ -273,7 +287,11 @@ export function parseSource(source: string): DesignerDocument {
 function emitPropertyValue(value: string | number | boolean): string {
   if (typeof value === 'boolean') return value ? 'true' : 'false';
   if (typeof value === 'number') return String(value);
-  return `"${value}"`;
+  return `"${escapeZornuxString(value)}"`;
+}
+
+function escapeZornuxString(value: string): string {
+  return value.replace(/\\/g, '\\\\').replace(/"/g, '\\"').replace(/\r/g, '\\r').replace(/\n/g, '\\n').replace(/\t/g, '\\t');
 }
 
 function emitNode(node: ComponentNode, depth: number): string[] {
@@ -294,13 +312,13 @@ function emitNode(node: ComponentNode, depth: number): string[] {
       if (typeof val === 'string' && /^[a-z_]\w*$/i.test(val) && !val.includes(' ')) {
         opening += ` ${val}`;
       } else {
-        opening += ` "${val}"`;
+        opening += ` "${escapeZornuxString(String(val))}"`;
       }
     } else if (val !== undefined && val !== '') {
       if (typeof val === 'string' && /^[a-z_]\w*$/i.test(val)) {
         opening += ` ${val}`;
       } else {
-        opening += ` "${val}"`;
+        opening += ` "${escapeZornuxString(String(val))}"`;
       }
     }
   }
@@ -356,7 +374,7 @@ function emitScreen(screen: ScreenModel): string[] {
     if (val === 'true' || val === 'false' || /^\d+(\.\d+)?$/.test(val)) {
       lines.push(`${INDENT}state ${state.name} = ${val}`);
     } else {
-      lines.push(`${INDENT}state ${state.name} = "${val}"`);
+      lines.push(`${INDENT}state ${state.name} = "${escapeZornuxString(val)}"`);
     }
   }
 
@@ -375,7 +393,7 @@ function emitScreen(screen: ScreenModel): string[] {
 export function emitSource(doc: DesignerDocument): string {
   const lines: string[] = [];
 
-  lines.push(`mobile app "${doc.appName}"`);
+  lines.push(`mobile app "${escapeZornuxString(doc.appName)}"`);
   lines.push('');
 
   for (let i = 0; i < doc.getScreens().length; i++) {
@@ -398,6 +416,63 @@ export function emitSource(doc: DesignerDocument): string {
 export function sourceNeedsUpdate(currentSource: string, doc: DesignerDocument): boolean {
   const emitted = emitSource(doc);
   return normalizeWhitespace(currentSource) !== normalizeWhitespace(emitted);
+}
+
+/** Refresh source locations after emitting without replacing stable designer IDs. */
+export function updateSourceRanges(doc: DesignerDocument, source: string): void {
+  const parsed = parseSource(source);
+  const copyTree = (target: ComponentNode[], next: ComponentNode[]): void => {
+    for (let index = 0; index < Math.min(target.length, next.length); index++) {
+      if (target[index].kind !== next[index].kind) continue;
+      target[index].sourceRange = next[index].sourceRange;
+      copyTree(target[index].children, next[index].children);
+    }
+  };
+  for (const screen of doc.getScreens()) {
+    const parsedScreen = parsed.getScreens().find((candidate) => candidate.name === screen.name);
+    if (parsedScreen) copyTree(screen.rootChildren, parsedScreen.rootChildren);
+  }
+}
+
+/** Reinsert full-line source comments that the visual model does not own. */
+export function preserveSourceComments(original: string, emitted: string): string {
+  const originalLines = original.split(/\r?\n/);
+  const output = emitted.split('\n');
+  const emittedCommentCounts = new Map<string, number>();
+  for (const line of output) {
+    const trimmed = line.trim();
+    if (trimmed.startsWith('#')) emittedCommentCounts.set(trimmed, (emittedCommentCounts.get(trimmed) ?? 0) + 1);
+  }
+  const seenComments = new Map<string, number>();
+  let searchFrom = 0;
+  for (let index = 0; index < originalLines.length; index++) {
+    const comment = originalLines[index].trim();
+    if (!comment.startsWith('#')) continue;
+    const seen = (seenComments.get(comment) ?? 0) + 1;
+    seenComments.set(comment, seen);
+    if (seen <= (emittedCommentCounts.get(comment) ?? 0)) continue;
+
+    let anchor = '';
+    for (let next = index + 1; next < originalLines.length; next++) {
+      const candidate = originalLines[next].trim();
+      if (candidate && !candidate.startsWith('#')) { anchor = candidate; break; }
+    }
+    let insertion = output.length - 1;
+    if (anchor) {
+      let found = output.findIndex((line, outputIndex) => outputIndex >= searchFrom && line.trim() === anchor);
+      if (found < 0) {
+        const keyword = anchor.split(/\s+/)[0];
+        found = output.findIndex((line, outputIndex) => outputIndex >= searchFrom && line.trim().split(/\s+/)[0] === keyword);
+      }
+      if (found >= 0) {
+        insertion = found;
+        searchFrom = found + 1;
+      }
+    }
+    const anchorIndent = output[insertion]?.match(/^\s*/)?.[0] ?? '';
+    output.splice(insertion, 0, `${anchorIndent}${comment}`);
+  }
+  return output.join('\n');
 }
 
 function normalizeWhitespace(s: string): string {

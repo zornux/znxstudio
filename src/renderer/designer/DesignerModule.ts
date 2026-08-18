@@ -13,19 +13,21 @@ import {
   ServiceKeys,
   type EditorService,
   type WorkspaceService,
-  type OutputService,
 } from '../core/Contracts';
+import { LanguageServiceKeys } from '../language/api';
+import type { DocumentManager, ManagedDocument } from '../language/DocumentManager';
 import { CommandIds } from '../commands/CommandIds';
 import { DesignerDocument } from './designerDocument';
-import { UndoRedoStack, type DesignerAction } from './undoRedo';
+import { UndoRedoStack } from './undoRedo';
 import { DragDropManager, type DropResult } from './dragDrop';
 import { DeviceFrame } from './devicePreview';
 import { DesignCanvas } from './canvas';
 import { Toolbox } from './toolbox';
 import { PropertiesPanel } from './properties';
 import { HierarchyTree } from './hierarchy';
-import { parseSource, emitSource, sourceNeedsUpdate } from './sourceSync';
+import { parseSource, emitSource, preserveSourceComments, updateSourceRanges } from './sourceSync';
 import { getDescriptor } from './componentModel';
+import { isMobileZornux, lintMobileZornux } from '../language/languages/zornux/mobileSyntax';
 
 export class DesignerModule implements IModule {
   readonly id = 'znxstudio.designer';
@@ -47,6 +49,10 @@ export class DesignerModule implements IModule {
   private syncPaused = false;
   private activityRegistered = false;
   private detachObserver: (() => void) | null = null;
+  private sourceChangeTimer: ReturnType<typeof setTimeout> | null = null;
+  private readonly viewDisposables: Disposable[] = [];
+  private syncStatus: HTMLSpanElement | null = null;
+  private sourceSnapshot = '';
 
   activate(context: ModuleContext): void {
     this.context = context;
@@ -105,14 +111,32 @@ export class DesignerModule implements IModule {
     });
 
     // Canvas node drag → DnD manager
-    this.canvas.onNodeDragStart(({ nodeId, event }) => {
+    this.canvas.onNodeDragStart(({ nodeId, event, grabOffsetX, grabOffsetY }) => {
       const node = this.doc.getNode(nodeId);
       const desc = node ? getDescriptor(node.kind) : undefined;
       this.dragDrop.startDrag(
-        { origin: 'canvas', nodeId },
+        { origin: 'canvas', nodeId, grabOffsetX, grabOffsetY },
         event,
         desc?.label ?? node?.kind ?? 'Component',
       );
+    });
+
+    this.canvas.onNodeResize((resize) => {
+      this.undoStack.push({
+        label: 'Resize component',
+        execute: () => {
+          this.doc.setProperty(resize.nodeId, 'width', resize.width);
+          this.doc.setProperty(resize.nodeId, 'height', resize.height);
+          this.syncToSource();
+        },
+        undo: () => {
+          this.doc.setProperty(resize.nodeId, 'width', resize.previousWidth);
+          this.doc.setProperty(resize.nodeId, 'height', resize.previousHeight);
+          this.syncToSource();
+          this.properties.refresh();
+        },
+      });
+      this.properties.refresh();
     });
 
     // Property changes → undo stack + document
@@ -122,6 +146,7 @@ export class DesignerModule implements IModule {
         execute: () => {
           this.doc.setProperty(change.nodeId, change.key, change.value);
           this.syncToSource();
+          this.properties.refresh();
         },
         undo: () => {
           this.doc.setProperty(change.nodeId, change.key, change.previousValue);
@@ -220,6 +245,11 @@ export class DesignerModule implements IModule {
         }
       });
     }
+
+    const documents = context.services.tryGet<DocumentManager>(LanguageServiceKeys.Documents);
+    if (documents) {
+      context.subscriptions.push(documents.onDidChange((changed) => this.handleSourceDocumentChange(changed)));
+    }
   }
 
   // ---- Workspace gate ----
@@ -305,6 +335,11 @@ export class DesignerModule implements IModule {
     this.renderScreenTabs(screenTabs);
     centerPanel.appendChild(screenTabs);
 
+    this.syncStatus = document.createElement('span');
+    this.syncStatus.className = 'zd-source-sync-status';
+    this.syncStatus.textContent = 'Source synced';
+    screenTabs.appendChild(this.syncStatus);
+
     // Device frame wrapping the canvas
     this.deviceFrame.viewport.innerHTML = '';
     this.deviceFrame.viewport.appendChild(this.canvas.element);
@@ -339,9 +374,10 @@ export class DesignerModule implements IModule {
     }
 
     // Re-render screen tabs on doc changes
-    this.doc.onDidChange(() => {
+    this.viewDisposables.push(this.doc.onDidChange(() => {
       this.renderScreenTabs(screenTabs);
-    });
+      screenTabs.appendChild(this.syncStatus!);
+    }));
   }
 
   private closeDesigner(): void {
@@ -349,12 +385,14 @@ export class DesignerModule implements IModule {
 
     this.detachObserver?.();
     this.detachObserver = null;
+    this.disposeViewSubscriptions();
 
     const editor = this.context.services.tryGet<EditorService>(ServiceKeys.Editor);
     if (editor) editor.hideView();
 
     this.visible = false;
     this.designerRoot = null;
+    this.syncStatus = null;
   }
 
   private observeDetach(): void {
@@ -364,8 +402,10 @@ export class DesignerModule implements IModule {
       if (!root.isConnected) {
         this.detachObserver?.();
         this.detachObserver = null;
+        this.disposeViewSubscriptions();
         this.visible = false;
         this.designerRoot = null;
+        this.syncStatus = null;
       }
     });
     observer.observe(document.body, { childList: true, subtree: true });
@@ -385,7 +425,7 @@ export class DesignerModule implements IModule {
     const undoBtn = this.createActionButton('Undo', '↩', () => this.undo());
     const redoBtn = this.createActionButton('Redo', '↪', () => this.redo());
     const addScreenBtn = this.createActionButton('Add Screen', '+📱', () => this.addScreen());
-    const closeBtn = this.createActionButton('Close Designer', '✕', () => this.closeDesigner());
+    const closeBtn = this.createActionButton('Open Code Editor', '</>', () => this.closeDesigner());
 
     actions.appendChild(undoBtn);
     actions.appendChild(redoBtn);
@@ -404,7 +444,7 @@ export class DesignerModule implements IModule {
     this.renderStatesSection(statesContainer);
     container.appendChild(statesContainer);
 
-    this.doc.onDidChange(() => this.renderStatesSection(statesContainer));
+    this.viewDisposables.push(this.doc.onDidChange(() => this.renderStatesSection(statesContainer)));
 
     return container;
   }
@@ -475,14 +515,9 @@ export class DesignerModule implements IModule {
 
   private async loadFromFile(path: string): Promise<void> {
     try {
-      const content = await window.znxstudio.fs.readFile(path);
-      if (!content.includes('mobile app')) return;
-      this.syncPaused = true;
-      const parsed = parseSource(content);
-      this.doc.loadFromParsed(parsed.appName, parsed.startScreen, [...parsed.getScreens()]);
-      this.doc.sourcePath = path;
-      this.undoStack.clear();
-      this.syncPaused = false;
+      const managed = this.findOpenDocument(path);
+      const content = managed?.model.getValue() ?? await window.znxstudio.fs.readFile(path);
+      this.loadSourceContent(path, content);
     } catch {
       // File not readable or not a mobile file
     }
@@ -490,8 +525,85 @@ export class DesignerModule implements IModule {
 
   private syncToSource(): void {
     if (this.syncPaused || !this.doc.sourcePath) return;
-    const source = emitSource(this.doc);
-    window.znxstudio.fs.writeFile(this.doc.sourcePath, source).catch(() => {});
+    const source = preserveSourceComments(this.sourceSnapshot, emitSource(this.doc));
+    updateSourceRanges(this.doc, source);
+    const managed = this.findOpenDocument(this.doc.sourcePath);
+    if (managed) {
+      if (managed.model.getValue() === source) return;
+      this.syncPaused = true;
+      try {
+        managed.model.pushStackElement();
+        managed.model.pushEditOperations([], [{ range: managed.model.getFullModelRange(), text: source }], () => null);
+        managed.model.pushStackElement();
+      } finally {
+        this.syncPaused = false;
+      }
+      this.sourceSnapshot = source;
+      this.setSyncStatus('Design changes are in the editor', 'synced');
+      return;
+    }
+    window.znxstudio.fs.writeFile(this.doc.sourcePath, source)
+      .then(() => {
+        this.sourceSnapshot = source;
+        this.setSyncStatus('Source saved', 'synced');
+      })
+      .catch(() => this.setSyncStatus('Could not update source', 'error'));
+  }
+
+  private handleSourceDocumentChange(changed: ManagedDocument): void {
+    if (!this.visible || this.syncPaused || !this.doc.sourcePath) return;
+    if (this.normalizePath(changed.path) !== this.normalizePath(this.doc.sourcePath)) return;
+    if (this.sourceChangeTimer) clearTimeout(this.sourceChangeTimer);
+    this.setSyncStatus('Updating design…', 'pending');
+    this.sourceChangeTimer = setTimeout(() => {
+      this.sourceChangeTimer = null;
+      this.loadSourceContent(changed.path, changed.model.getValue(), true);
+    }, 250);
+  }
+
+  private loadSourceContent(path: string, content: string, fromEditor = false): void {
+    if (!isMobileZornux(content)) return;
+    // Track the buffer even while it is temporarily invalid so a subsequent
+    // editor fix can resume synchronization without reopening the designer.
+    this.doc.sourcePath = path;
+    this.sourceSnapshot = content;
+    if (lintMobileZornux(content).length > 0) {
+      this.setSyncStatus('Fix source errors to update the design', 'error');
+      return;
+    }
+    this.syncPaused = true;
+    try {
+      const parsed = parseSource(content);
+      this.doc.loadFromParsed(parsed.appName, parsed.startScreen, [...parsed.getScreens()]);
+      this.doc.sourcePath = path;
+      this.canvas.clearSelection();
+      this.properties.setNode(null);
+      this.undoStack.clear();
+      this.setSyncStatus(fromEditor ? 'Design updated from source' : 'Source synced', 'synced');
+    } finally {
+      this.syncPaused = false;
+    }
+  }
+
+  private findOpenDocument(path: string): ManagedDocument | null {
+    const documents = this.context.services.tryGet<DocumentManager>(LanguageServiceKeys.Documents);
+    return documents?.allManaged().find((candidate) => this.normalizePath(candidate.path) === this.normalizePath(path)) ?? null;
+  }
+
+  private normalizePath(path: string): string {
+    return path.replace(/\\/g, '/').replace(/\/$/, '').toLowerCase();
+  }
+
+  private setSyncStatus(message: string, state: 'synced' | 'pending' | 'error'): void {
+    if (!this.syncStatus) return;
+    this.syncStatus.textContent = message;
+    this.syncStatus.dataset.state = state;
+  }
+
+  private disposeViewSubscriptions(): void {
+    if (this.sourceChangeTimer) clearTimeout(this.sourceChangeTimer);
+    this.sourceChangeTimer = null;
+    for (const disposable of this.viewDisposables.splice(0)) disposable.dispose();
   }
 
   private revealInSource(nodeId: string): void {
@@ -506,8 +618,16 @@ export class DesignerModule implements IModule {
   // ---- Drop handling ----
 
   private handleDrop(result: DropResult): void {
+    const rawPoint = result.target.freeform ? this.canvas.canvasPoint(result.clientX, result.clientY) : null;
+    const point = rawPoint && result.source.origin === 'canvas'
+      ? {
+          x: Math.max(0, rawPoint.x - result.source.grabOffsetX),
+          y: Math.max(0, rawPoint.y - result.source.grabOffsetY),
+        }
+      : rawPoint;
     if (result.source.origin === 'toolbox') {
       const node = this.doc.createNode(result.source.componentKind);
+      if (point) Object.assign(node.properties, { positionMode: 'freeform', x: point.x, y: point.y });
       this.undoStack.push({
         label: `Add ${getDescriptor(node.kind)?.label ?? node.kind}`,
         execute: () => {
@@ -525,13 +645,27 @@ export class DesignerModule implements IModule {
       if (!node) return;
       const oldParentId = node.parentId;
       const oldIndex = this.doc.indexOf(node.id);
+      const oldPlacement = {
+        positionMode: node.properties.positionMode,
+        x: node.properties.x,
+        y: node.properties.y,
+      };
+      // Drop indices describe the tree before the dragged node is removed.
+      // Compensate when moving forward among the same siblings so the node
+      // lands at the insertion marker the user selected.
+      const targetIndex = oldParentId === result.target.parentId && oldIndex < result.target.index
+        ? result.target.index - 1
+        : result.target.index;
       this.undoStack.push({
         label: `Move ${getDescriptor(node.kind)?.label ?? node.kind}`,
         execute: () => {
-          this.doc.moveNode(node.id, result.target.parentId, result.target.index);
+          if (point) Object.assign(node.properties, { positionMode: 'freeform', x: point.x, y: point.y });
+          else Object.assign(node.properties, { positionMode: 'flow', x: 0, y: 0 });
+          this.doc.moveNode(node.id, result.target.parentId, targetIndex);
           this.syncToSource();
         },
         undo: () => {
+          Object.assign(node.properties, oldPlacement);
           this.doc.moveNode(node.id, oldParentId, oldIndex);
           this.syncToSource();
         },
@@ -601,7 +735,7 @@ export class DesignerModule implements IModule {
         this.syncToSource();
       },
       undo: () => {
-        for (const snap of snapshots.reverse()) {
+        for (const snap of [...snapshots].reverse()) {
           if (snap.node) {
             this.doc.addChild(snap.parentId, snap.node, snap.index);
           }

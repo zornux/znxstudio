@@ -29,6 +29,7 @@ import { LanguageRegistry } from './LanguageRegistry';
 import { MonacoLanguageBridge } from './MonacoLanguageBridge';
 import { LanguageServicePlainText } from './languages/LanguageServicePlainText';
 import { LanguageServiceZornux } from './languages/LanguageServiceZornux';
+import { isMobileZornux } from './languages/zornux/mobileSyntax';
 
 const ZORNUX_FRONTEND_SOURCE = DiagnosticSources.ZornuxFrontend; // fast, provisional
 const ZORNUX_COMPILER_SOURCE = DiagnosticSources.ZornuxCompiler; // authoritative (real CLI)
@@ -181,7 +182,7 @@ export class LanguagePlatformModule implements IModule {
     // analyzer stands down to its offline-fallback role — otherwise the same
     // error would squiggle twice (front-end + server). It resumes when the
     // server is down (see scheduleCompilerCheck for the matching gate).
-    if (doc.languageId === 'zornux' && this.languageServerRunning()) {
+    if (doc.languageId === 'zornux' && this.languageServerRunning() && !isMobileZornux(doc.model.getValue())) {
       this.engine.clear(doc.uri, service.metadata.id);
       return;
     }
@@ -207,6 +208,11 @@ export class LanguagePlatformModule implements IModule {
   /* ----- compiler diagnostics (authoritative; fallback when the LSP is down) ----- */
   private scheduleCompilerCheck(doc: ManagedDocument, delay: number, invalidate: boolean): void {
     if (doc.languageId !== 'zornux' || !this.compilerEnabled()) return;
+    if (isMobileZornux(doc.model.getValue())) {
+      this.engine.clear(doc.uri, ZORNUX_COMPILER_SOURCE);
+      this.compilerCheckedHash.delete(doc.uri);
+      return;
+    }
     // If we know the compiler is absent, never schedule — the front-end stands alone.
     if (this.compilerInfo && !this.compilerInfo.available) return;
     // When the language server is running it pushes the same authoritative

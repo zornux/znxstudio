@@ -1,6 +1,7 @@
 import { execFile, spawn, type ChildProcess } from 'node:child_process';
 import { readFile, writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
+import { homedir } from 'node:os';
 import type { WebContents } from 'electron';
 import { IpcChannels } from '../../shared/ipc';
 import type {
@@ -23,6 +24,7 @@ import type {
 } from '../../shared/types';
 import { ZORNUX_EXE, zornuxCandidates } from '../util/zornuxRuntime';
 import { existsSync } from 'node:fs';
+import { probeAndroidEnvironment } from './AndroidEnvironmentProbe';
 
 const CLI_TIMEOUT_MS = 30_000;
 const TEST_TIMEOUT_MS = 120_000;
@@ -130,74 +132,70 @@ export class MobileService {
   /** List connected Android devices (physical + running emulators). */
   async devices(): Promise<AndroidDevice[]> {
     const { code, stdout } = await this.exec(['mobile', 'devices', '--json']);
-    if (code !== 0) return [];
-
-    try {
-      const parsed = JSON.parse(stdout);
-      if (!Array.isArray(parsed)) return [];
-      return parsed.map((entry: Record<string, unknown>) => ({
-        id: String(entry.id ?? ''),
-        name: String(entry.name ?? entry.id ?? ''),
-        type: entry.type === 'emulator' ? 'emulator' as const : 'physical' as const,
-        apiLevel: typeof entry.apiLevel === 'string' ? entry.apiLevel : null,
-        status: entry.status === 'offline' ? 'offline' as const
-          : entry.status === 'unauthorized' ? 'unauthorized' as const
-          : 'device' as const,
-      })).filter((device: AndroidDevice) => device.id.length > 0);
-    } catch {
-      return [];
+    if (code === 0) {
+      try {
+        const parsed = JSON.parse(stdout);
+        if (Array.isArray(parsed)) {
+          return parsed.map((entry: Record<string, unknown>) => ({
+            id: String(entry.id ?? ''),
+            name: String(entry.name ?? entry.id ?? ''),
+            type: entry.type === 'emulator' ? 'emulator' as const : 'physical' as const,
+            apiLevel: typeof entry.apiLevel === 'string' ? entry.apiLevel : null,
+            status: entry.status === 'offline' ? 'offline' as const
+              : entry.status === 'unauthorized' ? 'unauthorized' as const
+              : 'device' as const,
+          })).filter((device: AndroidDevice) => device.id.length > 0);
+        }
+      } catch {
+        // Older compilers may not expose mobile JSON; use ADB directly below.
+      }
     }
+    return this.adbDevices();
   }
 
   /** List available Android emulator AVDs. */
   async emulators(): Promise<AndroidEmulator[]> {
     const { code, stdout } = await this.exec(['mobile', 'emulators', '--json']);
-    if (code !== 0) return [];
-
-    try {
-      const parsed = JSON.parse(stdout);
-      if (!Array.isArray(parsed)) return [];
-      return parsed.map((entry: Record<string, unknown>) => ({
-        name: String(entry.name ?? ''),
-        apiLevel: typeof entry.apiLevel === 'string' ? entry.apiLevel : null,
-      })).filter((emulator: AndroidEmulator) => emulator.name.length > 0);
-    } catch {
-      return [];
+    if (code === 0) {
+      try {
+        const parsed = JSON.parse(stdout);
+        if (Array.isArray(parsed)) {
+          return parsed.map((entry: Record<string, unknown>) => ({
+            name: String(entry.name ?? ''),
+            apiLevel: typeof entry.apiLevel === 'string' ? entry.apiLevel : null,
+          })).filter((emulator: AndroidEmulator) => emulator.name.length > 0);
+        }
+      } catch {
+        // Fall through to the installed emulator binary.
+      }
     }
+    const emulator = this.androidTool('emulator', 'emulator');
+    if (!emulator) return [];
+    const result = await this.execFile(emulator, ['-list-avds']);
+    return parseAvdNames(result.stdout);
   }
 
   /** Start an emulator by AVD name. Fire-and-forget: the emulator boots asynchronously. */
   async startEmulator(name: string): Promise<void> {
     const result = await this.exec(['mobile', 'emulator', 'start', name]);
-    if (result.code !== 0) {
-      throw new Error(result.stderr.trim() || result.stdout.trim() || `Emulator failed to start (exit ${result.code ?? '—'}).`);
-    }
+    if (result.code === 0) return;
+    const emulator = this.androidTool('emulator', 'emulator');
+    if (!emulator) throw new Error('Android Emulator is not installed.');
+    const child = spawn(emulator, [`@${name}`, '-no-metrics'], {
+      detached: true,
+      stdio: 'ignore',
+      windowsHide: true,
+      env: this.androidEnv(),
+    });
+    child.unref();
   }
 
   /** Run `zornux mobile doctor android` and return structured results. */
   async doctor(platform: string): Promise<MobileDoctorResult> {
-    const { code, stdout, stderr } = await this.exec(['mobile', 'doctor', platform, '--json']);
-
-    try {
-      const parsed = JSON.parse(stdout);
-      if (typeof parsed === 'object' && parsed !== null && Array.isArray(parsed.checks)) {
-        return {
-          ok: code === 0,
-          checks: parsed.checks.map((check: Record<string, unknown>) => ({
-            name: String(check.name ?? ''),
-            passed: Boolean(check.passed),
-            detail: String(check.detail ?? ''),
-          })),
-        };
-      }
-    } catch {
-      // Parse failure — return a single failed check with the raw output.
+    if (platform !== 'android') {
+      return { ok: false, checks: [{ name: 'platform', passed: false, detail: `Unsupported mobile platform: ${platform}` }] };
     }
-
-    return {
-      ok: false,
-      checks: [{ name: 'doctor', passed: false, detail: stderr.trim() || stdout.trim() || 'Doctor check failed.' }],
-    };
+    return (await probeAndroidEnvironment()).doctor;
   }
 
   /** Start `zornux mobile run android --device <id> --watch`. Kills any previous run. */
@@ -208,6 +206,7 @@ export class MobileService {
     const child = spawn(compilerPath, ['mobile', 'run', 'android', '--device', deviceId, '--watch'], {
       cwd: workspaceRoot,
       windowsHide: true,
+      env: this.androidEnv(),
     });
 
     this.runProcess = child;
@@ -278,6 +277,7 @@ export class MobileService {
     const child = spawn(compilerPath, args, {
       cwd: config.workspaceRoot,
       windowsHide: true,
+      env: this.androidEnv(),
     });
 
     this.debugProcess = child;
@@ -484,6 +484,7 @@ export class MobileService {
     const child = spawn(compilerPath, args, {
       cwd: config.workspaceRoot,
       windowsHide: true,
+      env: this.androidEnv(),
     });
 
     this.profileProcess = child;
@@ -730,7 +731,7 @@ export class MobileService {
   private execWithTimeout(args: string[], cwd: string, timeoutMs: number): Promise<ExecResult> {
     const command = this.locateCompiler();
     return new Promise<ExecResult>((resolve, reject) => {
-      const child = spawn(command, args, { cwd, windowsHide: true });
+      const child = spawn(command, args, { cwd, windowsHide: true, env: this.androidEnv() });
       this.testProcess = child;
       let stdout = '';
       let stderr = '';
@@ -791,7 +792,7 @@ export class MobileService {
     const command = this.locateCompiler();
 
     return new Promise<MobileBuildResult>((resolve) => {
-      const child = spawn(command, args, { cwd, windowsHide: true });
+      const child = spawn(command, args, { cwd, windowsHide: true, env: this.androidEnv() });
       this.buildProcess = child;
       let stdout = '';
       let stderr = '';
@@ -860,10 +861,60 @@ export class MobileService {
     });
   }
 
+  private async adbDevices(): Promise<AndroidDevice[]> {
+    const adb = this.androidTool('platform-tools', 'adb');
+    if (!adb) return [];
+    const result = await this.execFile(adb, ['devices', '-l']);
+    return result.code === 0 ? parseAdbDevices(result.stdout) : [];
+  }
+
+  private androidSdkRoot(): string | null {
+    const candidates = [
+      process.env.ANDROID_SDK_ROOT,
+      process.env.ANDROID_HOME,
+      join(homedir(), '.zornux', 'toolchains', 'android', 'sdk'),
+      join(homedir(), 'Android', 'Sdk'),
+    ];
+    return candidates.find((candidate): candidate is string => Boolean(candidate && existsSync(candidate))) ?? null;
+  }
+
+  private androidTool(directory: string, executable: string): string | null {
+    const root = this.androidSdkRoot();
+    if (!root) return null;
+    const suffix = process.platform === 'win32' ? '.exe' : '';
+    const path = join(root, directory, `${executable}${suffix}`);
+    return existsSync(path) ? path : null;
+  }
+
+  private androidEnv(): NodeJS.ProcessEnv {
+    const root = this.androidSdkRoot();
+    if (!root) return { ...process.env };
+    const additions = [
+      join(root, 'platform-tools'),
+      join(root, 'emulator'),
+      join(root, 'cmdline-tools', 'latest', 'bin'),
+    ];
+    return {
+      ...process.env,
+      ANDROID_HOME: root,
+      ANDROID_SDK_ROOT: root,
+      PATH: `${additions.join(process.platform === 'win32' ? ';' : ':')}${process.platform === 'win32' ? ';' : ':'}${process.env.PATH ?? ''}`,
+    };
+  }
+
+  private execFile(command: string, args: string[]): Promise<ExecResult> {
+    return new Promise<ExecResult>((resolve) => {
+      execFile(command, args, { env: this.androidEnv(), timeout: CLI_TIMEOUT_MS }, (error, stdout, stderr) => {
+        const code = error && typeof error.code === 'number' ? error.code : error ? 1 : 0;
+        resolve({ code, stdout: String(stdout), stderr: String(stderr) });
+      });
+    });
+  }
+
   private exec(args: string[], cwd?: string): Promise<ExecResult> {
     const command = this.locateCompiler();
     return new Promise<ExecResult>((resolve, reject) => {
-      const child = spawn(command, args, { cwd, windowsHide: true });
+      const child = spawn(command, args, { cwd, windowsHide: true, env: this.androidEnv() });
       let stdout = '';
       let stderr = '';
       let settled = false;
@@ -891,4 +942,40 @@ export class MobileService {
       });
     });
   }
+}
+
+export function parseAdbDevices(stdout: string): AndroidDevice[] {
+  const devices: AndroidDevice[] = [];
+  for (const rawLine of stdout.split(/\r?\n/).slice(1)) {
+    const line = rawLine.trim();
+    if (!line || line.startsWith('*')) continue;
+    const [id, rawStatus, ...details] = line.split(/\s+/);
+    if (!id || !rawStatus) continue;
+    const modelField = details.find((detail) => detail.startsWith('model:'));
+    const model = modelField?.slice('model:'.length).replace(/_/g, ' ') || id;
+    const status: AndroidDevice['status'] = rawStatus === 'unauthorized'
+      ? 'unauthorized'
+      : rawStatus === 'device'
+        ? 'device'
+        : 'offline';
+    devices.push({
+      id,
+      name: model,
+      type: id.startsWith('emulator-') ? 'emulator' : 'physical',
+      apiLevel: null,
+      status,
+    });
+  }
+  return devices;
+}
+
+export function parseAvdNames(stdout: string): AndroidEmulator[] {
+  return stdout.split(/\r?\n/)
+    .map((name) => name.trim())
+    .filter(Boolean)
+    .map((name) => ({ name, apiLevel: inferApiLevel(name) }));
+}
+
+function inferApiLevel(name: string): string | null {
+  return name.match(/(?:API[_ -]?)(\d{2,3})/i)?.[1] ?? null;
 }

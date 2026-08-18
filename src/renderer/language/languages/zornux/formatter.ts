@@ -14,6 +14,7 @@
  * spacing, alignment, etc.) can replace this file behind the same provider.
  */
 import { tokenize, TokenKind, type Token } from './lexer';
+import { formatMobileZornux, isMobileZornux } from './mobileSyntax';
 
 export interface FormatOptions {
   tabSize: number;
@@ -26,6 +27,7 @@ const CLOSERS = new Set([TokenKind.BraceClose, TokenKind.ParenClose, TokenKind.B
 export function formatZornux(source: string, options: FormatOptions): string {
   // Leave whitespace-only documents untouched.
   if (source.trim() === '') return source;
+  if (isMobileZornux(source)) return formatMobileZornux(source, options.tabSize, options.insertSpaces);
 
   const indentUnit = options.insertSpaces ? ' '.repeat(Math.max(1, options.tabSize)) : '\t';
 

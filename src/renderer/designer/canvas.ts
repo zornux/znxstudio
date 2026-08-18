@@ -9,6 +9,7 @@ import type { ComponentNode } from './designerDocument';
 import type { DesignerDocument } from './designerDocument';
 import { getDescriptor } from './componentModel';
 import type { DragDropManager, DragSource } from './dragDrop';
+import { applyStyles, containerStyles, nodeLayoutStyles, previewColor, previewSize, visualStyles } from './propertyStyles';
 
 // ---------------------------------------------------------------------------
 // Selection model
@@ -17,6 +18,14 @@ import type { DragDropManager, DragSource } from './dragDrop';
 export interface SelectionState {
   selectedIds: Set<string>;
   primaryId: string | null;
+}
+
+export interface NodeResizeEvent {
+  nodeId: string;
+  width: number;
+  height: number;
+  previousWidth: string | number | boolean;
+  previousHeight: string | number | boolean;
 }
 
 // ---------------------------------------------------------------------------
@@ -37,8 +46,11 @@ export class DesignCanvas {
   private readonly _onContextMenu = new Emitter<{ nodeId: string; x: number; y: number }>();
   readonly onContextMenu: Event<{ nodeId: string; x: number; y: number }> = this._onContextMenu.event;
 
-  private readonly _onNodeDragStart = new Emitter<{ nodeId: string; event: MouseEvent }>();
-  readonly onNodeDragStart: Event<{ nodeId: string; event: MouseEvent }> = this._onNodeDragStart.event;
+  private readonly _onNodeDragStart = new Emitter<{ nodeId: string; event: MouseEvent; grabOffsetX: number; grabOffsetY: number }>();
+  readonly onNodeDragStart: Event<{ nodeId: string; event: MouseEvent; grabOffsetX: number; grabOffsetY: number }> = this._onNodeDragStart.event;
+
+  private readonly _onNodeResize = new Emitter<NodeResizeEvent>();
+  readonly onNodeResize: Event<NodeResizeEvent> = this._onNodeResize.event;
 
   constructor() {
     this.element = document.createElement('div');
@@ -122,6 +134,13 @@ export class DesignCanvas {
       return;
     }
 
+    // Keep the whole design surface available as an append target. Once a
+    // screen contained its first component the old implementation left only a
+    // 2px trailing indicator, making subsequent drops practically impossible.
+    // More specific child/container zones still take precedence in the drag
+    // manager, so this acts only as a forgiving root-level fallback.
+    this.registerNodeDropZone(this.element, null, screen.rootChildren.length, true);
+
     if (screen.rootChildren.length === 0) {
       const placeholder = this.createRootDropPlaceholder();
       this.element.appendChild(placeholder);
@@ -146,6 +165,13 @@ export class DesignCanvas {
     wrapper.setAttribute('role', 'treeitem');
     wrapper.setAttribute('aria-label', `${descriptor?.label ?? node.kind} component`);
     wrapper.tabIndex = -1;
+    if (node.properties.contentDescription) wrapper.setAttribute('aria-label', String(node.properties.contentDescription));
+    if (node.properties.semanticRole && node.properties.semanticRole !== 'auto') wrapper.setAttribute('role', String(node.properties.semanticRole));
+    if (node.properties.testTag) wrapper.dataset.testTag = String(node.properties.testTag);
+    if (node.properties.focusable === true) wrapper.tabIndex = 0;
+    wrapper.classList.toggle('zd-node-clickable', node.properties.clickable === true);
+    applyStyles(wrapper, nodeLayoutStyles(node));
+    wrapper.classList.toggle('zd-node-hidden', node.properties.visible === false);
 
     // Component visual
     const visual = this.renderComponentVisual(node, descriptor);
@@ -160,11 +186,19 @@ export class DesignCanvas {
       // Start canvas drag after a small threshold
       const startX = e.clientX;
       const startY = e.clientY;
+      const startRect = wrapper.getBoundingClientRect();
+      const scaleX = startRect.width > 0 ? wrapper.offsetWidth / startRect.width : 1;
+      const scaleY = startRect.height > 0 ? wrapper.offsetHeight / startRect.height : 1;
       const moveCheck = (me: MouseEvent) => {
         if (Math.abs(me.clientX - startX) > 4 || Math.abs(me.clientY - startY) > 4) {
           document.removeEventListener('mousemove', moveCheck);
           document.removeEventListener('mouseup', upCheck);
-          this._onNodeDragStart.fire({ nodeId: node.id, event: me });
+          this._onNodeDragStart.fire({
+            nodeId: node.id,
+            event: me,
+            grabOffsetX: Math.max(0, Math.round((startX - startRect.left) * scaleX)),
+            grabOffsetY: Math.max(0, Math.round((startY - startRect.top) * scaleY)),
+          });
         }
       };
       const upCheck = () => {
@@ -184,10 +218,18 @@ export class DesignCanvas {
       this._onContextMenu.fire({ nodeId: node.id, x: e.clientX, y: e.clientY });
     });
 
+    const resizeHandle = document.createElement('span');
+    resizeHandle.className = 'zd-resize-handle';
+    resizeHandle.title = 'Drag to resize';
+    resizeHandle.setAttribute('aria-label', `Resize ${descriptor?.label ?? node.kind}`);
+    resizeHandle.addEventListener('mousedown', (event) => this.startResize(node, wrapper, event));
+    wrapper.appendChild(resizeHandle);
+
     // Container children + drop zones
     if (descriptor?.isContainer) {
       const childContainer = document.createElement('div');
       childContainer.className = 'zd-node-children';
+      applyStyles(childContainer, containerStyles(node));
 
       if (node.children.length === 0) {
         const emptyDrop = document.createElement('div');
@@ -203,6 +245,10 @@ export class DesignCanvas {
         childContainer.appendChild(this.createDropIndicator(node.id, node.children.length));
       }
 
+      // The whole container is an append target; the smaller insertion zones
+      // still win hit testing when the pointer is near a specific boundary.
+      this.registerNodeDropZone(childContainer, node.id, node.children.length);
+
       wrapper.appendChild(childContainer);
     }
 
@@ -213,6 +259,7 @@ export class DesignCanvas {
   private renderComponentVisual(node: ComponentNode, descriptor: ReturnType<typeof getDescriptor>): HTMLElement {
     const el = document.createElement('div');
     el.className = 'zd-component-visual';
+    applyStyles(el, visualStyles(node));
 
     const kindLabel = document.createElement('span');
     kindLabel.className = 'zd-component-kind';
@@ -228,20 +275,45 @@ export class DesignCanvas {
         const size = String(node.properties.size ?? 'body');
         preview.textContent = content;
         preview.classList.add(`zd-preview-text-${size}`);
+        preview.style.fontSize = `${Math.max(1, Number(node.properties.fontSize) || 14)}px`;
+        if (Number(node.properties.lineHeight) > 0) preview.style.lineHeight = `${Number(node.properties.lineHeight)}px`;
+        if (Number(node.properties.letterSpacing) !== 0) preview.style.letterSpacing = `${Number(node.properties.letterSpacing)}px`;
+        preview.style.textAlign = String(node.properties.textAlign ?? 'start') as CSSStyleDeclaration['textAlign'];
+        if (Number(node.properties.maxLines) > 0) {
+          preview.style.display = '-webkit-box';
+          preview.style.setProperty('-webkit-line-clamp', String(node.properties.maxLines));
+          preview.style.setProperty('-webkit-box-orient', 'vertical');
+          preview.style.overflow = 'hidden';
+        }
         break;
       }
       case 'button': {
         const btn = document.createElement('div');
         btn.className = `zd-preview-button zd-preview-button-${node.properties.style ?? 'primary'}`;
-        btn.textContent = String(node.properties.label ?? 'Button');
+        btn.textContent = `${node.properties.loading === true ? '◌ ' : ''}${node.properties.iconName ? `${String(node.properties.iconName)} ` : ''}${String(node.properties.label ?? 'Button')}`;
+        const containerColor = previewColor(node.properties.containerColor);
+        const contentColor = previewColor(node.properties.contentColor);
+        if (containerColor) btn.style.backgroundColor = containerColor;
+        if (contentColor) btn.style.color = contentColor;
         preview.appendChild(btn);
         break;
       }
       case 'input': {
         const inp = document.createElement('div');
         inp.className = 'zd-preview-input';
-        inp.textContent = String(node.properties.placeholder ?? 'Enter text');
+        const label = node.properties.label ? `${String(node.properties.label)}${node.properties.required === true ? ' *' : ''}: ` : '';
+        const icons = `${node.properties.leadingIcon ? `${String(node.properties.leadingIcon)} ` : ''}${node.properties.trailingIcon ? ` ${String(node.properties.trailingIcon)}` : ''}`;
+        inp.textContent = `${label}${String(node.properties.placeholder ?? 'Enter text')}${icons}`;
+        if (node.properties.inputType === 'multiline') inp.style.minHeight = '64px';
+        if (node.properties.isError === true) inp.classList.add('is-error');
+        if (node.properties.readOnly === true) inp.classList.add('is-readonly');
         preview.appendChild(inp);
+        if (node.properties.supportingText) {
+          const supporting = document.createElement('small');
+          supporting.className = 'zd-preview-supporting-text';
+          supporting.textContent = String(node.properties.supportingText);
+          preview.appendChild(supporting);
+        }
         break;
       }
       case 'checkbox': {
@@ -249,7 +321,11 @@ export class DesignCanvas {
         cb.className = 'zd-preview-checkbox';
         const cbBox = document.createElement('span');
         cbBox.className = 'zd-cb-box';
-        cbBox.textContent = '☐';
+        cbBox.textContent = node.properties.checked === true ? '☑' : '☐';
+        const checkColor = previewColor(node.properties.checkColor);
+        if (checkColor) cbBox.style.color = checkColor;
+        const labelColor = previewColor(node.properties.labelColor);
+        if (labelColor) cb.style.color = labelColor;
         cb.append(cbBox, ' ', String(node.properties.label ?? ''));
         preview.appendChild(cb);
         break;
@@ -259,6 +335,11 @@ export class DesignCanvas {
         sw.className = 'zd-preview-switch';
         const swTrack = document.createElement('span');
         swTrack.className = 'zd-sw-track';
+        swTrack.classList.toggle('is-checked', node.properties.checked === true);
+        const trackColor = previewColor(node.properties.trackColor);
+        const thumbColor = previewColor(node.properties.thumbColor);
+        if (trackColor) swTrack.style.backgroundColor = trackColor;
+        if (thumbColor) swTrack.style.setProperty('--zd-switch-thumb', thumbColor);
         sw.append(swTrack, ' ', String(node.properties.label ?? ''));
         preview.appendChild(sw);
         break;
@@ -267,23 +348,52 @@ export class DesignCanvas {
         const img = document.createElement('div');
         img.className = 'zd-preview-image';
         img.textContent = `🖼 ${String(node.properties.source || 'image')}`;
+        const imageHeight = previewSize(node.properties.height);
+        if (imageHeight) img.style.height = imageHeight;
+        img.style.objectFit = String(node.properties.fit ?? 'contain') as CSSStyleDeclaration['objectFit'];
+        img.style.borderRadius = `${Number(node.properties.cornerRadius) || 0}px`;
+        const tint = previewColor(node.properties.tintColor);
+        if (tint) img.style.color = tint;
         preview.appendChild(img);
+        break;
+      }
+      case 'icon': {
+        preview.textContent = String(node.properties.name ?? 'star');
+        preview.style.fontSize = `${Number(node.properties.iconSize) || 24}px`;
+        const tint = previewColor(node.properties.tintColor);
+        if (tint) preview.style.color = tint;
         break;
       }
       case 'card': {
         preview.classList.add('zd-preview-card');
         preview.textContent = 'Card';
+        preview.style.borderRadius = `${Math.max(0, Number(node.properties.cornerRadius) || 0)}px`;
+        preview.style.boxShadow = `0 ${Math.max(1, Number(node.properties.elevation) || 0)}px ${Math.max(2, Number(node.properties.elevation) || 0) * 2}px rgba(0,0,0,.18)`;
         break;
       }
       case 'progress': {
-        const bar = document.createElement('div');
-        bar.className = 'zd-preview-progress';
-        bar.innerHTML = '<div class="zd-progress-track"><div class="zd-progress-fill"></div></div>';
-        preview.appendChild(bar);
+        if (node.properties.progressStyle === 'circular') {
+          preview.classList.add('zd-preview-progress-circular');
+          const indicator = previewColor(node.properties.indicatorColor);
+          const track = previewColor(node.properties.trackColor);
+          if (track) preview.style.borderColor = track;
+          if (indicator) preview.style.borderTopColor = indicator;
+        } else {
+          const bar = document.createElement('div');
+          bar.className = 'zd-preview-progress';
+          bar.innerHTML = '<div class="zd-progress-track"><div class="zd-progress-fill"></div></div>';
+          if (node.properties.indeterminate === true) bar.classList.add('is-indeterminate');
+          const indicator = previewColor(node.properties.indicatorColor);
+          const track = previewColor(node.properties.trackColor);
+          if (indicator) bar.style.setProperty('--zd-progress-indicator', indicator);
+          if (track) bar.style.setProperty('--zd-progress-track', track);
+          preview.appendChild(bar);
+        }
         break;
       }
       case 'divider': {
         preview.classList.add('zd-preview-divider');
+        preview.style.height = `${Math.max(1, Number(node.properties.thickness) || 1)}px`;
         break;
       }
       case 'spacer': {
@@ -307,23 +417,79 @@ export class DesignCanvas {
           const item = document.createElement('div');
           item.className = 'zd-preview-list-item';
           item.textContent = `Item ${i + 1}`;
+          if (node.properties.separator === false) item.style.borderBottom = '0';
           list.appendChild(item);
         }
         preview.appendChild(list);
         break;
       }
+      case 'slider': {
+        const slider = document.createElement('div');
+        slider.className = 'zd-preview-slider';
+        slider.innerHTML = '<span></span>';
+        const active = previewColor(node.properties.activeColor);
+        if (active) slider.style.setProperty('--zd-slider-active', active);
+        if (node.properties.showValue === true) slider.dataset.value = String(node.properties.value ?? 0);
+        preview.appendChild(slider);
+        break;
+      }
+      case 'dropdown': {
+        preview.classList.add('zd-preview-control');
+        preview.textContent = `${String(node.properties.label ?? 'Select')}  ▾`;
+        break;
+      }
       case 'navbar': {
         const bar = document.createElement('div');
         bar.className = 'zd-preview-navbar';
-        bar.textContent = String(node.properties.title ?? 'Title');
+        bar.textContent = `${node.properties.showBack === true ? '‹  ' : ''}${String(node.properties.title ?? 'Title')}`;
+        if (node.properties.barStyle === 'large') bar.style.fontSize = '28px';
+        if (node.properties.barStyle === 'medium') bar.style.fontSize = '22px';
         preview.appendChild(bar);
         break;
       }
       case 'fab': {
         const fab = document.createElement('div');
         fab.className = 'zd-preview-fab';
-        fab.textContent = '+';
+        fab.textContent = String(node.properties.iconName ?? '+');
+        fab.classList.add(`zd-preview-fab-${node.properties.fabSize ?? 'regular'}`);
         preview.appendChild(fab);
+        if (node.properties.label) preview.append(` ${String(node.properties.label)}`);
+        break;
+      }
+      case 'bottomnav':
+      case 'tabs': {
+        preview.classList.add('zd-preview-nav-items');
+        for (const item of String(node.properties.items ?? '').split(',').map((v) => v.trim()).filter(Boolean)) {
+          const tab = document.createElement('span');
+          tab.textContent = item;
+          preview.appendChild(tab);
+        }
+        break;
+      }
+      case 'chip': {
+        preview.classList.add('zd-preview-chip', `zd-preview-chip-${node.properties.chipStyle ?? 'filled'}`);
+        preview.textContent = String(node.properties.label ?? 'Chip');
+        if (node.properties.selected === true) preview.classList.add('is-selected');
+        break;
+      }
+      case 'badge': {
+        preview.classList.add('zd-preview-badge');
+        preview.textContent = String(node.properties.content || '•');
+        break;
+      }
+      case 'snackbar': {
+        preview.classList.add('zd-preview-snackbar');
+        preview.textContent = String(node.properties.message ?? 'Action completed');
+        if (node.properties.action) preview.textContent += `   ${String(node.properties.action).toUpperCase()}`;
+        break;
+      }
+      case 'dialog': {
+        preview.classList.add('zd-preview-dialog');
+        const title = document.createElement('strong');
+        title.textContent = String(node.properties.title ?? 'Dialog');
+        const actions = document.createElement('small');
+        actions.textContent = `${String(node.properties.cancelLabel ?? 'Cancel')}   ${String(node.properties.confirmLabel ?? 'OK')}`;
+        preview.append(title, actions);
         break;
       }
       default: {
@@ -332,6 +498,15 @@ export class DesignCanvas {
     }
 
     el.appendChild(preview);
+
+    const color = String(node.properties.color ?? '');
+    const colors: Record<string, string> = {
+      primary: 'var(--zd-md-primary)', secondary: 'var(--zd-md-on-surface-muted)',
+      accent: 'var(--z-accent)', error: 'var(--z-error)', success: 'var(--z-success)',
+    };
+    if (colors[color] && node.kind !== 'button') preview.style.color = colors[color];
+    if (node.properties.weight === 'bold') preview.style.fontWeight = '700';
+    if (node.properties.weight === 'light') preview.style.fontWeight = '300';
 
     // Event indicator
     if (node.events.length > 0) {
@@ -358,11 +533,11 @@ export class DesignCanvas {
     const placeholder = document.createElement('div');
     placeholder.className = 'zd-drop-zone zd-drop-root-placeholder';
     placeholder.textContent = 'Drag a component here to start building';
-    this.registerNodeDropZone(placeholder, null, 0);
+    this.registerNodeDropZone(placeholder, null, 0, true);
     return placeholder;
   }
 
-  private registerNodeDropZone(element: HTMLElement, parentId: string | null, index: number): void {
+  private registerNodeDropZone(element: HTMLElement, parentId: string | null, index: number, freeform = false): void {
     if (!this.dragDrop) return;
     const accepts = (source: DragSource): boolean => {
       if (source.origin === 'canvas' && parentId !== null) {
@@ -380,7 +555,7 @@ export class DesignCanvas {
       }
       return true;
     };
-    const dispose = this.dragDrop.registerDropZone(element, parentId, index, accepts);
+    const dispose = this.dragDrop.registerDropZone(element, parentId, index, accepts, freeform);
     this.dropZoneDisposers.push(dispose);
   }
 
@@ -406,6 +581,52 @@ export class DesignCanvas {
       el.classList.toggle('zd-node-selected', this.selection.selectedIds.has(id));
       el.classList.toggle('zd-node-primary', this.selection.primaryId === id);
     }
+  }
+
+  canvasPoint(clientX: number, clientY: number): { x: number; y: number } {
+    const rect = this.element.getBoundingClientRect();
+    const scaleX = rect.width > 0 ? this.element.offsetWidth / rect.width : 1;
+    const scaleY = rect.height > 0 ? this.element.offsetHeight / rect.height : 1;
+    return {
+      x: Math.max(0, Math.round((clientX - rect.left) * scaleX - 8)),
+      y: Math.max(0, Math.round((clientY - rect.top) * scaleY - 8)),
+    };
+  }
+
+  private startResize(node: ComponentNode, wrapper: HTMLElement, event: MouseEvent): void {
+    if (event.button !== 0) return;
+    event.preventDefault();
+    event.stopPropagation();
+    this.select(node.id);
+    const rect = wrapper.getBoundingClientRect();
+    const scaleX = rect.width > 0 ? wrapper.offsetWidth / rect.width : 1;
+    const scaleY = rect.height > 0 ? wrapper.offsetHeight / rect.height : 1;
+    const startX = event.clientX;
+    const startY = event.clientY;
+    const startWidth = wrapper.offsetWidth;
+    const startHeight = wrapper.offsetHeight;
+    const previousWidth = node.properties.width ?? '';
+    const previousHeight = node.properties.height ?? '';
+    let width = startWidth;
+    let height = startHeight;
+    wrapper.classList.add('zd-node-resizing');
+
+    const move = (moveEvent: MouseEvent): void => {
+      width = Math.max(24, Math.round(startWidth + (moveEvent.clientX - startX) * scaleX));
+      height = Math.max(24, Math.round(startHeight + (moveEvent.clientY - startY) * scaleY));
+      wrapper.style.width = `${width}px`;
+      wrapper.style.height = `${height}px`;
+    };
+    const up = (): void => {
+      document.removeEventListener('mousemove', move);
+      document.removeEventListener('mouseup', up);
+      wrapper.classList.remove('zd-node-resizing');
+      if (width !== startWidth || height !== startHeight) {
+        this._onNodeResize.fire({ nodeId: node.id, width, height, previousWidth, previousHeight });
+      }
+    };
+    document.addEventListener('mousemove', move);
+    document.addEventListener('mouseup', up);
   }
 
   scrollToNode(nodeId: string): void {
@@ -447,6 +668,7 @@ export class DesignCanvas {
     this._onSelectionChange.dispose();
     this._onContextMenu.dispose();
     this._onNodeDragStart.dispose();
+    this._onNodeResize.dispose();
     this.element.remove();
   }
 }

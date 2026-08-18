@@ -53,6 +53,7 @@ import {
   type SymbolInfo,
 } from './zornux/semantics';
 import type { SrcRange, ZornuxDiagnostic } from './zornux/lexer';
+import { isMobileZornux, lintMobileZornux } from './zornux/mobileSyntax';
 
 const IDENTIFIER = /^[A-Za-z_]\w*$/;
 
@@ -163,6 +164,15 @@ export class LanguageServiceZornux implements LanguageService {
         }
       }
       const original = doc.getText();
+      if (isMobileZornux(original)) {
+        const formatted = formatZornux(original, options);
+        if (formatted === original) return [];
+        const lastLine = Math.max(0, doc.lineCount() - 1);
+        return [{
+          range: { start: { line: 0, character: 0 }, end: { line: lastLine, character: doc.lineAt(lastLine).length } },
+          newText: formatted,
+        }];
+      }
       let formatted: string | null = null;
       // Prefer the authoritative `zornux format` when the toolchain is present.
       if (this.cliFormatter) {
@@ -407,6 +417,9 @@ export class LanguageServiceZornux implements LanguageService {
 
   /** Merged, position-sorted syntax + semantic diagnostics. */
   private mergedDiagnostics(doc: TextDocument): Diagnostic[] {
+    if (isMobileZornux(doc.getText())) {
+      return lintMobileZornux(doc.getText()).map((diagnostic) => toPlatform(diagnostic, 'zornux-mobile'));
+    }
     const { parse, model } = this.analyze(doc);
     const all: Diagnostic[] = [
       ...parse.diagnostics.map((d) => toPlatform(d, 'zornux')),

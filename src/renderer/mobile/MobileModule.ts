@@ -24,6 +24,7 @@ import type {
   ToolchainComponent,
   ToolchainStatus,
 } from '../../shared/types';
+import { ensureAndroidRunTarget } from './deviceTarget';
 
 /**
  * Android IDE module — the primary development experience for Zornux Mobile.
@@ -69,6 +70,10 @@ export class MobileModule implements IModule {
   private releaseResultsEl: HTMLDivElement | null = null;
   private toolchainStatusEl: HTMLDivElement | null = null;
   private deviceSelectorEl: HTMLDivElement | null = null;
+  private runTargetEl: HTMLSelectElement | null = null;
+  private sessionStatusEl: HTMLSpanElement | null = null;
+  private runActionButtons: HTMLButtonElement[] = [];
+  private stopActionButton: HTMLButtonElement | null = null;
   private projectSettingsEl: HTMLDivElement | null = null;
   private activityItemRegistered = false;
   private devicePollTimer: ReturnType<typeof setInterval> | null = null;
@@ -217,6 +222,52 @@ export class MobileModule implements IModule {
     view.className = 'znxstudio-mobile';
     this.sideBarEl = view;
 
+    // Primary deployment controls stay visible at the top, like Android
+    // Studio's run configuration / target / action toolbar.
+    const deployment = document.createElement('div');
+    deployment.className = 'znxstudio-mobile-deploy';
+    const deploymentTitle = document.createElement('div');
+    deploymentTitle.className = 'znxstudio-mobile-deploy-title';
+    deploymentTitle.innerHTML = '<strong>app</strong><span data-role="session-status">Idle</span>';
+    this.sessionStatusEl = deploymentTitle.querySelector('[data-role="session-status"]');
+    deployment.appendChild(deploymentTitle);
+
+    const targetRow = document.createElement('div');
+    targetRow.className = 'znxstudio-mobile-target-row';
+    const target = document.createElement('select');
+    target.className = 'znxstudio-mobile-target';
+    target.title = 'Deployment target';
+    target.setAttribute('aria-label', 'Android deployment target');
+    target.addEventListener('change', () => {
+      const id = target.value || null;
+      if (!id) return;
+      this.selectedDeviceId = id;
+      void window.znxstudio.mobile.selectDevice(id);
+      this.renderDeviceList();
+      this.setDeviceStatusBar();
+    });
+    this.runTargetEl = target;
+    targetRow.appendChild(target);
+    const refreshTarget = this.createButton('↻', () => void this.refreshDevices());
+    refreshTarget.classList.add('znxstudio-mobile-icon-button');
+    refreshTarget.title = 'Refresh connected devices';
+    refreshTarget.setAttribute('aria-label', 'Refresh connected Android devices');
+    targetRow.appendChild(refreshTarget);
+    deployment.appendChild(targetRow);
+
+    const primaryActions = document.createElement('div');
+    primaryActions.className = 'znxstudio-mobile-primary-actions';
+    const runButton = this.createButton('▶ Run', () => void this.runStart());
+    runButton.classList.add('is-primary');
+    const debugButton = this.createButton('◆ Debug', () => void this.debugStart());
+    const restartButton = this.createButton('↻ Restart', () => void this.restart());
+    const stopButton = this.createButton('■ Stop', () => void this.runStop());
+    this.runActionButtons = [runButton, debugButton, restartButton];
+    this.stopActionButton = stopButton;
+    primaryActions.append(runButton, debugButton, restartButton, stopButton);
+    deployment.appendChild(primaryActions);
+    view.appendChild(deployment);
+
     // Section: Toolchain / Environment
     const toolchainSection = this.createSection('Android Environment', view);
     const toolchainActions = document.createElement('div');
@@ -232,33 +283,26 @@ export class MobileModule implements IModule {
     toolchainSection.appendChild(toolchainStatusEl);
 
     // Section: Devices
-    const deviceSection = this.createSection('Devices', view);
+    const deviceSection = this.createSection('Device Manager', view);
     const deviceActions = document.createElement('div');
     deviceActions.style.display = 'flex';
     deviceActions.style.gap = '4px';
     deviceActions.appendChild(this.createButton('Refresh', () => this.refreshDevices()));
+    deviceActions.appendChild(this.createButton('Start Virtual Device', () => this.showEmulatorPicker()));
     deviceSection.appendChild(deviceActions);
     const deviceList = document.createElement('div');
     deviceList.setAttribute('data-role', 'device-list');
     deviceSection.appendChild(deviceList);
 
-    // Section: Emulators
+    // Section: Available AVDs
     const emulatorSection = this.createSection('Emulators', view);
     const emulatorList = document.createElement('div');
     emulatorList.setAttribute('data-role', 'emulator-list');
     emulatorSection.appendChild(emulatorList);
 
-    // Section: Run / Debug
-    const runSection = this.createSection('Run & Debug', view);
-    const runActions = document.createElement('div');
-    runActions.style.display = 'flex';
-    runActions.style.gap = '4px';
-    runActions.style.flexWrap = 'wrap';
-    runActions.appendChild(this.createButton('Run', () => this.runStart()));
-    runActions.appendChild(this.createButton('Debug', () => this.debugStart()));
-    runActions.appendChild(this.createButton('Stop', () => this.runStop()));
-    runActions.appendChild(this.createButton('Restart', () => this.restart()));
-    runSection.appendChild(runActions);
+    // Debug details are separate from the primary toolbar so break/termination
+    // information remains visible without duplicating deployment actions.
+    const runSection = this.createSection('Debug Session', view);
     const debugStatus = document.createElement('div');
     debugStatus.setAttribute('data-role', 'debug-status');
     this.debugStatusEl = debugStatus;
@@ -432,6 +476,7 @@ export class MobileModule implements IModule {
     }
 
     this.renderDeviceList();
+    this.renderRunToolbar();
     this.setDeviceStatusBar();
   }
 
@@ -453,6 +498,7 @@ export class MobileModule implements IModule {
     }
 
     this.renderDeviceList();
+    this.renderRunToolbar();
     this.setDeviceStatusBar();
   }
 
@@ -463,6 +509,7 @@ export class MobileModule implements IModule {
       this.emulators = [];
     }
     this.renderEmulatorList();
+    this.renderRunToolbar();
   }
 
   private setDeviceStatusBar(): void {
@@ -488,22 +535,34 @@ export class MobileModule implements IModule {
     container.innerHTML = '';
 
     if (this.devices.length === 0) {
-      this.renderEmpty(container, 'No devices connected.');
+      const empty = document.createElement('div');
+      empty.className = 'znxstudio-mobile-empty';
+      empty.innerHTML = '<strong>No running devices</strong><span>Connect a phone with USB debugging, pair over ADB, or start a virtual device.</span>';
+      const start = this.createButton('Start Virtual Device', () => void this.showEmulatorPicker());
+      empty.appendChild(start);
+      container.appendChild(empty);
       return;
     }
 
-    for (const device of this.devices) {
+    const groups = groupAndroidDevices(this.devices);
+    this.renderDeviceGroup(container, 'Physical', groups.physical);
+    this.renderDeviceGroup(container, 'Running Virtual', groups.virtual);
+  }
+
+  private renderDeviceGroup(container: Element, title: string, devices: AndroidDevice[]): void {
+    if (devices.length === 0) return;
+    const heading = document.createElement('div');
+    heading.className = 'znxstudio-mobile-device-group';
+    heading.textContent = `${title} (${devices.length})`;
+    container.appendChild(heading);
+
+    for (const device of devices) {
       const row = document.createElement('div');
-      row.style.padding = '3px 4px';
-      row.style.cursor = 'pointer';
-      row.style.fontSize = '12px';
-      row.style.display = 'flex';
-      row.style.alignItems = 'center';
-      row.style.gap = '6px';
-      row.style.borderRadius = '3px';
+      row.className = 'znxstudio-mobile-device';
 
       const selected = device.id === this.selectedDeviceId;
-      if (selected) row.style.background = 'var(--znxstudio-selection, rgba(128,128,128,0.2))';
+      row.classList.toggle('is-selected', selected);
+      row.classList.toggle('is-unavailable', device.status !== 'device');
 
       const icon = document.createElement('span');
       icon.textContent = device.type === 'emulator' ? '\u{1F4F1}' : '\u{1F4F2}';
@@ -527,13 +586,56 @@ export class MobileModule implements IModule {
       info.appendChild(detail);
       row.appendChild(info);
 
+      const state = document.createElement('span');
+      state.className = `znxstudio-mobile-device-state is-${device.status}`;
+      state.textContent = device.status === 'device' ? 'Ready' : device.status;
+      row.appendChild(state);
+
       row.addEventListener('click', () => {
+        if (device.status !== 'device') {
+          this.context.layout.showToast(device.status === 'unauthorized'
+            ? 'Authorize USB debugging on the Android device, then refresh.'
+            : 'This Android device is offline. Reconnect it, then refresh.', 'info');
+          return;
+        }
         this.selectedDeviceId = device.id;
         void window.znxstudio.mobile.selectDevice(device.id);
         this.renderDeviceList();
+        this.renderRunToolbar();
         this.setDeviceStatusBar();
       });
       container.appendChild(row);
+    }
+  }
+
+  private renderRunToolbar(): void {
+    const target = this.runTargetEl;
+    if (target) {
+      target.innerHTML = '';
+      const ready = this.devices.filter((device) => device.status === 'device');
+      if (ready.length === 0) {
+        const option = document.createElement('option');
+        option.value = '';
+        option.textContent = 'No devices available';
+        target.appendChild(option);
+      } else {
+        for (const device of ready) {
+          const option = document.createElement('option');
+          option.value = device.id;
+          option.textContent = `${device.name}${device.apiLevel ? ` · API ${device.apiLevel}` : ''}`;
+          option.selected = device.id === this.selectedDeviceId;
+          target.appendChild(option);
+        }
+      }
+      target.disabled = ready.length === 0;
+    }
+
+    const controls = mobileSessionControls(this.sessionState, Boolean(this.selectedDeviceId) || this.emulators.length > 0);
+    for (const button of this.runActionButtons) button.disabled = !controls.canLaunch;
+    if (this.stopActionButton) this.stopActionButton.disabled = !controls.canStop;
+    if (this.sessionStatusEl) {
+      this.sessionStatusEl.textContent = controls.label;
+      this.sessionStatusEl.className = `is-${this.sessionState}`;
     }
   }
 
@@ -588,6 +690,7 @@ export class MobileModule implements IModule {
       this.selectedDeviceId = result;
       void window.znxstudio.mobile.selectDevice(result);
       this.renderDeviceList();
+      this.renderRunToolbar();
       this.setDeviceStatusBar();
     }
   }
@@ -783,31 +886,40 @@ export class MobileModule implements IModule {
   /* ===== Run / Stop / Restart ===== */
 
   private async pickDevice(): Promise<string | null> {
-    let deviceId = this.selectedDeviceId;
-    if (!deviceId) {
-      await this.refreshDevices();
-      const available = this.devices.filter((d) => d.status === 'device');
-      if (available.length === 0) {
-        this.context.layout.showToast('No connected Android devices. Connect one or start an emulator.', 'error');
+    const selected = this.devices.find(
+      (device) => device.id === this.selectedDeviceId && device.status === 'device',
+    );
+    if (selected) return selected.id;
+
+    const quickPick = this.context.services.tryGet<QuickPickService>(ServiceKeys.QuickPick);
+    try {
+      const deviceId = await ensureAndroidRunTarget({
+        api: window.znxstudio.mobile,
+        pickDevice: quickPick ? async (devices) => quickPick.pick(
+          devices.map((device) => ({ label: device.name, description: `${device.type}${device.apiLevel ? ` · API ${device.apiLevel}` : ''}`, value: device.id })),
+          { placeholder: 'Select Android deployment target' },
+        ) : undefined,
+        pickEmulator: quickPick ? async (emulators) => quickPick.pick(
+          emulators.map((emulator) => ({ label: emulator.name, description: emulator.apiLevel ? `API ${emulator.apiLevel}` : 'Android virtual device', value: emulator.name })),
+          { placeholder: 'No phone connected — start a virtual device' },
+        ) : undefined,
+        onProgress: (message) => {
+          this.context.layout.showToast(message, 'info');
+          if (this.sessionStatusEl) this.sessionStatusEl.textContent = message.includes('Waiting') ? 'Booting emulator…' : 'Starting emulator…';
+        },
+      });
+      if (!deviceId) {
+        this.context.layout.showToast('No Android target is available. Create or install a virtual device from Android SDK Manager.', 'error');
         return null;
       }
-      if (available.length === 1) {
-        deviceId = available[0].id;
-      } else {
-        const quickPick = this.context.services.tryGet<QuickPickService>(ServiceKeys.QuickPick);
-        if (quickPick) {
-          const items = available.map((d) => ({ label: d.name, description: d.type, value: d.id }));
-          const result = await quickPick.pick(items, { placeholder: 'Select device' });
-          if (!result) return null;
-          deviceId = result;
-        } else {
-          deviceId = available[0].id;
-        }
-      }
       this.selectedDeviceId = deviceId;
-      this.setDeviceStatusBar();
+      await window.znxstudio.mobile.selectDevice(deviceId);
+      await this.refreshDevices();
+      return deviceId;
+    } catch (error) {
+      this.context.layout.showToast(`Emulator launch failed: ${(error as Error).message}`, 'error');
+      return null;
     }
-    return deviceId;
   }
 
   private getWorkspaceRoot(): string | null {
@@ -1452,6 +1564,7 @@ export class MobileModule implements IModule {
   /* ===== Session State ===== */
 
   private updateSessionStateUI(): void {
+    this.renderRunToolbar();
     // Update status bar based on overall session state.
     switch (this.sessionState) {
       case 'building':
@@ -1535,6 +1648,40 @@ function formatBytes(bytes: number): string {
   if (bytes < 1024) return `${bytes} B`;
   if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
   return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+}
+
+export function groupAndroidDevices(devices: AndroidDevice[]): {
+  physical: AndroidDevice[];
+  virtual: AndroidDevice[];
+} {
+  return {
+    physical: devices.filter((device) => device.type === 'physical'),
+    virtual: devices.filter((device) => device.type === 'emulator'),
+  };
+}
+
+export function mobileSessionControls(state: MobileSessionState, hasDevice: boolean): {
+  canLaunch: boolean;
+  canStop: boolean;
+  label: string;
+} {
+  const active = state !== 'idle' && state !== 'failed';
+  const labels: Record<MobileSessionState, string> = {
+    idle: 'Idle',
+    preparing: 'Preparing…',
+    building: 'Building…',
+    running: 'Running',
+    debugging: 'Debugging',
+    testing: 'Testing',
+    profiling: 'Profiling',
+    stopping: 'Stopping…',
+    failed: 'Failed',
+  };
+  return {
+    canLaunch: hasDevice && !active,
+    canStop: active && state !== 'stopping',
+    label: labels[state],
+  };
 }
 
 function setsEqual(a: Set<string>, b: Set<string>): boolean {

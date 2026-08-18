@@ -20,6 +20,7 @@ import { DiagnosticSources } from '../language/diagnosticSources';
 import { DocumentManager } from '../language/DocumentManager';
 import { toPlatformDiagnostics } from '../compiler/compilerDiagnostics';
 import { buildSummary, groupByFile } from './buildDiagnostics';
+import { ensureAndroidRunTarget } from '../mobile/deviceTarget';
 
 /**
  * Run & Build pipeline. For Zornux workspaces it drives the real compiler:
@@ -371,29 +372,39 @@ export class RunBuildModule implements IModule {
       return;
     }
 
-    // Discover devices and pick the first available, or prompt for selection.
-    const devices = await window.znxstudio.mobile.devices();
-    const available = devices.filter((d) => d.status === 'device');
-    if (available.length === 0) {
-      this.context.layout.showToast('No connected Android devices found. Connect a device or start an emulator.', 'error');
+    const quickPick = this.context.services.tryGet<QuickPickService>(ServiceKeys.QuickPick);
+    let targetId: string | null;
+    try {
+      targetId = await ensureAndroidRunTarget({
+        api: window.znxstudio.mobile,
+        pickDevice: quickPick ? async (devices) => quickPick.pick(
+          devices.map((device) => ({
+            label: `${device.name} (${device.type})`,
+            description: device.apiLevel ? `API ${device.apiLevel} · ${device.id}` : device.id,
+            value: device.id,
+          })),
+          { placeholder: 'Select an Android deployment target' },
+        ) : undefined,
+        pickEmulator: quickPick ? async (emulators) => quickPick.pick(
+          emulators.map((emulator) => ({
+            label: emulator.name,
+            description: emulator.apiLevel ? `API ${emulator.apiLevel}` : 'Android virtual device',
+            value: emulator.name,
+          })),
+          { placeholder: 'No phone connected — start a virtual device' },
+        ) : undefined,
+        onProgress: (message) => {
+          this.context.layout.showToast(message, 'info');
+          this.status()?.setItem('runbuild.status', { text: 'Android: emulator booting', side: 'right', priority: 30 });
+        },
+      });
+    } catch (error) {
+      this.context.layout.showToast(`Emulator launch failed: ${(error as Error).message}`, 'error');
       return;
     }
-
-    let targetId = available[0].id;
-    if (available.length > 1) {
-      const quickPick = this.context.services.tryGet<QuickPickService>(ServiceKeys.QuickPick);
-      if (quickPick) {
-        const selected = await quickPick.pick(
-          available.map((d) => ({
-            label: `${d.name} (${d.type})`,
-            description: d.id,
-            value: d.id,
-          })),
-          { placeholder: 'Select a device to run on' },
-        );
-        if (!selected) return;
-        targetId = selected;
-      }
+    if (!targetId) {
+      this.context.layout.showToast('No Android target is available. Create or install a virtual device from Android SDK Manager.', 'error');
+      return;
     }
 
     const output = this.output();

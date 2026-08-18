@@ -171,6 +171,11 @@ export class PropertiesPanel {
         input.type = 'text';
         input.className = 'zd-props-input';
         input.value = String(value);
+        if (prop.key === 'width' || prop.key === 'height') {
+          input.placeholder = 'auto, 120dp, 50%, match';
+          input.title = 'Use a number or dp/px for a fixed size, % for a relative size, auto/wrap for content, or match/fill for the available space.';
+          input.setAttribute('inputmode', 'text');
+        }
         input.addEventListener('change', () => {
           this.firePropertyChange(node.id, prop.key, input.value, value);
         });
@@ -183,8 +188,16 @@ export class PropertiesPanel {
         input.type = 'number';
         input.className = 'zd-props-input zd-props-input-number';
         input.value = String(value);
+        if (prop.min !== undefined) input.min = String(prop.min);
+        if (prop.max !== undefined) input.max = String(prop.max);
+        if (prop.step !== undefined) input.step = String(prop.step);
         input.addEventListener('change', () => {
-          this.firePropertyChange(node.id, prop.key, Number(input.value) || 0, value);
+          let next = Number(input.value);
+          if (!Number.isFinite(next)) next = Number(prop.defaultValue) || 0;
+          if (prop.min !== undefined) next = Math.max(prop.min, next);
+          if (prop.max !== undefined) next = Math.min(prop.max, next);
+          input.value = String(next);
+          this.firePropertyChange(node.id, prop.key, next, value);
         });
         row.appendChild(input);
         break;
@@ -218,7 +231,33 @@ export class PropertiesPanel {
         row.appendChild(select);
         break;
       }
-      case 'color':
+      case 'color': {
+        const editor = document.createElement('div');
+        editor.className = 'zd-props-color-editor';
+        const picker = document.createElement('input');
+        picker.type = 'color';
+        picker.className = 'zd-props-color-picker';
+        picker.setAttribute('aria-label', `${prop.label} picker`);
+        picker.value = colorPickerValue(String(value));
+        const input = document.createElement('input');
+        input.id = inputId;
+        input.type = 'text';
+        input.className = 'zd-props-input zd-props-color-value';
+        input.value = String(value);
+        input.placeholder = '#6750A4 or theme token';
+        picker.addEventListener('input', () => {
+          input.value = picker.value.toUpperCase();
+        });
+        picker.addEventListener('change', () => {
+          this.firePropertyChange(node.id, prop.key, picker.value.toUpperCase(), value);
+        });
+        input.addEventListener('change', () => {
+          this.firePropertyChange(node.id, prop.key, input.value.trim(), value);
+        });
+        editor.append(picker, input);
+        row.appendChild(editor);
+        break;
+      }
       case 'spacing':
       case 'alignment': {
         // Fall back to text input for complex types
@@ -338,6 +377,15 @@ export class PropertiesPanel {
     this._onEventAdd.dispose();
     this.element.remove();
   }
+}
+
+function colorPickerValue(value: string): string {
+  if (/^#[0-9a-f]{6}$/i.test(value)) return value;
+  const semantic: Record<string, string> = {
+    primary: '#6750A4', secondary: '#625B71', accent: '#7D5260',
+    error: '#B3261E', success: '#2E7D32', white: '#FFFFFF', black: '#000000',
+  };
+  return semantic[value.toLowerCase()] ?? '#6750A4';
 }
 
 function groupLabel(group: string): string {

@@ -24,4 +24,9 @@ export const ZORNUX_KEYWORDS: readonly string[] = [
   // Legacy front-end tokens still used by the provisional parser/tests.
   'break', 'call', 'continue', 'define', 'elseif', 'export', 'foreach', 'let',
   'new', 'null', 'return', 'say', 'set', 'then', 'this', 'type', 'until', 'when',
+  // Mobile application DSL.
+  'mobile', 'app', 'screen', 'state', 'column', 'row', 'stack', 'grid', 'scroll',
+  'text', 'button', 'image', 'icon', 'input', 'checkbox', 'switch', 'slider',
+  'dropdown', 'spacer', 'divider', 'top_bar', 'bottom_nav', 'tabs', 'fab', 'card',
+  'list', 'chip', 'badge', 'progress', 'snackbar', 'dialog',
 ];
