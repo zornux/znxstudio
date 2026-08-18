@@ -329,7 +329,7 @@ export const COMPONENT_CATALOG: readonly ComponentDescriptor[] = [
     label: 'Switch',
     category: 'input',
     icon: '⊙',
-    zxKeyword: 'switch',
+    zxKeyword: 'switch_toggle',
     isContainer: false,
     allowedChildren: [],
     properties: [
