@@ -7,47 +7,48 @@
 :root,
 :root[data-theme='znxstudio-dark'] {
   /* ---- Typography ---- */
-  --z-font-ui: -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, Ubuntu, 'Helvetica Neue', sans-serif;
-  --z-font-mono: 'Cascadia Code', 'SFMono-Regular', Consolas, 'Liberation Mono', Menlo, monospace;
+  --z-font-ui: 'Segoe UI Variable Text', 'Segoe UI', Inter, -apple-system, BlinkMacSystemFont, system-ui, Ubuntu, 'Helvetica Neue', Arial, sans-serif;
+  --z-font-mono: 'Cascadia Code', 'Cascadia Mono', 'SFMono-Regular', Consolas, 'Liberation Mono', Menlo, monospace;
   --z-font-icons: 'Segoe Fluent Icons', 'Noto Sans Symbols 2', 'Segoe UI Symbol', sans-serif;
   --z-mono: var(--z-font-mono);
   --znxstudio-font-mono: var(--z-font-mono);
   --z-type-ui: 13px;
   --z-type-small: 12px;
   --z-type-caption: 11px;
+  --z-type-code: 14px;
   --z-control-height: 28px;
 
   /* ---- Core palette ---- */
-  --z-bg: #1a1b1e;
-  --z-bg-elevated: #212226;
-  --z-bg-panel: #1d1e22;
-  --z-border: #2c2e33;
-  --z-fg: #d7d9de;
-  --z-fg-muted: #8b8f98;
-  --z-accent: #7657e8;
-  --z-accent-secondary: #29bfd2;
+  --z-bg: #1e1e1e;
+  --z-bg-elevated: #252526;
+  --z-bg-panel: #181818;
+  --z-border: #2b2b2b;
+  --z-fg: #cccccc;
+  --z-fg-muted: #969696;
+  --z-accent: #0078d4;
+  --z-accent-secondary: #4daafc;
   --z-accent-soft: color-mix(in srgb, var(--z-accent) 18%, transparent);
   --z-accent-fg: #ffffff;
   --z-surface-glow: rgba(118, 87, 232, 0.16);
 
   /* ---- Semantic surfaces ---- */
-  --z-hover: #2a2c31;
+  --z-hover: #2a2d2e;
   --z-bg-hover: rgba(255, 255, 255, 0.06);
-  --z-bg-input: #161719;
+  --z-bg-input: #313131;
   --z-bg-sidebar: var(--z-bg-panel);
-  --z-border-subtle: #252730;
+  --z-border-subtle: #252525;
   --z-focus: var(--z-accent);
   --z-focus-border: var(--z-accent);
 
   /* ---- Semantic status ---- */
   --z-success: #3fb950;
   --z-ok: #3fb950;
-  --z-warning: var(--z-warn);
-  --z-warn: var(--z-warn);
-  --z-error: var(--z-error);
-  --z-danger: #c0392b;
-  --z-info: #6ea8fe;
-  --z-link: #6ea8fe;
+  --z-warning: #cca700;
+  --z-warn: #cca700;
+  --z-error: #f14c4c;
+  --z-danger: #f14c4c;
+  --z-info: #3794ff;
+  --z-link: #4daafc;
 
   /* ---- Mapped semantic aliases (spec §2) ---- */
   --znx-bg-primary: var(--z-bg);
@@ -72,18 +73,18 @@
   --znx-info: var(--z-info);
 
   /* ---- IDE-specific surface tokens ---- */
-  --z-activity-bg: #161719;
-  --z-status-bg: #33286f;
-  --z-status-fg: #eaf0ff;
+  --z-activity-bg: #181818;
+  --z-status-bg: #007acc;
+  --z-status-fg: #ffffff;
 
   /* ---- Scrollbar ---- */
   --z-scrollbar-thumb: rgba(255, 255, 255, 0.10);
   --z-scrollbar-thumb-hover: rgba(255, 255, 255, 0.18);
 
   /* ---- Radii ---- */
-  --z-radius-sm: 6px;
-  --z-radius-md: 10px;
-  --z-radius-lg: 14px;
+  --z-radius-sm: 2px;
+  --z-radius-md: 2px;
+  --z-radius-lg: 0;
 
   /* ---- Component tokens (docs/notifications) ---- */
   --znxstudio-success: var(--z-success);
@@ -113,21 +114,21 @@
 
 :root[data-theme='znxstudio-light'] {
   --z-bg: #ffffff;
-  --z-bg-elevated: #f5f6f8;
-  --z-bg-panel: #f0f1f4;
-  --z-border: #e0e2e6;
-  --z-fg: #1f2328;
-  --z-fg-muted: #6b7280;
-  --z-accent: #6547d5;
-  --z-accent-secondary: #078da5;
+  --z-bg-elevated: #f3f3f3;
+  --z-bg-panel: #f8f8f8;
+  --z-border: #e5e5e5;
+  --z-fg: #181818;
+  --z-fg-muted: #616161;
+  --z-accent: #005fb8;
+  --z-accent-secondary: #0078d4;
   --z-accent-soft: color-mix(in srgb, var(--z-accent) 12%, transparent);
   --z-accent-fg: #ffffff;
   --z-surface-glow: rgba(101, 71, 213, 0.1);
-  --z-hover: #e8eaef;
+  --z-hover: #e8e8e8;
   --z-bg-hover: rgba(0, 0, 0, 0.04);
   --z-bg-input: #ffffff;
   --z-bg-sidebar: var(--z-bg-panel);
-  --z-border-subtle: #e8eaef;
+  --z-border-subtle: #eeeeee;
   --z-focus: var(--z-accent);
   --z-focus-border: var(--z-accent);
   --z-success: #1a7f37;
@@ -158,14 +159,14 @@
   --znx-warning: var(--z-warning);
   --znx-error: var(--z-error);
   --znx-info: var(--z-info);
-  --z-activity-bg: #f0f1f4;
-  --z-status-bg: #5b3fc4;
+  --z-activity-bg: #f8f8f8;
+  --z-status-bg: #007acc;
   --z-status-fg: #ffffff;
   --z-scrollbar-thumb: rgba(0, 0, 0, 0.12);
   --z-scrollbar-thumb-hover: rgba(0, 0, 0, 0.22);
-  --z-radius-sm: 6px;
-  --z-radius-md: 10px;
-  --z-radius-lg: 14px;
+  --z-radius-sm: 2px;
+  --z-radius-md: 2px;
+  --z-radius-lg: 0;
   --znxstudio-success: var(--z-success);
   --znxstudio-warning: var(--z-warning);
   --znxstudio-error: var(--z-error);
@@ -213,10 +214,10 @@
   --z-focus-border: var(--z-accent-secondary);
   --z-success: #3fb950;
   --z-ok: #3fb950;
-  --z-warning: var(--z-warn);
-  --z-warn: var(--z-warn);
-  --z-error: var(--z-error);
-  --z-danger: #c0392b;
+  --z-warning: #d7ba7d;
+  --z-warn: #d7ba7d;
+  --z-error: #f48771;
+  --z-danger: #f48771;
   --z-info: #6ea8fe;
   --z-link: #6ea8fe;
   --z-activity-bg: #0c171d;
@@ -1140,11 +1141,14 @@ button {
 .znxstudio-editor-monaco {
   position: absolute;
   inset: 0;
+  z-index: 0;
 }
 
 .znxstudio-editor-overlay {
   position: absolute;
   inset: 0;
+  z-index: 10;
+  isolation: isolate;
   background: var(--z-bg);
   overflow: hidden; /* the inner scroll layer scrolls; the close button stays pinned */
   display: none;
@@ -1152,6 +1156,14 @@ button {
 
 .znxstudio-editor-overlay.is-visible {
   display: block;
+}
+
+/* Monaco owns high-z-index minimap, scrollbar, hover, and overlay widgets.
+   Establishing the editor overlay as its own higher stacking context prevents
+   those layers from bleeding through full-area views such as the designer. */
+.znxstudio-editor-overlay.is-visible:has(.zd-root) {
+  z-index: 100;
+  background: var(--z-bg);
 }
 
 /* Scrolling region for a mounted view; sits under the pinned close button. */
@@ -8145,6 +8157,517 @@ button.znxstudio-solution-action:focus-visible {
   }
 }
 
+/* ---------------------------------------------------------------------------
+   Typography system
+
+   UI and code use separate, intentional stacks. Settings and dialog surfaces
+   inherit one UI face; source, logs, terminals, and identifiers use one mono
+   face. The 13px/14px defaults preserve density without sacrificing legibility.
+--------------------------------------------------------------------------- */
+body,
+button,
+input,
+textarea,
+select {
+  font-family: var(--z-font-ui);
+}
+
+.znxstudio-settings,
+.znxstudio-settings-ui,
+.znxstudio-modal,
+.znxstudio-inputbox-panel,
+.znxstudio-ai-modal-box,
+.znxstudio-deploy-modal-box,
+.znxstudio-scm-picker-box,
+.znxstudio-pm-modal {
+  font-family: var(--z-font-ui);
+  font-size: var(--z-type-ui);
+  font-variant-ligatures: common-ligatures;
+}
+
+.znxstudio-settings :where(button, input, select, textarea),
+.znxstudio-settings-ui :where(button, input, select, textarea),
+.znxstudio-modal :where(button, input, select, textarea),
+.znxstudio-inputbox-panel :where(button, input, select, textarea) {
+  font-family: inherit;
+}
+
+.znxstudio-settings-ui-title,
+.znxstudio-modal-body,
+.znxstudio-inputbox-message {
+  font-size: var(--z-type-ui);
+  line-height: 1.5;
+}
+
+.znxstudio-settings-ui-desc,
+.znxstudio-settings-ui-navitem,
+.znxstudio-settings-ui-scopebtn,
+.znxstudio-settings-keys,
+.znxstudio-modal-muted {
+  font-size: var(--z-type-small);
+  line-height: 1.45;
+}
+
+.znxstudio-settings-ui-key,
+.znxstudio-settings-ui-badge,
+.znxstudio-inputbox-label {
+  font-size: var(--z-type-caption);
+}
+
+.znxstudio-settings-ui-search,
+.znxstudio-settings-ui-control input,
+.znxstudio-settings-ui-control select,
+.znxstudio-inputbox-field,
+.znxstudio-modal-btn {
+  font-size: var(--z-type-ui);
+  line-height: 1.35;
+}
+
+:where(
+  code,
+  pre,
+  kbd,
+  samp,
+  .znxstudio-settings-ui-key,
+  .znxstudio-preview-url,
+  .znxstudio-fullstack-routes,
+  .znxstudio-output-log,
+  .znxstudio-log-viewer,
+  .znxstudio-chat-code,
+  .znxstudio-diagnostic-loc,
+  .znxstudio-history-path,
+  .zd-props-id,
+  .zd-props-event-body,
+  .zd-state-name,
+  .zd-state-value
+) {
+  font-family: var(--z-font-mono);
+  font-variant-ligatures: contextual;
+}
+
+.monaco-editor,
+.monaco-editor .inputarea,
+.xterm,
+.xterm textarea {
+  font-family: var(--z-font-mono);
+}
+
+.znxstudio-output-log,
+.znxstudio-log-viewer,
+.znxstudio-chat-code,
+pre {
+  line-height: 1.5;
+}
+
+/* ---------------------------------------------------------------------------
+   Android designer layout hardening
+
+   Keep the inspector fully usable even when the editor area is narrowed by the
+   activity bar or sidebar. Grid children explicitly opt into shrinking so the
+   center canvas cannot push the properties panel beyond the viewport.
+--------------------------------------------------------------------------- */
+.zd-root {
+  grid-template-columns: clamp(220px, 17vw, 270px) minmax(0, 1fr) clamp(320px, 23vw, 380px);
+  min-width: 0;
+  width: 100%;
+}
+
+.zd-left-panel,
+.zd-center-panel,
+.zd-right-panel,
+.zd-device-frame,
+.zd-device-stage,
+.zd-properties {
+  min-width: 0;
+}
+
+.zd-left-toolbox { flex-basis: 58%; }
+.zd-left-hierarchy { flex-basis: 42%; }
+
+.zd-right-panel {
+  container-type: inline-size;
+  width: 100%;
+  overflow-x: hidden;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  scrollbar-gutter: stable;
+}
+
+.zd-properties {
+  width: 100%;
+  overflow: hidden;
+}
+
+.zd-props-header,
+.zd-props-id,
+.zd-props-group-header,
+.zd-props-group-body,
+.zd-props-event-row {
+  max-width: 100%;
+}
+
+.zd-props-row {
+  grid-template-columns: minmax(110px, 40%) minmax(110px, 1fr);
+  width: 100%;
+  padding-inline: 12px;
+}
+
+.zd-props-label {
+  line-height: 1.3;
+}
+
+.zd-props-input,
+.zd-props-select,
+.zd-props-event-body {
+  min-width: 0;
+  max-width: 100%;
+}
+
+.zd-props-select {
+  text-overflow: ellipsis;
+}
+
+.zd-props-checkbox {
+  justify-self: start;
+}
+
+.zd-device-frame {
+  max-width: 100%;
+  padding-inline: 20px;
+}
+
+.zd-device-stage {
+  max-width: 100%;
+}
+
+.zd-device-toolbar {
+  flex-wrap: wrap;
+  width: fit-content;
+  max-width: 100%;
+  margin-inline: auto;
+}
+
+.zd-toolbar-select {
+  flex: 1 1 150px;
+  min-width: 140px;
+  max-width: 220px;
+}
+
+.zd-toolbar-dimensions {
+  border-right: 1px solid var(--z-border);
+}
+
+/* Keep the generic overlay close affordance over the canvas, not on top of the
+   inspector header or its first controls. */
+.znxstudio-editor-overlay:has(.zd-root) > .znxstudio-editor-overlay-close {
+  top: 5px;
+  right: calc(clamp(320px, 23vw, 380px) + 10px);
+  border-color: var(--z-border);
+  background: var(--z-bg-elevated);
+}
+
+@container (max-width: 335px) {
+  .zd-props-row {
+    grid-template-columns: 1fr;
+    gap: 4px;
+    padding-block: 6px;
+  }
+
+  .zd-props-label {
+    white-space: normal;
+  }
+}
+
+@media (max-width: 1180px) {
+  .zd-root {
+    grid-template-columns: 210px minmax(0, 1fr) 310px;
+  }
+
+  .zd-device-frame { padding-inline: 12px; }
+  .zd-device-toolbar::before { display: none; }
+  .znxstudio-editor-overlay:has(.zd-root) > .znxstudio-editor-overlay-close {
+    right: 320px;
+  }
+}
+
+/* Authoritative designer activity icon. This must follow the legacy identity
+   layer, which assigns a font size to every activity glyph. */
+.znxstudio-activity-item[data-activity-id='znxstudio.designer'] > span {
+  position: relative;
+  display: block;
+  place-items: initial;
+  width: 15px;
+  height: 21px;
+  min-width: 15px;
+  min-height: 21px;
+  font-size: 0;
+}
+
+.znxstudio-activity-item[data-activity-id='znxstudio.designer'] > span::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border: 1.5px solid currentColor;
+  border-radius: 3px;
+  box-shadow: inset 0 -3px color-mix(in srgb, currentColor 14%, transparent);
+}
+
+.znxstudio-activity-item[data-activity-id='znxstudio.designer'] > span::after {
+  content: '';
+  position: absolute;
+  left: 4px;
+  top: 5px;
+  width: 3px;
+  height: 3px;
+  border: 1px solid currentColor;
+  box-shadow: 5px 0 0 -1px currentColor, 0 5px 0 -1px currentColor, 5px 5px 0 -1px currentColor;
+}
+
+/* Hardware rules that intentionally follow the original preview primitives. */
+.zd-device-bezel {
+  overflow: visible;
+  isolation: isolate;
+}
+
+.zd-device-statusbar {
+  height: 30px;
+  min-height: 30px;
+  align-items: center;
+  padding: 7px 13px 5px;
+  color: var(--zd-md-statusbar-fg);
+  background: var(--zd-md-surface);
+  font-family: Roboto, var(--z-font-ui);
+  font-size: 10px;
+  font-weight: 650;
+}
+
+.zd-device-navbar {
+  height: 28px;
+  min-height: 28px;
+  align-items: center;
+  padding: 10px 6px 8px;
+  background: var(--zd-md-surface);
+}
+
+.zd-nav-pill {
+  width: 108px;
+  height: 4px;
+  background: color-mix(in srgb, var(--zd-md-on-surface) 56%, transparent);
+}
+
+.zd-device-bezel:has(.zd-device-viewport[data-preview-theme='dark']) .zd-device-statusbar,
+.zd-device-bezel:has(.zd-device-viewport[data-preview-theme='dark']) .zd-device-navbar {
+  background: var(--zd-md-dark-surface);
+  color: var(--zd-md-dark-on-surface);
+}
+
+/* ---------------------------------------------------------------------------
+   Android device hardware
+
+   Preview shells reflect their physical class while the viewport keeps the
+   exact logical resolution selected in the toolbar.
+--------------------------------------------------------------------------- */
+.zd-device-bezel {
+  overflow: visible;
+  isolation: isolate;
+  background: var(--zd-device-frame);
+  border-color: var(--zd-device-frame);
+}
+
+.zd-device-viewport,
+.zd-device-statusbar,
+.zd-device-navbar {
+  position: relative;
+  z-index: 1;
+}
+
+.zd-device-camera {
+  position: absolute;
+  z-index: 4;
+  left: 50%;
+  top: 9px;
+  width: 9px;
+  height: 9px;
+  border: 2px solid var(--zd-device-camera-ring);
+  border-radius: 50%;
+  background: radial-gradient(circle at 38% 35%, var(--zd-device-camera-glint) 0 12%, var(--zd-device-camera-lens) 30% 100%);
+  box-shadow: 0 0 0 1px var(--zd-device-camera-edge);
+  transform: translateX(-50%);
+}
+
+.zd-device-bezel[data-device-category='phone'] {
+  border-width: 7px;
+  border-radius: 32px;
+  box-shadow: 0 22px 54px rgba(0, 0, 0, 0.42), 0 0 0 1px var(--zd-device-frame-edge);
+}
+
+.zd-device-bezel[data-device-category='phone']::before,
+.zd-device-bezel[data-device-category='phone']::after {
+  content: '';
+  position: absolute;
+  z-index: -1;
+  right: -10px;
+  width: 4px;
+  border-radius: 0 3px 3px 0;
+  background: var(--zd-device-control);
+  box-shadow: inset 1px 0 rgba(255, 255, 255, 0.08);
+}
+
+.zd-device-bezel[data-device-category='phone']::before {
+  top: 92px;
+  height: 58px;
+}
+
+.zd-device-bezel[data-device-category='phone']::after {
+  top: 166px;
+  height: 38px;
+}
+
+.zd-device-statusbar {
+  height: 30px;
+  min-height: 30px;
+  padding: 7px 13px 5px;
+  color: var(--zd-md-statusbar-fg);
+  background: var(--zd-md-surface);
+  font-family: Roboto, var(--z-font-ui);
+  font-size: 10px;
+  font-weight: 650;
+}
+
+.zd-statusbar-icons {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  height: 12px;
+}
+
+.zd-status-signal {
+  width: 12px;
+  height: 9px;
+  background: currentColor;
+  clip-path: polygon(0 100%, 0 72%, 18% 72%, 18% 54%, 43% 54%, 43% 34%, 68% 34%, 68% 14%, 100% 14%, 100% 100%);
+}
+
+.zd-status-wifi {
+  width: 12px;
+  height: 9px;
+  border-top: 2px solid currentColor;
+  border-radius: 50% 50% 0 0;
+  position: relative;
+}
+
+.zd-status-wifi::after {
+  content: '';
+  position: absolute;
+  left: 4px;
+  bottom: 0;
+  width: 4px;
+  height: 4px;
+  border-radius: 50%;
+  background: currentColor;
+}
+
+.zd-status-battery {
+  width: 15px;
+  height: 8px;
+  border: 1px solid currentColor;
+  border-radius: 2px;
+  box-shadow: inset 0 0 0 2px var(--zd-md-surface), inset 9px 0 currentColor;
+  position: relative;
+}
+
+.zd-status-battery::after {
+  content: '';
+  position: absolute;
+  right: -3px;
+  top: 2px;
+  width: 2px;
+  height: 4px;
+  border-radius: 0 1px 1px 0;
+  background: currentColor;
+}
+
+.zd-device-navbar {
+  height: 28px;
+  min-height: 28px;
+  padding: 10px 6px 8px;
+  background: var(--zd-md-surface);
+}
+
+.zd-nav-pill {
+  width: 108px;
+  height: 4px;
+  background: color-mix(in srgb, var(--zd-md-on-surface) 56%, transparent);
+}
+
+/* Foldables have a flatter chassis and a subtle center crease. */
+.zd-device-bezel[data-device-id='pixel-fold'] {
+  border-width: 9px;
+  border-radius: 20px;
+}
+
+.zd-device-bezel[data-device-id='pixel-fold'] .zd-device-camera {
+  left: 74%;
+  top: 8px;
+  width: 8px;
+  height: 8px;
+}
+
+.zd-device-bezel[data-device-id='pixel-fold'] .zd-device-viewport::after {
+  content: '';
+  position: absolute;
+  z-index: 20;
+  inset: 0 auto 0 50%;
+  width: 1px;
+  pointer-events: none;
+  background: linear-gradient(90deg, transparent, rgba(0, 0, 0, 0.09), transparent);
+  box-shadow: 0 0 8px rgba(0, 0, 0, 0.08);
+}
+
+/* Tablets use a wider, flatter frame and an in-bezel landscape camera. */
+.zd-device-bezel[data-device-category='tablet'] {
+  border-width: 11px;
+  border-radius: 18px;
+  box-shadow: 0 22px 58px rgba(0, 0, 0, 0.4), 0 0 0 1px var(--zd-device-frame-edge-tablet);
+}
+
+.zd-device-bezel[data-device-category='tablet'] .zd-device-camera {
+  top: 3px;
+  width: 6px;
+  height: 6px;
+  border-width: 1px;
+}
+
+.zd-device-bezel[data-device-category='tablet'] .zd-device-statusbar {
+  height: 32px;
+  min-height: 32px;
+  padding-inline: 18px;
+  font-size: 11px;
+}
+
+.zd-device-bezel[data-device-category='tablet'] .zd-device-navbar {
+  height: 30px;
+  min-height: 30px;
+}
+
+.zd-device-bezel[data-device-category='tablet'] .zd-nav-pill {
+  width: 132px;
+}
+
+.zd-device-bezel[data-orientation='landscape'][data-device-category='phone'] {
+  border-radius: 22px;
+}
+
+.zd-device-viewport[data-preview-theme='dark'] ~ .zd-device-navbar,
+.zd-device-bezel:has(.zd-device-viewport[data-preview-theme='dark']) .zd-device-statusbar {
+  background: var(--zd-md-dark-surface);
+  color: var(--zd-md-dark-on-surface);
+}
+
+.zd-device-bezel:has(.zd-device-viewport[data-preview-theme='dark']) .zd-status-battery {
+  box-shadow: inset 0 0 0 2px var(--zd-md-dark-surface), inset 9px 0 currentColor;
+}
+
 /* Performance: let the browser skip layout/paint for off-screen scroll
    bodies (panels, sidebars, long lists) until they approach the viewport. */
 .znxstudio-panel-view,
@@ -9390,6 +9913,14 @@ a:focus-visible {
   --zd-md-dark-on-surface: #e0e0e0;
   --zd-md-dark-surface-variant: #1e1e1e;
   --zd-md-dark-on-surface-muted: #aaa;
+  --zd-device-frame: #202124;
+  --zd-device-frame-edge: #36383d;
+  --zd-device-frame-edge-tablet: #3b3d42;
+  --zd-device-control: #34363a;
+  --zd-device-camera-ring: #292b2f;
+  --zd-device-camera-glint: #52647a;
+  --zd-device-camera-lens: #0a0b0d;
+  --zd-device-camera-edge: #050607;
 }
 
 /* Root layout — three-panel split */
@@ -10094,3 +10625,884 @@ a:focus-visible {
   font-family: var(--z-font-ui);
 }
 .zd-sidebar-btn:hover { color: var(--z-accent); border-color: var(--z-accent); }
+
+/* ---------------------------------------------------------------------------
+   Professional workbench finish
+
+   Structural IDE surfaces use crisp shared edges instead of floating rounded
+   cards. Small controls retain a slight radius so their affordance stays clear.
+--------------------------------------------------------------------------- */
+.znxstudio-activitybar,
+.znxstudio-sidebar,
+.znxstudio-editor-area,
+.znxstudio-panel {
+  border-radius: 0;
+  box-shadow: none;
+}
+
+.znxstudio-activitybar,
+.znxstudio-sidebar,
+.znxstudio-panel,
+.znxstudio-editor-region {
+  margin: 0;
+}
+
+.znxstudio-activitybar {
+  border-width: 0 1px 0 0;
+  background: var(--z-activity-bg);
+}
+
+.znxstudio-sidebar {
+  border-width: 0 1px 0 0;
+  background: var(--z-bg-panel);
+}
+
+.znxstudio-editor-region {
+  padding: 0;
+  background: var(--z-bg);
+}
+
+.znxstudio-editor-area {
+  border-width: 0;
+  background: var(--z-bg);
+}
+
+.znxstudio-panel {
+  border-width: 1px 0 0;
+}
+
+.znxstudio-sidebar-header,
+.znxstudio-panel-header,
+.znxstudio-editor-topbar,
+.znxstudio-term-tabs,
+.znxstudio-term-pane,
+.znxstudio-statusbar,
+.znxstudio-breadcrumbs {
+  background: var(--z-bg-elevated);
+}
+
+.znxstudio-statusbar {
+  background: var(--z-status-bg);
+}
+
+.znxstudio-statusbar::before {
+  display: none;
+}
+
+.znxstudio-editor-tab,
+.znxstudio-panel-tab,
+.znxstudio-tree-row,
+.znxstudio-menu-item,
+.znxstudio-term-tab,
+.znxstudio-status-item,
+.znxstudio-status-btn,
+.znxstudio-status-text,
+.znxstudio-editor-actions,
+.znxstudio-editor-action,
+.znxstudio-settings-ui-navitem,
+.znxstudio-settings-ui-row,
+.znxstudio-palette-item,
+.znxstudio-everywhere-item,
+.znxstudio-quickopen-item,
+.znxstudio-diagnostic {
+  border-radius: 2px;
+}
+
+.znxstudio-modal,
+.znxstudio-palette-box,
+.znxstudio-everywhere-box,
+.znxstudio-quickopen-box,
+.znxstudio-inputbox-panel,
+.znxstudio-ai-modal-box,
+.znxstudio-deploy-modal-box,
+.znxstudio-scm-picker-box,
+.znxstudio-pm-modal,
+.znxstudio-menu,
+.znxstudio-context-menu {
+  border-radius: 2px;
+}
+
+.znxstudio-template-card,
+.znxstudio-pm-card,
+.znxstudio-remote-section,
+.znxstudio-ai-detail,
+.znxstudio-extmgr-section,
+.znxstudio-deploy-card,
+.znxstudio-ai-provider,
+.znxstudio-chat-body,
+.znxstudio-deps-group,
+.znxstudio-profiler-group,
+.znxstudio-history-detail,
+.znxstudio-profiles-picker,
+.znxstudio-solution-project,
+.znxstudio-settings-ui-nav,
+.znxstudio-welcome-inner,
+.znxstudio-panel-view [class$='-empty'],
+.znxstudio-sidebar-content [class$='-empty'] {
+  border-radius: 2px;
+  box-shadow: none;
+}
+
+:root[data-theme='znxstudio-dark'] .znxstudio-sidebar,
+:root[data-theme='znxstudio-dark'] .znxstudio-editor-topbar,
+:root[data-theme='znxstudio-dark'] .znxstudio-panel-header,
+:root[data-theme='znxstudio-dark'] .znxstudio-menu,
+:root[data-theme='znxstudio-dark'] .znxstudio-palette-box,
+:root[data-theme='znxstudio-dark'] .znxstudio-everywhere-box,
+:root[data-theme='znxstudio-dark'] .znxstudio-quickopen-box,
+:root[data-theme='znxstudio-light'] .znxstudio-sidebar,
+:root[data-theme='znxstudio-light'] .znxstudio-editor-topbar,
+:root[data-theme='znxstudio-light'] .znxstudio-panel-header,
+:root[data-theme='znxstudio-light'] .znxstudio-menu,
+:root[data-theme='znxstudio-light'] .znxstudio-palette-box,
+:root[data-theme='znxstudio-light'] .znxstudio-everywhere-box,
+:root[data-theme='znxstudio-light'] .znxstudio-quickopen-box {
+  background-image: none;
+}
+
+/* ---------------------------------------------------------------------------
+   Android designer workspace
+
+   Keep the IDE chrome crisp while allowing Material geometry inside the actual
+   device preview. The canvas is visually distinct from editable side panels.
+--------------------------------------------------------------------------- */
+.zd-root {
+  grid-template-columns: clamp(220px, 18vw, 280px) minmax(360px, 1fr) clamp(260px, 21vw, 340px);
+  background: var(--z-bg);
+}
+
+.zd-left-panel,
+.zd-right-panel {
+  background: var(--z-bg-panel);
+}
+
+.zd-left-panel { border-right-color: var(--z-border); }
+.zd-right-panel { border-left-color: var(--z-border); }
+
+.zd-section-header {
+  position: sticky;
+  top: 0;
+  z-index: 2;
+  min-height: 34px;
+  padding: 9px 12px 7px;
+  background: var(--z-bg-elevated);
+  color: var(--z-fg);
+  font-size: 11px;
+  letter-spacing: 0.06em;
+}
+
+.zd-center-panel {
+  position: relative;
+  align-items: stretch;
+  padding: 0;
+  background-color: var(--z-bg);
+  background-image: radial-gradient(circle, color-mix(in srgb, var(--z-fg-muted) 24%, transparent) 1px, transparent 1px);
+  background-position: 0 0;
+  background-size: 20px 20px;
+}
+
+.zd-screen-tabs {
+  position: sticky;
+  top: 0;
+  z-index: 5;
+  flex: 0 0 auto;
+  align-self: stretch;
+  max-width: none;
+  min-height: 38px;
+  padding: 5px 10px 0;
+  border-bottom: 1px solid var(--z-border);
+  background: var(--z-bg-elevated);
+}
+
+.zd-screen-tab {
+  min-height: 32px;
+  padding: 5px 12px;
+  border-color: transparent;
+  border-bottom: 2px solid transparent;
+  background: transparent;
+}
+
+.zd-screen-tab:hover {
+  background: var(--z-hover);
+  color: var(--z-fg);
+}
+
+.zd-screen-tab-active {
+  border-bottom-color: var(--z-accent);
+  background: var(--z-bg);
+  color: var(--z-fg);
+}
+
+.zd-screen-tab-add {
+  border: 0;
+  border-bottom: 2px solid transparent;
+  font-size: 16px;
+}
+
+.zd-device-frame {
+  align-self: center;
+  width: min(100%, 840px);
+  padding: 18px 28px 40px;
+}
+
+.zd-device-stage {
+  display: flex;
+  align-items: flex-start;
+  justify-content: center;
+  width: 100%;
+  min-height: 668px;
+  padding: 14px;
+  border: 1px solid color-mix(in srgb, var(--z-border) 78%, transparent);
+  background: color-mix(in srgb, var(--z-bg) 92%, var(--z-bg-elevated));
+  overflow: auto;
+  scrollbar-gutter: stable;
+}
+
+.zd-device-toolbar {
+  position: sticky;
+  top: 46px;
+  z-index: 4;
+  min-height: 38px;
+  margin: 0 0 16px;
+  padding: 5px;
+  border: 1px solid var(--z-border);
+  border-radius: 2px;
+  background: var(--z-bg-elevated);
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.16);
+}
+
+.zd-device-toolbar::before {
+  content: 'PREVIEW';
+  padding-inline: 5px 3px;
+  color: var(--z-fg-muted);
+  font-size: 10px;
+  font-weight: 650;
+  letter-spacing: 0.08em;
+}
+
+.zd-toolbar-select,
+.zd-toolbar-btn {
+  min-height: 28px;
+  border-radius: 2px;
+  background: var(--z-bg);
+}
+
+.zd-toolbar-select {
+  min-width: 160px;
+  padding-inline: 8px 28px;
+}
+
+.zd-toolbar-dimensions {
+  min-width: 76px;
+  padding-inline: 7px;
+  color: var(--z-fg-muted);
+  font-family: var(--z-font-mono);
+  font-size: 11px;
+  font-variant-numeric: tabular-nums;
+  text-align: center;
+  white-space: nowrap;
+}
+
+.zd-toolbar-btn:hover {
+  border-color: color-mix(in srgb, var(--z-accent) 62%, var(--z-border));
+  color: var(--z-accent-secondary);
+}
+
+.zd-toolbar-btn:focus-visible,
+.zd-toolbar-select:focus-visible,
+.zd-toolbox-search-input:focus-visible,
+.zd-props-input:focus-visible,
+.zd-props-select:focus-visible,
+.zd-props-event-body:focus-visible {
+  border-color: var(--z-focus);
+  outline: 1px solid var(--z-focus);
+  outline-offset: -1px;
+}
+
+.zd-device-bezel {
+  border: 6px solid var(--zd-device-frame);
+  border-radius: 28px;
+  background: var(--zd-device-frame);
+  box-shadow: 0 18px 46px rgba(0, 0, 0, 0.36), 0 0 0 1px rgba(255, 255, 255, 0.08);
+}
+
+.zd-device-statusbar {
+  min-height: 26px;
+  align-items: center;
+  padding: 5px 14px;
+  font-weight: 600;
+}
+
+.zd-device-navbar {
+  min-height: 24px;
+  align-items: center;
+  padding: 6px;
+}
+
+/* The status bar precedes the viewport, so the old general-sibling selector
+   could not theme it. :has() is supported by the bundled Electron Chromium. */
+.zd-device-bezel:has(.zd-device-viewport[data-preview-theme='dark']) .zd-device-statusbar,
+.zd-device-bezel:has(.zd-device-viewport[data-preview-theme='dark']) .zd-device-navbar {
+  background: var(--zd-md-dark-surface-variant);
+  color: var(--zd-md-dark-on-surface-muted);
+}
+
+.zd-device-viewport {
+  scrollbar-width: thin;
+  scrollbar-color: rgba(90, 90, 90, 0.55) transparent;
+}
+
+.zd-canvas {
+  padding: 12px;
+}
+
+.zd-canvas-empty,
+.zd-drop-root-placeholder {
+  min-height: 220px;
+  margin: 12px;
+  border: 1px dashed var(--zd-md-outline-variant);
+  background: color-mix(in srgb, var(--zd-md-surface-variant) 72%, transparent);
+  line-height: 1.5;
+}
+
+.zd-node {
+  margin: 3px 0;
+  border-radius: 3px;
+}
+
+.zd-node:hover {
+  border-color: color-mix(in srgb, var(--z-accent) 58%, transparent);
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--z-accent) 14%, transparent);
+}
+
+.zd-node-primary {
+  box-shadow: 0 0 0 2px color-mix(in srgb, var(--z-accent) 42%, transparent);
+}
+
+.zd-drop-indicator.zd-drop-active {
+  height: 3px;
+  box-shadow: 0 0 0 2px color-mix(in srgb, var(--z-accent) 18%, transparent);
+}
+
+.zd-drop-empty,
+.zd-drop-root-placeholder {
+  border-radius: 4px;
+}
+
+.zd-toolbox-search {
+  position: sticky;
+  top: 0;
+  z-index: 2;
+  padding: 8px;
+  background: var(--z-bg-panel);
+}
+
+.zd-toolbox-search-input {
+  min-height: 30px;
+  padding: 6px 9px;
+  border-radius: 2px;
+}
+
+.zd-toolbox-section-header,
+.zd-props-group-header {
+  min-height: 30px;
+  padding: 7px 10px;
+  background: var(--z-bg-elevated);
+  color: var(--z-fg);
+  letter-spacing: 0.02em;
+}
+
+.zd-toolbox-section + .zd-toolbox-section,
+.zd-props-group-header {
+  border-top: 1px solid var(--z-border);
+}
+
+.zd-toolbox-item {
+  min-height: 38px;
+  gap: 9px;
+  margin: 1px 5px;
+  padding: 5px 9px;
+  border: 1px solid transparent;
+  border-radius: 2px;
+}
+
+.zd-toolbox-item:hover {
+  border-color: var(--z-border);
+  background: var(--z-hover);
+}
+
+.zd-toolbox-item:active { cursor: grabbing; }
+
+.zd-toolbox-item-icon {
+  display: grid;
+  place-items: center;
+  width: 28px;
+  height: 28px;
+  border: 1px solid var(--z-border);
+  border-radius: 3px;
+  background: var(--z-bg);
+  color: var(--z-accent-secondary);
+}
+
+.zd-toolbox-item-label { color: var(--z-fg); }
+
+.zd-hierarchy-screen {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  padding: 8px 10px;
+  border-bottom: 1px solid var(--z-border);
+  background: var(--z-bg-panel);
+}
+
+.zd-hierarchy-row {
+  min-height: 28px;
+  margin: 1px 4px;
+  border: 1px solid transparent;
+  border-radius: 2px;
+}
+
+.zd-hierarchy-row:hover { border-color: var(--z-border); }
+
+.zd-hierarchy-selected {
+  border-color: color-mix(in srgb, var(--z-accent) 46%, var(--z-border)) !important;
+  background: color-mix(in srgb, var(--z-accent) 16%, transparent) !important;
+  box-shadow: inset 2px 0 var(--z-accent);
+}
+
+.zd-props-header {
+  position: sticky;
+  top: 0;
+  z-index: 3;
+  min-height: 38px;
+  background: var(--z-bg-elevated);
+}
+
+.zd-props-id {
+  padding: 5px 12px;
+  border-bottom: 1px solid var(--z-border);
+  background: var(--z-bg);
+}
+
+.zd-props-group-body { padding: 6px 0 8px; }
+
+.zd-props-row {
+  grid-template-columns: minmax(88px, 42%) minmax(0, 1fr);
+  min-height: 32px;
+  gap: 8px;
+  padding: 3px 10px;
+}
+
+.zd-props-label { color: var(--z-fg-muted); }
+
+.zd-props-input,
+.zd-props-select,
+.zd-props-event-body {
+  min-height: 28px;
+  padding: 5px 7px;
+  border-radius: 2px;
+  background: var(--z-bg);
+}
+
+.zd-props-checkbox {
+  width: 16px;
+  height: 16px;
+}
+
+.zd-action-btn,
+.zd-props-event-add,
+.zd-props-event-remove {
+  border-radius: 2px;
+}
+
+@media (max-width: 980px) {
+  .zd-root { grid-template-columns: 210px minmax(340px, 1fr) 250px; }
+  .zd-device-frame { padding-inline: 18px; }
+}
+
+/* ---------------------------------------------------------------------------
+   General usability pass
+--------------------------------------------------------------------------- */
+.znxstudio-workbench {
+  color-scheme: dark;
+}
+
+:root[data-theme='znxstudio-light'] .znxstudio-workbench,
+:root[data-theme='znxstudio-dune'] .znxstudio-workbench,
+:root[data-theme='znxstudio-hc-light'] .znxstudio-workbench {
+  color-scheme: light;
+}
+
+.znxstudio-titlebar {
+  gap: 10px;
+  padding-inline: 10px;
+}
+
+.znxstudio-titlebar-brand {
+  min-width: 86px;
+}
+
+.znxstudio-titlebar-subtitle {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.znxstudio-menubar {
+  min-width: 0;
+  margin-left: 4px;
+}
+
+.znxstudio-menubar-item {
+  min-height: 26px;
+  padding: 3px 8px;
+  border-radius: 2px;
+}
+
+.znxstudio-activitybar {
+  width: 48px;
+  padding: 5px 4px;
+  gap: 2px;
+}
+
+.znxstudio-activity-item {
+  width: 39px;
+  height: 39px;
+  border-radius: 2px;
+  transform: none;
+}
+
+.znxstudio-activity-item:hover { transform: none; }
+
+.znxstudio-activity-item.is-active {
+  border-color: transparent;
+  background: var(--z-hover);
+  box-shadow: none;
+}
+
+.znxstudio-activity-item.is-active::before {
+  left: -5px;
+  top: 8px;
+  width: 2px;
+  height: 23px;
+  border-radius: 0;
+  background: var(--z-accent);
+}
+
+.znxstudio-sidebar-header {
+  min-height: 38px;
+  padding: 7px 8px 7px 12px;
+  background: var(--z-bg-panel);
+}
+
+.znxstudio-sidebar-title::before { display: none; }
+
+.znxstudio-sidebar-tool,
+.znxstudio-panel-actions button,
+.znxstudio-editor-action,
+.znxstudio-editor-overlay-close {
+  border-radius: 2px;
+}
+
+.znxstudio-sidebar-tool:focus-visible,
+.znxstudio-panel-actions button:focus-visible,
+.znxstudio-editor-action:focus-visible,
+.znxstudio-toast-close:focus-visible {
+  outline: 1px solid var(--z-focus);
+  outline-offset: -1px;
+}
+
+.znxstudio-editor-tabs {
+  gap: 0;
+  padding: 0;
+  scrollbar-width: thin;
+}
+
+.znxstudio-editor-tab {
+  min-height: 34px;
+  border-width: 0 1px 0 0;
+  border-color: var(--z-border);
+  border-radius: 0;
+}
+
+.znxstudio-editor-tab.is-active {
+  border-color: var(--z-border);
+  border-top: 1px solid var(--z-accent);
+  border-bottom: 1px solid var(--z-bg);
+  box-shadow: none;
+}
+
+.znxstudio-editor-tab.is-active::before { display: none; }
+
+.znxstudio-editor-tab-close {
+  border-radius: 2px;
+}
+
+.znxstudio-panel-tabs {
+  gap: 0;
+  padding: 0 4px;
+}
+
+.znxstudio-panel-tab {
+  min-height: 35px;
+  padding-inline: 10px;
+  border-width: 0 0 2px;
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
+}
+
+.znxstudio-panel-tab.is-active {
+  border-color: var(--z-accent);
+  background: transparent;
+  box-shadow: none;
+}
+
+.znxstudio-panel-tab-close:focus-visible,
+.znxstudio-term-tab-close:focus-visible {
+  opacity: 1;
+  outline: 1px solid var(--z-focus);
+  outline-offset: 0;
+}
+
+.znxstudio-breadcrumbs {
+  min-height: 26px;
+  padding-inline: 10px;
+  border-bottom-color: var(--z-border-subtle);
+}
+
+.znxstudio-crumb {
+  min-height: 22px;
+  border-radius: 2px;
+}
+
+.znxstudio-menu,
+.znxstudio-context-menu,
+.znxstudio-crumb-menu,
+.zd-context-menu {
+  padding: 4px;
+  border-radius: 2px;
+  box-shadow: 0 8px 28px rgba(0, 0, 0, 0.34);
+}
+
+.znxstudio-menu-item,
+.znxstudio-context-menu-item,
+.znxstudio-crumb-menu-item,
+.zd-context-item {
+  min-height: 30px;
+  border-radius: 2px;
+}
+
+.znxstudio-menu-item:hover,
+.znxstudio-menu-item:focus-visible,
+.znxstudio-context-menu-item:hover:not(:disabled),
+.znxstudio-context-menu-item:focus-visible:not(:disabled),
+.znxstudio-crumb-menu-item:hover,
+.znxstudio-crumb-menu-item:focus-visible,
+.zd-context-item:hover,
+.zd-context-item:focus-visible {
+  background: var(--z-accent);
+  color: var(--z-accent-fg);
+  outline: none;
+}
+
+.znxstudio-menu-item:hover .znxstudio-menu-shortcut,
+.znxstudio-menu-item:focus-visible .znxstudio-menu-shortcut {
+  color: color-mix(in srgb, var(--z-accent-fg) 78%, transparent);
+}
+
+.znxstudio-menu-separator {
+  margin-block: 4px;
+}
+
+:where(
+  .znxstudio-input,
+  .znxstudio-search-input,
+  .znxstudio-menu-search,
+  .znxstudio-settings-ui-search,
+  .znxstudio-settings-ui-control input,
+  .znxstudio-settings-ui-control select,
+  .znxstudio-ai-input,
+  .znxstudio-scm-message,
+  .znxstudio-palette-input,
+  .znxstudio-everywhere-input,
+  .znxstudio-quickopen-input
+) {
+  border-radius: 2px;
+}
+
+:where(input, textarea, select)::placeholder {
+  color: var(--z-fg-muted);
+  opacity: 0.82;
+}
+
+:where(input, textarea, select):disabled {
+  cursor: not-allowed;
+  opacity: 0.58;
+}
+
+:where(button, [role='button']):disabled {
+  cursor: not-allowed;
+}
+
+.znxstudio-btn,
+.znxstudio-btn-small,
+.znxstudio-welcome-btn,
+.znxstudio-modal-btn {
+  min-height: 28px;
+  border-radius: 2px;
+  box-shadow: none;
+  transform: none;
+}
+
+.znxstudio-btn:not(:disabled):active,
+.znxstudio-btn-small:not(:disabled):active,
+.znxstudio-welcome-btn:not(:disabled):active {
+  transform: none;
+  filter: brightness(0.94);
+}
+
+.znxstudio-btn.primary,
+.znxstudio-welcome-btn.primary,
+.znxstudio-modal-btn.is-primary {
+  background: var(--z-accent);
+  border-color: var(--z-accent);
+  box-shadow: none;
+}
+
+.znxstudio-palette-box,
+.znxstudio-everywhere-box,
+.znxstudio-quickopen-box {
+  width: min(680px, calc(100vw - 32px));
+  max-height: calc(100vh - 72px);
+}
+
+.znxstudio-palette-input,
+.znxstudio-everywhere-input,
+.znxstudio-quickopen-input {
+  min-height: 44px;
+  padding: 11px 14px;
+  font-size: 14px;
+}
+
+.znxstudio-palette-list,
+.znxstudio-everywhere-list,
+.znxstudio-quickopen-list {
+  overscroll-behavior: contain;
+  scrollbar-gutter: stable;
+}
+
+.znxstudio-palette-item,
+.znxstudio-everywhere-item,
+.znxstudio-quickopen-item {
+  min-height: 36px;
+  border-radius: 2px;
+}
+
+.znxstudio-palette-item.is-selected,
+.znxstudio-palette-item:hover,
+.znxstudio-everywhere-item.is-selected,
+.znxstudio-everywhere-item:hover,
+.znxstudio-quickopen-item.is-selected,
+.znxstudio-quickopen-item:hover {
+  border-color: transparent;
+  background: var(--z-accent);
+  color: var(--z-accent-fg);
+  box-shadow: none;
+}
+
+.znxstudio-palette-item.is-selected .znxstudio-palette-id,
+.znxstudio-palette-item:hover .znxstudio-palette-id,
+.znxstudio-everywhere-item.is-selected .znxstudio-everywhere-detail,
+.znxstudio-everywhere-item:hover .znxstudio-everywhere-detail,
+.znxstudio-quickopen-item.is-selected .znxstudio-quickopen-dir,
+.znxstudio-quickopen-item:hover .znxstudio-quickopen-dir {
+  color: color-mix(in srgb, var(--z-accent-fg) 78%, transparent);
+}
+
+.znxstudio-toast {
+  min-width: 280px;
+  border-radius: 2px;
+  border-left-width: 3px;
+  background: var(--z-bg-elevated);
+  background-image: none;
+  box-shadow: 0 8px 26px rgba(0, 0, 0, 0.3);
+}
+
+.znxstudio-toast--success { border-left-color: var(--z-success); }
+.znxstudio-toast--success .znxstudio-toast-icon { color: var(--z-success); }
+.znxstudio-toast--error { border-left-color: var(--z-error); }
+
+.znxstudio-explorer-empty,
+.znxstudio-rundebug-empty,
+.znxstudio-test-empty,
+.znxstudio-tests-empty,
+.znxstudio-extensions-empty,
+.znxstudio-chat-empty,
+.znxstudio-panel-view [class$='-empty'],
+.znxstudio-sidebar-content [class$='-empty'] {
+  border-radius: 2px;
+  background: var(--z-bg-panel);
+  background-image: none;
+  line-height: 1.5;
+}
+
+.znxstudio-tree-row {
+  height: 27px;
+  margin: 0;
+  border-width: 0;
+  border-radius: 0;
+}
+
+.znxstudio-tree-row:hover {
+  background: var(--z-hover);
+  box-shadow: none;
+}
+
+.znxstudio-tree-row.is-active {
+  background: color-mix(in srgb, var(--z-accent) 22%, var(--z-bg-panel));
+  box-shadow: inset 2px 0 var(--z-accent);
+}
+
+.znxstudio-tree-row::after { display: none; }
+
+.znxstudio-status-item,
+.znxstudio-status-btn,
+.znxstudio-status-text {
+  border-radius: 0;
+}
+
+@media (max-width: 900px) {
+  .znxstudio-titlebar { gap: 5px; }
+  .znxstudio-titlebar-subtitle { display: none; }
+  .znxstudio-menubar { margin-left: 0; }
+  .znxstudio-menubar-item { padding-inline: 6px; }
+  .znxstudio-sidebar { width: 220px; }
+  .znxstudio-status-item { max-width: 150px; }
+}
+
+@media (max-width: 680px) {
+  .znxstudio-titlebar-brand { min-width: auto; }
+  .znxstudio-wordmark-studio { display: none; }
+  .znxstudio-menubar-item { padding-inline: 4px; }
+  .znxstudio-activitybar { width: 42px; }
+  .znxstudio-activity-item { width: 34px; height: 36px; }
+  .znxstudio-sidebar { width: 190px; min-width: 160px; }
+  .znxstudio-toasts { right: 8px; left: 8px; }
+  .znxstudio-toast { min-width: 0; max-width: none; }
+  .znxstudio-palette-box,
+  .znxstudio-everywhere-box,
+  .znxstudio-quickopen-box { margin-top: 36px; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    scroll-behavior: auto !important;
+    transition-duration: 0.01ms !important;
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+  }
+}

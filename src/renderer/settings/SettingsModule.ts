@@ -16,6 +16,8 @@ import {
   coerceSetting,
   RELOAD_REQUIRED_KEYS,
   SETTINGS_DEFAULTS,
+  DEFAULT_EDITOR_FONT_FAMILY,
+  DEFAULT_FONT_SIZE,
   SETTINGS_DESCRIPTIONS,
   SETTINGS_JSON_SCHEMA,
   SETTINGS_MODEL_URI,
@@ -610,9 +612,9 @@ export class SettingsModule implements IModule, SettingsService {
       theme: 'znxstudio-dark',
       automaticLayout: true,
       minimap: { enabled: false },
-      fontSize: this.get('editor.fontSize', 13),
-      fontFamily: this.get('editor.fontFamily', "'Cascadia Code', 'SFMono-Regular', Consolas, 'Liberation Mono', Menlo, monospace"),
-      lineHeight: Math.round(this.get('editor.fontSize', 14) * 1.5),
+      fontSize: this.get('editor.fontSize', DEFAULT_FONT_SIZE),
+      fontFamily: this.get('editor.fontFamily', DEFAULT_EDITOR_FONT_FAMILY),
+      lineHeight: Math.round(this.get('editor.fontSize', DEFAULT_FONT_SIZE) * 1.5),
       scrollBeyondLastLine: false,
     });
 

@@ -35,7 +35,9 @@ export class TaskService {
       if (!sender.isDestroyed()) {
         sender.send(IpcChannels.TaskExit, { id: options.id, code });
       }
-      this.tasks.delete(options.id);
+      // A replacement task may already own this id. Never let the old child's
+      // delayed close event unregister the new process.
+      if (this.tasks.get(options.id) === child) this.tasks.delete(options.id);
     });
   }
 

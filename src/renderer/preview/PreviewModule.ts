@@ -92,7 +92,7 @@ export class PreviewModule implements IModule {
     } catch {
       /* fall through */
     }
-    return root;
+    return null;
   }
 
   /* ----- rendering ----- */

@@ -3,6 +3,11 @@ import { IpcChannels } from '../src/shared/ipc';
 import { CommandIds } from '../src/renderer/commands/CommandIds';
 import { HARDENED_WEB_PREFERENCES } from '../src/shared/security';
 import { PROJECT_TEMPLATES, renderTemplate, type ProjectTemplate } from '../src/shared/templates';
+import { parseMobileBuildOutput, validateAndroidProjectConfig } from '../src/main/services/MobileService';
+import { MobileService } from '../src/main/services/MobileService';
+import { mkdtemp, rm, writeFile } from 'node:fs/promises';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
 
 /* ===== IPC channel contract parity ===== */
 
@@ -186,6 +191,90 @@ describe('mobile session state machine', () => {
       expect(typeof s).toBe('string');
       expect(s.length).toBeGreaterThan(0);
     }
+  });
+});
+
+describe('Android project configuration validation', () => {
+  test('accepts valid Android release settings', () => {
+    let threw = false;
+    try { validateAndroidProjectConfig({
+      applicationId: 'dev.znxstudio.sample',
+      version: '1.2.0-rc.1',
+      versionCode: 12,
+      minSdk: 24,
+      targetSdk: 35,
+      compileSdk: 35,
+      permissions: ['android.permission.INTERNET'],
+    }); } catch { threw = true; }
+    expect(threw).toBe(false);
+  });
+
+  test('rejects line injection and malformed package values', () => {
+    let packageThrew = false;
+    let permissionThrew = false;
+    try { validateAndroidProjectConfig({ applicationId: 'dev.sample\nandroid.minSdk = 1' }); } catch { packageThrew = true; }
+    try { validateAndroidProjectConfig({ permissions: ['android.permission.INTERNET\nandroid.targetSdk = 1'] }); } catch { permissionThrew = true; }
+    expect(packageThrew).toBe(true);
+    expect(permissionThrew).toBe(true);
+  });
+
+  test('rejects invalid numeric values', () => {
+    let versionThrew = false;
+    let sdkThrew = false;
+    try { validateAndroidProjectConfig({ versionCode: Number.NaN }); } catch { versionThrew = true; }
+    try { validateAndroidProjectConfig({ minSdk: 0 }); } catch { sdkThrew = true; }
+    expect(versionThrew).toBe(true);
+    expect(sdkThrew).toBe(true);
+  });
+
+  test('rejects inconsistent Android SDK levels', () => {
+    let minimumThrew = false;
+    let compileThrew = false;
+    try { validateAndroidProjectConfig({ minSdk: 35, targetSdk: 34 }); } catch { minimumThrew = true; }
+    try { validateAndroidProjectConfig({ targetSdk: 35, compileSdk: 34 }); } catch { compileThrew = true; }
+    expect(minimumThrew).toBe(true);
+    expect(compileThrew).toBe(true);
+  });
+});
+
+describe('Android project manifest compatibility', () => {
+  test('reads compiler-style snake_case Android keys', async () => {
+    const root = await mkdtemp(join(tmpdir(), 'znxstudio-mobile-'));
+    try {
+      await writeFile(join(root, 'zornux.project'), [
+        'version = 1.0.0',
+        'android.application_id = dev.znxstudio.app',
+        'android.min_sdk = 24',
+        'android.target_sdk = 35',
+        'android.compile_sdk = 35',
+      ].join('\n'));
+      const config = await new MobileService().projectConfig(root);
+      expect(config?.applicationId).toBe('dev.znxstudio.app');
+      expect(config?.minSdk).toBe(24);
+      expect(config?.targetSdk).toBe(35);
+      expect(config?.compileSdk).toBe(35);
+    } finally {
+      await rm(root, { recursive: true, force: true });
+    }
+  });
+});
+
+describe('Android build result parsing', () => {
+  test('uses the build result when trailing CLI logs follow it', () => {
+    const result = parseMobileBuildOutput(
+      '{"phase":"compile","message":"Compiling"}\n' +
+      '{"success":true,"artifactPath":"app.apk","artifactSizeBytes":42,"diagnostics":[]}\nDone\n',
+      '',
+      0,
+    );
+    expect(result.success).toBe(true);
+    expect(result.artifactPath).toBe('app.apk');
+  });
+
+  test('surfaces stderr when the CLI emits no result JSON', () => {
+    const result = parseMobileBuildOutput('', 'Android SDK is missing', 1);
+    expect(result.success).toBe(false);
+    expect(result.diagnostics[0]).toContain('Android SDK is missing');
   });
 });
 

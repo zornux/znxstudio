@@ -184,6 +184,11 @@ export class RunBuildModule implements IModule {
       return;
     }
 
+    if (info.detectedType === 'zoijs-frontend' && !info.project?.scripts?.build) {
+      this.context.layout.showToast('This Zoijs project runs directly in Live Preview; no build step is required.', 'info');
+      return;
+    }
+
     if (compiler && compilerAvailable && entry) {
       await this.compilerBuild(compiler, entry, info);
       return;
@@ -286,6 +291,16 @@ export class RunBuildModule implements IModule {
     // Mobile projects use `zornux mobile run android` with the selected device.
     if (info.detectedType === 'zornux-mobile') {
       await this.mobileRun(info);
+      return;
+    }
+
+    if (info.detectedType === 'zoijs-frontend' && this.context.commands.has(CommandIds.PreviewStart)) {
+      await this.context.commands.execute(CommandIds.PreviewStart);
+      return;
+    }
+
+    if (info.detectedType === 'zornux-zoijs-fullstack' && this.context.commands.has(CommandIds.FullStackStart)) {
+      await this.context.commands.execute(CommandIds.FullStackStart);
       return;
     }
 

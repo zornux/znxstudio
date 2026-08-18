@@ -116,4 +116,11 @@ describe('renderTemplate substitution', () => {
     expect(paths).toContain('zornux.config.zxcfg');
     expect(paths).toContain('zornux.config.production.zxcfg');
   });
+
+  test('mobile application IDs remain valid when project names contain punctuation', () => {
+    const rendered = renderTemplate(findTemplate('zornux-mobile-blank')!, 'My-Mobile.App');
+    const project = rendered.files.find((file) => file.path === 'zornux.project')!;
+    expect(project.content).toContain('android.application_id = com.example.my_mobile_app');
+    expect(project.content).toContain('name = My-Mobile.App');
+  });
 });

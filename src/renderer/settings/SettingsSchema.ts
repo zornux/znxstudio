@@ -10,6 +10,9 @@ export function defaultFontSize(): number {
 
 export const DEFAULT_FONT_SIZE = defaultFontSize();
 
+/** Shared coding font stack used by Monaco, terminals, and code surfaces. */
+export const DEFAULT_EDITOR_FONT_FAMILY = "'Cascadia Code', 'Cascadia Mono', 'SFMono-Regular', Consolas, 'Liberation Mono', Menlo, monospace";
+
 /** Default syntax color for language keywords (a vivid pink/magenta). */
 export const DEFAULT_KEYWORD_COLOR = '#ff5c9d';
 
@@ -74,7 +77,7 @@ export interface ZnxStudioSettings {
 
 export const SETTINGS_DEFAULTS: ZnxStudioSettings = {
   'editor.fontSize': DEFAULT_FONT_SIZE,
-  'editor.fontFamily': "'Cascadia Code', 'SFMono-Regular', Consolas, 'Liberation Mono', Menlo, monospace",
+  'editor.fontFamily': DEFAULT_EDITOR_FONT_FAMILY,
   'editor.tabSize': 2,
   'editor.formatOnSave': true,
   'editor.keywordColor': DEFAULT_KEYWORD_COLOR,

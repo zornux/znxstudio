@@ -117,9 +117,14 @@ async function selfTestGate() {
   // Hosted Linux runners cannot use Electron's SUID sandbox. The production
   // app remains sandboxed; only this isolated CI smoke process opts out.
   const electronArgs = ['.', '--enable-logging', ...(process.env.CI === 'true' && process.platform === 'linux' ? ['--no-sandbox'] : [])];
+  // Some developer/agent shells export ELECTRON_RUN_AS_NODE for their own
+  // Electron host. Forwarding it makes the smoke process expose Node instead
+  // of Electron (so `app` is undefined) and produces a false boot failure.
+  const childEnv = { ...process.env, ZNXSTUDIO_SELFTEST: '1' };
+  delete childEnv.ELECTRON_RUN_AS_NODE;
   const child = spawn(electron, electronArgs, {
     cwd: root,
-    env: { ...process.env, ZNXSTUDIO_SELFTEST: '1' },
+    env: childEnv,
     stdio: ['ignore', 'pipe', 'pipe'],
   });
 

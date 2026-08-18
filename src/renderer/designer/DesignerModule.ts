@@ -226,8 +226,7 @@ export class DesignerModule implements IModule {
 
   private isMobileWorkspace(): boolean {
     const workspace = this.context.services.tryGet<WorkspaceService>(ServiceKeys.Workspace);
-    const info = workspace?.currentWorkspace();
-    return info?.detectedType === 'zornux-mobile';
+    return workspace?.folders().some((folder) => folder.detectedType === 'zornux-mobile') ?? false;
   }
 
   // ---- Activity bar ----
@@ -238,16 +237,20 @@ export class DesignerModule implements IModule {
     if (isMobile && !this.activityRegistered) {
       this.context.layout.addActivityItem({
         id: 'znxstudio.designer',
-        label: 'Designer',
-        icon: '🎨',
+        label: 'Android Visual Designer',
+        icon: '▣',
         onSelect: () => this.toggleDesigner(),
         pinByDefault: true,
       });
       this.activityRegistered = true;
     }
 
-    if (!isMobile && this.visible) {
-      this.closeDesigner();
+    if (!isMobile) {
+      if (this.visible) this.closeDesigner();
+      if (this.activityRegistered) {
+        this.context.layout.removeActivityItem('znxstudio.designer');
+        this.activityRegistered = false;
+      }
     }
   }
 

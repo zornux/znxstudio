@@ -20,7 +20,7 @@ import type { DocumentManager, ManagedDocument } from '../language/DocumentManag
 import { selfTestCoordinator } from '../core/SelfTestCoordinator';
 import { examplePath, tempZx } from '../core/selftestFixtures';
 import { showModal } from '../ui/modal';
-import { DEFAULT_FONT_SIZE } from '../settings/SettingsSchema';
+import { DEFAULT_EDITOR_FONT_FAMILY, DEFAULT_FONT_SIZE } from '../settings/SettingsSchema';
 import { diskConflictPreview, resolveSaveAsTarget } from './conflictRecovery';
 import {
   parseSession,
@@ -150,7 +150,7 @@ export class EditorModule implements IModule, EditorService {
       theme: 'znxstudio-dark',
       automaticLayout: true,
       fontSize: DEFAULT_FONT_SIZE,
-      fontFamily: "'Cascadia Code', 'SFMono-Regular', Consolas, 'Liberation Mono', Menlo, monospace",
+      fontFamily: DEFAULT_EDITOR_FONT_FAMILY,
       lineHeight: 21,
       fontLigatures: true,
       mouseWheelZoom: true, // Ctrl/Cmd + scroll adjusts the editor font size
@@ -1253,7 +1253,7 @@ export class EditorModule implements IModule, EditorService {
     const fontSize = this.settings?.get('editor.fontSize', DEFAULT_FONT_SIZE) ?? DEFAULT_FONT_SIZE;
     const fontFamily = this.settings?.get(
       'editor.fontFamily',
-      "'Cascadia Code', 'SFMono-Regular', Consolas, 'Liberation Mono', Menlo, monospace",
+      DEFAULT_EDITOR_FONT_FAMILY,
     );
     const tabSize = this.tabSize();
     this.editor.updateOptions({ fontSize, fontFamily, lineHeight: Math.round(fontSize * 1.5) });

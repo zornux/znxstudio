@@ -34,6 +34,10 @@ export const DEVICE_PRESETS: readonly DevicePreset[] = [
 export type Orientation = 'portrait' | 'landscape';
 export type PreviewTheme = 'light' | 'dark';
 
+/** Stable on-screen envelope at 100% designer zoom. */
+const PREVIEW_STAGE_WIDTH = 760;
+const PREVIEW_STAGE_HEIGHT = 640;
+
 // ---------------------------------------------------------------------------
 // DeviceFrame
 // ---------------------------------------------------------------------------
@@ -60,11 +64,26 @@ export class DeviceFrame {
 
     const bezel = document.createElement('div');
     bezel.className = 'zd-device-bezel';
-    this.element.appendChild(bezel);
+    const stage = document.createElement('div');
+    stage.className = 'zd-device-stage';
+    stage.appendChild(bezel);
+    this.element.appendChild(stage);
+
+    const camera = document.createElement('span');
+    camera.className = 'zd-device-camera';
+    camera.setAttribute('aria-hidden', 'true');
+    bezel.appendChild(camera);
 
     const statusBar = document.createElement('div');
     statusBar.className = 'zd-device-statusbar';
-    statusBar.innerHTML = '<span class="zd-statusbar-time">12:00</span><span class="zd-statusbar-icons">⚡ 📶</span>';
+    statusBar.innerHTML = `
+      <span class="zd-statusbar-time">12:00</span>
+      <span class="zd-statusbar-icons" aria-hidden="true">
+        <span class="zd-status-signal"></span>
+        <span class="zd-status-wifi"></span>
+        <span class="zd-status-battery"></span>
+      </span>
+    `;
     bezel.appendChild(statusBar);
 
     this.viewport = document.createElement('div');
@@ -129,10 +148,19 @@ export class DeviceFrame {
     const h = this.effectiveHeight();
     const bezel = this.element.querySelector('.zd-device-bezel') as HTMLElement;
     if (bezel) {
+      bezel.dataset.deviceId = this.preset.id;
+      bezel.dataset.deviceCategory = this.preset.category;
+      bezel.dataset.orientation = this.orientation;
       bezel.style.width = `${w}px`;
       bezel.style.height = `${h}px`;
-      bezel.style.transform = `scale(${this.scale})`;
-      bezel.style.transformOrigin = 'top center';
+      // CSS zoom participates in layout, unlike transform, so the frame does
+      // not reserve its full logical-pixel size after being fitted. Device
+      // resolution and aspect ratio stay accurate while every preset fits the
+      // same stage; the toolbar scale remains the user's relative zoom control.
+      const fittedScale = Math.min(PREVIEW_STAGE_WIDTH / w, PREVIEW_STAGE_HEIGHT / h);
+      bezel.style.setProperty('zoom', String(fittedScale * this.scale));
+      bezel.style.transform = '';
+      bezel.style.transformOrigin = '';
     }
   }
 
@@ -144,11 +172,16 @@ export class DeviceFrame {
     const deviceSelect = document.createElement('select');
     deviceSelect.className = 'zd-toolbar-select';
     deviceSelect.setAttribute('aria-label', 'Device');
-    for (const preset of DEVICE_PRESETS) {
-      const opt = document.createElement('option');
-      opt.value = preset.id;
-      opt.textContent = `${preset.label} (${preset.width}×${preset.height})`;
-      deviceSelect.appendChild(opt);
+    for (const category of ['phone', 'tablet'] as const) {
+      const group = document.createElement('optgroup');
+      group.label = category === 'phone' ? 'Phones and foldables' : 'Tablets';
+      for (const preset of DEVICE_PRESETS.filter((candidate) => candidate.category === category)) {
+        const opt = document.createElement('option');
+        opt.value = preset.id;
+        opt.textContent = preset.label;
+        group.appendChild(opt);
+      }
+      deviceSelect.appendChild(group);
     }
     deviceSelect.addEventListener('change', () => {
       const found = DEVICE_PRESETS.find((p) => p.id === deviceSelect.value);
@@ -156,12 +189,18 @@ export class DeviceFrame {
     });
     bar.appendChild(deviceSelect);
 
+    const dimensions = document.createElement('span');
+    dimensions.className = 'zd-toolbar-dimensions';
+    dimensions.setAttribute('aria-live', 'polite');
+    dimensions.textContent = `${this.effectiveWidth()} × ${this.effectiveHeight()}`;
+    bar.appendChild(dimensions);
+
     // Orientation toggle
     const orientBtn = document.createElement('button');
     orientBtn.className = 'zd-toolbar-btn';
     orientBtn.setAttribute('aria-label', 'Toggle orientation');
     orientBtn.title = 'Toggle orientation';
-    orientBtn.textContent = '⤡';
+    orientBtn.textContent = '↻';
     orientBtn.addEventListener('click', () => this.toggleOrientation());
     bar.appendChild(orientBtn);
 
@@ -199,6 +238,7 @@ export class DeviceFrame {
     this._onDidChange.event(() => {
       zoomLabel.textContent = `${Math.round(this.scale * 100)}%`;
       deviceSelect.value = this.preset.id;
+      dimensions.textContent = `${this.effectiveWidth()} × ${this.effectiveHeight()}`;
       themeBtn.textContent = this.theme === 'light' ? '◑' : '◐';
     });
 

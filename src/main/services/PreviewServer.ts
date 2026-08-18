@@ -39,10 +39,11 @@ export class PreviewServer {
   async start(rootDir: string, proxy?: PreviewProxy): Promise<PreviewStartResult> {
     await this.stop();
 
-    const root = resolve(rootDir);
+    let root = resolve(rootDir);
     try {
       const stat = await fs.stat(root);
       if (!stat.isDirectory()) return { ok: false, error: `${root} is not a directory.` };
+      root = await fs.realpath(root);
     } catch {
       return { ok: false, error: `Folder not found: ${root}` };
     }
@@ -106,6 +107,16 @@ export class PreviewServer {
         res.end('Not found');
         return;
       }
+
+      // Lexical checks alone do not contain symlinks. Resolve the final file and
+      // reject links that leave the preview root before reading any content.
+      const realTarget = await fs.realpath(target);
+      if (realTarget !== root && !realTarget.startsWith(root + sep)) {
+        res.statusCode = 403;
+        res.end('Forbidden');
+        return;
+      }
+      target = realTarget;
 
       const ext = extname(target).toLowerCase();
       res.setHeader('Content-Type', MIME[ext] ?? 'application/octet-stream');

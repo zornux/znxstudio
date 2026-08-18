@@ -148,7 +148,7 @@ export const PROJECT_TEMPLATES: readonly ProjectTemplate[] = [
         path: 'zornux.project',
         content:
           'name = ${name}\nversion = 0.1.0\ntype = mobile\nentry = main.zx\n\n' +
-          'android.application_id = com.example.${name}\nandroid.min_sdk = 24\nandroid.target_sdk = 34\n',
+          'android.application_id = com.example.${androidName}\nandroid.min_sdk = 24\nandroid.target_sdk = 34\n',
       },
       {
         path: 'main.zx',
@@ -171,7 +171,7 @@ export const PROJECT_TEMPLATES: readonly ProjectTemplate[] = [
         path: 'zornux.project',
         content:
           'name = ${name}\nversion = 0.1.0\ntype = mobile\nentry = main.zx\n\n' +
-          'android.application_id = com.example.${name}\nandroid.min_sdk = 24\nandroid.target_sdk = 34\n',
+          'android.application_id = com.example.${androidName}\nandroid.min_sdk = 24\nandroid.target_sdk = 34\n',
       },
       {
         path: 'main.zx',
@@ -283,5 +283,6 @@ function substitute(content: string, name: string, macros: Record<string, string
   // A whole-file manifest macro (e.g. "${znxstudio-api}") expands first.
   const macroMatch = /^\$\{(znxstudio-[a-z]+)\}$/.exec(content.trim());
   if (macroMatch && macros[macroMatch[1]]) return macros[macroMatch[1]];
-  return content.replace(/\$\{name\}/g, name);
+  const androidName = name.toLowerCase().replace(/[^a-z0-9_]/g, '_').replace(/^[^a-z_]/, '_');
+  return content.replace(/\$\{androidName\}/g, androidName).replace(/\$\{name\}/g, name);
 }

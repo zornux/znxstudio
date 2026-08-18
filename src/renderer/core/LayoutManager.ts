@@ -407,10 +407,20 @@ export class LayoutManager {
   /* ----- Activity bar (UX-1: curated — 5 defaults, the rest in a grouped overflow) ----- */
   addActivityItem(item: ActivityItem): void {
     this.activityItems.set(item.id, item);
-    if (item.pinByDefault && !this.activityCuration.pinned.includes(item.id)) {
+    if (item.pinByDefault && (
+      !this.activityCuration.pinned.includes(item.id) ||
+      this.activityCuration.hidden.includes(item.id)
+    )) {
       this.activityCuration = pinItem(this.activityCuration, item.id);
       this.saveCuration();
     }
+    this.renderActivityBar();
+  }
+
+  /** Remove a context-specific activity item when its owning workspace closes. */
+  removeActivityItem(id: string): void {
+    if (!this.activityItems.delete(id)) return;
+    if (this.activeActivityId === id) this.activeActivityId = null;
     this.renderActivityBar();
   }
 
@@ -455,6 +465,7 @@ export class LayoutManager {
   private activityButton(item: ActivityItem): HTMLElement {
     const button = document.createElement('button');
     button.className = 'znxstudio-activity-item';
+    button.dataset.activityId = item.id;
     const active = this.activeActivityId === item.id;
     button.classList.toggle('is-active', active);
     button.title = item.label;

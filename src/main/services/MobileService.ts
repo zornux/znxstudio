@@ -1,5 +1,6 @@
 import { execFile, spawn, type ChildProcess } from 'node:child_process';
 import { readFile, writeFile } from 'node:fs/promises';
+import { join } from 'node:path';
 import type { WebContents } from 'electron';
 import { IpcChannels } from '../../shared/ipc';
 import type {
@@ -30,6 +31,76 @@ interface ExecResult {
   code: number | null;
   stdout: string;
   stderr: string;
+}
+
+const ANDROID_APPLICATION_ID = /^[A-Za-z_][A-Za-z0-9_]*(?:\.[A-Za-z_][A-Za-z0-9_]*)+$/;
+const ANDROID_PERMISSION = /^[A-Za-z_][A-Za-z0-9_.]*$/;
+const SAFE_VERSION = /^[0-9A-Za-z][0-9A-Za-z.+_-]{0,99}$/;
+
+/** Validate renderer-provided values before writing line-oriented project config. */
+export function validateAndroidProjectConfig(updates: Partial<AndroidProjectConfig>): void {
+  if (updates.applicationId != null && !ANDROID_APPLICATION_ID.test(updates.applicationId)) {
+    throw new Error('Application ID must be a dot-separated Android package name.');
+  }
+  if (updates.version != null && !SAFE_VERSION.test(updates.version)) {
+    throw new Error('Version must contain only letters, numbers, dots, plus signs, hyphens, or underscores.');
+  }
+  const integerFields: Array<[string, number | undefined]> = [
+    ['Version code', updates.versionCode],
+    ['Minimum SDK', updates.minSdk],
+    ['Target SDK', updates.targetSdk],
+    ['Compile SDK', updates.compileSdk],
+  ];
+  for (const [label, value] of integerFields) {
+    if (value != null && (!Number.isSafeInteger(value) || value < 1 || value > 999)) {
+      throw new Error(`${label} must be a whole number from 1 to 999.`);
+    }
+  }
+  if (updates.minSdk != null && updates.targetSdk != null && updates.minSdk > updates.targetSdk) {
+    throw new Error('Minimum SDK cannot be higher than target SDK.');
+  }
+  if (updates.targetSdk != null && updates.compileSdk != null && updates.targetSdk > updates.compileSdk) {
+    throw new Error('Target SDK cannot be higher than compile SDK.');
+  }
+  if (updates.permissions != null) {
+    if (!Array.isArray(updates.permissions) || updates.permissions.some((permission) =>
+      typeof permission !== 'string' || !ANDROID_PERMISSION.test(permission))) {
+      throw new Error('Permissions must be valid Android permission identifiers.');
+    }
+  }
+}
+
+/** Find the final build-result object even when progress or trailing logs surround it. */
+export function parseMobileBuildOutput(stdout: string, stderr: string, code: number | null): MobileBuildResult {
+  const parsedLines: Record<string, unknown>[] = [];
+  for (const line of stdout.split(/\r?\n/)) {
+    try {
+      const parsed: unknown = JSON.parse(line);
+      if (parsed && typeof parsed === 'object' && !Array.isArray(parsed)) {
+        parsedLines.push(parsed as Record<string, unknown>);
+      }
+    } catch {
+      // Progress and compiler text are allowed around the final JSON record.
+    }
+  }
+  const parsed = [...parsedLines].reverse().find((entry) =>
+    'success' in entry || 'artifactPath' in entry || 'diagnostics' in entry);
+  if (!parsed) {
+    return {
+      success: false,
+      artifactPath: null,
+      artifactSizeBytes: null,
+      diagnostics: [stderr.trim() || `Build exited with code ${code ?? '—'}`],
+    };
+  }
+  return {
+    success: Boolean(parsed.success),
+    artifactPath: parsed.artifactPath != null ? String(parsed.artifactPath) : null,
+    artifactSizeBytes: typeof parsed.artifactSizeBytes === 'number' ? parsed.artifactSizeBytes : null,
+    diagnostics: Array.isArray(parsed.diagnostics)
+      ? parsed.diagnostics.map((diagnostic) => String(diagnostic))
+      : code === 0 ? [] : [stderr.trim() || `Build exited with code ${code ?? '—'}`],
+  };
 }
 
 /**
@@ -72,7 +143,7 @@ export class MobileService {
         status: entry.status === 'offline' ? 'offline' as const
           : entry.status === 'unauthorized' ? 'unauthorized' as const
           : 'device' as const,
-      }));
+      })).filter((device: AndroidDevice) => device.id.length > 0);
     } catch {
       return [];
     }
@@ -89,7 +160,7 @@ export class MobileService {
       return parsed.map((entry: Record<string, unknown>) => ({
         name: String(entry.name ?? ''),
         apiLevel: typeof entry.apiLevel === 'string' ? entry.apiLevel : null,
-      }));
+      })).filter((emulator: AndroidEmulator) => emulator.name.length > 0);
     } catch {
       return [];
     }
@@ -97,12 +168,15 @@ export class MobileService {
 
   /** Start an emulator by AVD name. Fire-and-forget: the emulator boots asynchronously. */
   async startEmulator(name: string): Promise<void> {
-    await this.exec(['mobile', 'emulator', 'start', name]);
+    const result = await this.exec(['mobile', 'emulator', 'start', name]);
+    if (result.code !== 0) {
+      throw new Error(result.stderr.trim() || result.stdout.trim() || `Emulator failed to start (exit ${result.code ?? '—'}).`);
+    }
   }
 
   /** Run `zornux mobile doctor android` and return structured results. */
   async doctor(platform: string): Promise<MobileDoctorResult> {
-    const { code, stdout } = await this.exec(['mobile', 'doctor', platform, '--json']);
+    const { code, stdout, stderr } = await this.exec(['mobile', 'doctor', platform, '--json']);
 
     try {
       const parsed = JSON.parse(stdout);
@@ -122,7 +196,7 @@ export class MobileService {
 
     return {
       ok: false,
-      checks: [{ name: 'doctor', passed: false, detail: stdout.trim() || 'Doctor check failed.' }],
+      checks: [{ name: 'doctor', passed: false, detail: stderr.trim() || stdout.trim() || 'Doctor check failed.' }],
     };
   }
 
@@ -502,7 +576,7 @@ export class MobileService {
 
   /** Run `zornux mobile release check android --json` and return structured results. */
   async releaseCheck(workspaceRoot: string): Promise<MobileReleaseCheckResult> {
-    const { code, stdout } = await this.exec(['mobile', 'release', 'check', 'android', '--json'], workspaceRoot);
+    const { code, stdout, stderr } = await this.exec(['mobile', 'release', 'check', 'android', '--json'], workspaceRoot);
 
     try {
       const parsed = JSON.parse(stdout);
@@ -533,21 +607,24 @@ export class MobileService {
         version: null,
         versionCode: null,
         signing: null,
-        issues: [{ code: 'PARSE_ERROR', severity: 'error', message: stdout.trim() || `exit code ${code}` }],
+        issues: [{ code: 'PARSE_ERROR', severity: 'error', message: stderr.trim() || stdout.trim() || `exit code ${code}` }],
       };
     }
   }
 
   /** Run `zornux mobile clean android` in the project directory. */
   async clean(workspaceRoot: string): Promise<void> {
-    await this.exec(['mobile', 'clean', 'android'], workspaceRoot);
+    const result = await this.exec(['mobile', 'clean', 'android'], workspaceRoot);
+    if (result.code !== 0) {
+      throw new Error(result.stderr.trim() || result.stdout.trim() || `Clean failed (exit ${result.code ?? '—'}).`);
+    }
   }
 
   /* ----- project config ----- */
 
   /** Read `zornux.project` and parse android.* keys into an AndroidProjectConfig. */
   async projectConfig(workspaceRoot: string): Promise<AndroidProjectConfig | null> {
-    const filePath = `${workspaceRoot}/zornux.project`;
+    const filePath = join(workspaceRoot, 'zornux.project');
     let content: string;
     try {
       content = await readFile(filePath, 'utf-8');
@@ -555,30 +632,46 @@ export class MobileService {
       return null;
     }
 
-    const get = (key: string): string | undefined => {
-      const match = content.match(new RegExp(`^android\\.${key}\\s*=\\s*(.+)$`, 'm'));
-      return match ? match[1].trim() : undefined;
+    const get = (...keys: string[]): string | undefined => {
+      for (const key of keys) {
+        const match = content.match(new RegExp(`^android\\.${key}\\s*=\\s*(.+)$`, 'm'));
+        if (match) return match[1].trim();
+      }
+      return undefined;
     };
 
-    const applicationId = get('applicationId');
-    const version = get('version');
+    const rootValue = (key: string): string | undefined => {
+      const match = content.match(new RegExp(`^${key}\\s*=\\s*(.+)$`, 'm'));
+      return match ? match[1].trim() : undefined;
+    };
+    const applicationId = get('application_id', 'applicationId');
+    // Current compiler manifests keep the application version at the project
+    // root. Accept the older android.version spelling for compatibility.
+    const version = rootValue('version') ?? get('version');
     if (!applicationId || !version) return null;
 
     const permissionsRaw = get('permissions');
+    const positiveInteger = (value: string | undefined, fallback: number): number => {
+      const parsed = Number(value);
+      return Number.isSafeInteger(parsed) && parsed > 0 ? parsed : fallback;
+    };
     return {
       applicationId,
       version,
-      versionCode: get('versionCode') != null ? parseInt(get('versionCode')!, 10) : undefined,
-      minSdk: parseInt(get('minSdk') ?? '21', 10),
-      targetSdk: parseInt(get('targetSdk') ?? '34', 10),
-      compileSdk: parseInt(get('compileSdk') ?? '34', 10),
+      versionCode: get('version_code', 'versionCode') != null ? positiveInteger(get('version_code', 'versionCode'), 1) : undefined,
+      minSdk: positiveInteger(get('min_sdk', 'minSdk'), 21),
+      targetSdk: positiveInteger(get('target_sdk', 'targetSdk'), 34),
+      compileSdk: positiveInteger(get('compile_sdk', 'compileSdk'), 34),
       permissions: permissionsRaw ? permissionsRaw.split(',').map((p) => p.trim()) : [],
     };
   }
 
   /** Update android.* keys in `zornux.project`. */
   async updateProjectConfig(workspaceRoot: string, updates: Partial<AndroidProjectConfig>): Promise<void> {
-    const filePath = `${workspaceRoot}/zornux.project`;
+    validateAndroidProjectConfig(updates);
+    const current = await this.projectConfig(workspaceRoot);
+    if (current) validateAndroidProjectConfig({ ...current, ...updates });
+    const filePath = join(workspaceRoot, 'zornux.project');
     let content: string;
     try {
       content = await readFile(filePath, 'utf-8');
@@ -586,21 +679,31 @@ export class MobileService {
       content = '';
     }
 
-    const set = (key: string, value: string) => {
-      const regex = new RegExp(`^(android\\.${key}\\s*=)\\s*.+$`, 'm');
+    const set = (key: string, value: string, legacyKey?: string) => {
+      const existingKey = legacyKey && new RegExp(`^android\\.${legacyKey}\\s*=`, 'm').test(content) ? legacyKey : key;
+      const regex = new RegExp(`^(android\\.${existingKey}\\s*=)\\s*.+$`, 'm');
       if (regex.test(content)) {
         content = content.replace(regex, `$1 ${value}`);
       } else {
-        content += `${content.endsWith('\n') || content.length === 0 ? '' : '\n'}android.${key} = ${value}\n`;
+        content += `${content.endsWith('\n') || content.length === 0 ? '' : '\n'}android.${existingKey} = ${value}\n`;
       }
     };
 
-    if (updates.applicationId != null) set('applicationId', updates.applicationId);
-    if (updates.version != null) set('version', updates.version);
-    if (updates.versionCode != null) set('versionCode', String(updates.versionCode));
-    if (updates.minSdk != null) set('minSdk', String(updates.minSdk));
-    if (updates.targetSdk != null) set('targetSdk', String(updates.targetSdk));
-    if (updates.compileSdk != null) set('compileSdk', String(updates.compileSdk));
+    const setRoot = (key: string, value: string) => {
+      const regex = new RegExp(`^(${key}\\s*=)\\s*.+$`, 'm');
+      if (regex.test(content)) {
+        content = content.replace(regex, `$1 ${value}`);
+      } else {
+        content += `${content.endsWith('\n') || content.length === 0 ? '' : '\n'}${key} = ${value}\n`;
+      }
+    };
+
+    if (updates.applicationId != null) set('application_id', updates.applicationId, 'applicationId');
+    if (updates.version != null) setRoot('version', updates.version);
+    if (updates.versionCode != null) set('version_code', String(updates.versionCode), 'versionCode');
+    if (updates.minSdk != null) set('min_sdk', String(updates.minSdk), 'minSdk');
+    if (updates.targetSdk != null) set('target_sdk', String(updates.targetSdk), 'targetSdk');
+    if (updates.compileSdk != null) set('compile_sdk', String(updates.compileSdk), 'compileSdk');
     if (updates.permissions != null) set('permissions', updates.permissions.join(', '));
 
     await writeFile(filePath, content, 'utf-8');
@@ -690,7 +793,8 @@ export class MobileService {
     return new Promise<MobileBuildResult>((resolve) => {
       const child = spawn(command, args, { cwd, windowsHide: true });
       this.buildProcess = child;
-      let lastLine = '';
+      let stdout = '';
+      let stderr = '';
       let settled = false;
 
       const timer = setTimeout(() => {
@@ -710,9 +814,10 @@ export class MobileService {
       }, BUILD_TIMEOUT_MS);
 
       child.stdout?.on('data', (chunk: Buffer) => {
-        for (const line of chunk.toString().split('\n')) {
+        const text = chunk.toString();
+        stdout += text;
+        for (const line of text.split('\n')) {
           if (line.length === 0) continue;
-          lastLine = line;
           try {
             const parsed = JSON.parse(line);
             if (parsed && typeof parsed === 'object' && parsed.phase != null) {
@@ -725,9 +830,7 @@ export class MobileService {
           }
         }
       });
-      child.stderr?.on('data', () => {
-        // Captured but not streamed; diagnostics come from the final result.
-      });
+      child.stderr?.on('data', (chunk: Buffer) => (stderr += chunk.toString()));
       child.on('error', (error) => {
         if (settled) return;
         settled = true;
@@ -752,24 +855,7 @@ export class MobileService {
           this.setSessionState('idle');
         }
 
-        try {
-          const parsed = JSON.parse(lastLine);
-          resolve({
-            success: Boolean(parsed.success),
-            artifactPath: parsed.artifactPath != null ? String(parsed.artifactPath) : null,
-            artifactSizeBytes: typeof parsed.artifactSizeBytes === 'number' ? parsed.artifactSizeBytes : null,
-            diagnostics: Array.isArray(parsed.diagnostics)
-              ? parsed.diagnostics.map((d: unknown) => String(d))
-              : [],
-          });
-        } catch {
-          resolve({
-            success: false,
-            artifactPath: null,
-            artifactSizeBytes: null,
-            diagnostics: [`Build exited with code ${code ?? '—'}`],
-          });
-        }
+        resolve(parseMobileBuildOutput(stdout, stderr, code));
       });
     });
   }

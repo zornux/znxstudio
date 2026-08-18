@@ -19,6 +19,7 @@ import type { ShellProfile, Unsubscribe } from '../../shared/types';
 import { togglePanel } from '../layout/layoutModel';
 import { TerminalInputBuffer } from './inputBuffer';
 import { resolveTerminalShortcut } from './terminalShortcuts';
+import { DEFAULT_EDITOR_FONT_FAMILY, DEFAULT_FONT_SIZE } from '../settings/SettingsSchema';
 
 /** One terminal: an xterm instance bound to a main-process PTY. */
 interface TerminalPane {
@@ -434,9 +435,9 @@ export class TerminalModule implements IModule, TerminalRunnerService {
     run?: TerminalRunOptions,
   ): Promise<void> {
     const term = new Terminal({
-      fontSize: 14,
+      fontSize: DEFAULT_FONT_SIZE,
       lineHeight: 1.2,
-      fontFamily: "'Cascadia Code', 'SFMono-Regular', Consolas, 'Liberation Mono', Menlo, monospace",
+      fontFamily: DEFAULT_EDITOR_FONT_FAMILY,
       cursorBlink: true,
       theme: this.terminalTheme(),
     });
