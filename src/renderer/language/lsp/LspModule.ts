@@ -109,8 +109,7 @@ export class LspModule implements IModule {
     // split them into their own buckets rather than letting one overwrite the other.
     this.client.onDiagnostics((uri, diagnostics) => {
       if (!this.engine) return;
-      const document = this.documents?.get(uri);
-      if (this.mobileDocuments.has(uri) || (document && isMobileZornux(document.getText()))) {
+      if (this.isMobileUri(uri)) {
         this.engine.clear(uri, LSP_DIAGNOSTIC_SOURCE);
         const { security } = partitionDiagnostics(diagnostics);
         if (security.length) this.engine.set(uri, SECURITY_SOURCE, toPlatformDiagnostics(security, SECURITY_SOURCE));
@@ -308,6 +307,25 @@ export class LspModule implements IModule {
       return;
     }
     this.client.didChange(doc.uri, doc.document.version, doc.model.getValue());
+  }
+
+  /**
+   * Check whether a URI refers to a mobile Zornux document. The LSP server may
+   * discover workspace files independently and push diagnostics using a URI that
+   * differs slightly from the document manager's (e.g. workspace scan vs editor
+   * open). This method checks: the explicit mobileDocuments set, the document
+   * manager (exact URI match), and a normalized-path fallback across all tracked
+   * mobile documents to handle encoding/case differences.
+   */
+  private isMobileUri(uri: string): boolean {
+    if (this.mobileDocuments.has(uri)) return true;
+    const document = this.documents?.get(uri);
+    if (document && isMobileZornux(document.getText())) return true;
+    const normalized = decodeURIComponent(uri).toLowerCase();
+    for (const mobileUri of this.mobileDocuments) {
+      if (decodeURIComponent(mobileUri).toLowerCase() === normalized) return true;
+    }
+    return false;
   }
 
   /* ----- optional headless self-test (ZNXSTUDIO_SELFTEST=1) ----- */

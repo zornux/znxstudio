@@ -26,8 +26,12 @@ export interface ResolvedZornux {
   source: CompilerLocationSource;
 }
 
-/** Dev-build locations for the Zornux CLI on a contributor workstation. */
-const DEV_BUILD_BASE = join('C:\\', 'Studio Apps', 'xojin', 'src', 'Zornux.Cli', 'bin');
+/**
+ * Dev-build locations for the Zornux CLI on a contributor workstation. The xojin
+ * repo is a sibling of the ZnxStudio directory — derive the path from cwd() so
+ * it resolves on both Windows and Linux.
+ */
+const DEV_BUILD_BASE = join(process.cwd(), '..', 'xojin', 'src', 'Zornux.Cli', 'bin');
 
 /** The .NET runtime identifier for the host, used to pick the bundled binary. */
 export function hostRid(): string {
