@@ -23,6 +23,7 @@ import {
   type ExceptionFilter,
 } from './exceptions';
 import { CommandIds } from '../commands/CommandIds';
+import { joinPath } from '../explorer/paths';
 import type {
   DebugEventMessage,
   DebugLaunchConfig,
@@ -184,11 +185,13 @@ export class DebugModule implements IModule, DebuggerService {
 
     this.registerKeybindings();
 
-    window.znxstudio.debug.onEvent((event) => this.onEvent(event));
-    window.znxstudio.debug.onClosed((event) => {
+    const offEvent = window.znxstudio.debug.onEvent((event) => this.onEvent(event));
+    context.subscriptions.push({ dispose: offEvent });
+    const offClosed = window.znxstudio.debug.onClosed((event) => {
       this.append(`adapter exited${event.code === null ? '' : ` (code ${event.code})`}`);
       if (this.currentState !== 'terminated' && this.currentState !== 'error') this.setState('idle');
     });
+    context.subscriptions.push({ dispose: offClosed });
 
     this.registerHoverEvaluation();
     this.render();
@@ -1034,7 +1037,7 @@ export class DebugModule implements IModule, DebuggerService {
     if (!info) return null;
     const targetsZornux =
       info.detectedType === 'zornux-api' || info.detectedType === 'zornux-zoijs-fullstack';
-    return targetsZornux ? `${info.root.replace(/[\\/]+$/, '')}/src/main.zx` : null;
+    return targetsZornux ? joinPath(joinPath(info.root, 'src'), 'main.zx') : null;
   }
 
   private workspaceInfo(): WorkspaceInfo | null {
@@ -1055,7 +1058,7 @@ export class DebugModule implements IModule, DebuggerService {
    */
   private async exceptionFilterSelfTest(logline: (message: string) => void, compilerPath: string | null): Promise<void> {
     const app = await window.znxstudio.app.getInfo();
-    const program = `${app.tempDir}\\znxstudio-debug-caught.zx`;
+    const program = joinPath(app.tempDir, 'znxstudio-debug-caught.zx');
     await window.znxstudio.fs.writeFile(program, 'try\n    show 10 / 0\notherwise\n    show "recovered"\nend\nshow "done"\n');
 
     /** Run to completion (or 4s) and report whether the adapter ever paused. */

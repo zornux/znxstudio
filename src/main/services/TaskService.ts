@@ -14,11 +14,13 @@ export class TaskService {
   run(options: TaskRunOptions, sender: WebContents): void {
     this.kill(options.id);
 
+    const isWin = process.platform === 'win32';
     const child = spawn(options.command, {
       cwd: options.cwd,
       shell: true,
       env: process.env,
       windowsHide: true,
+      detached: !isWin,
     });
     this.tasks.set(options.id, child);
 
@@ -52,6 +54,8 @@ export class TaskService {
       execFile('taskkill', ['/pid', String(child.pid), '/T', '/F'], () => {
         /* best-effort; process may have already exited */
       });
+    } else if (child.pid !== undefined) {
+      try { process.kill(-child.pid, 'SIGTERM'); } catch { child.kill(); }
     } else {
       child.kill();
     }

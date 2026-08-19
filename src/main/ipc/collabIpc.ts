@@ -15,7 +15,9 @@ import { sharedWorkspaceTrust } from '../services/WorkspaceTrustService';
  */
 export function registerCollabIpc(): void {
   const broadcastToRenderer = (channel: string, payload: unknown): void => {
-    for (const window of BrowserWindow.getAllWindows()) window.webContents.send(channel, payload);
+    for (const win of BrowserWindow.getAllWindows()) {
+      if (!win.isDestroyed()) win.webContents.send(channel, payload);
+    }
   };
 
   const collab = new CollabService({
@@ -34,9 +36,12 @@ export function registerCollabIpc(): void {
     return collab.join(options);
   });
   ipcMain.handle(IpcChannels.CollabSend, (_event, payload: unknown) => {
+    sharedWorkspaceTrust().assertTrusted('Collaboration Send');
     collab.broadcast(payload);
   });
   ipcMain.handle(IpcChannels.CollabSendTo, (_event, peerId: string, payload: unknown) => {
+    sharedWorkspaceTrust().assertTrusted('Collaboration Send');
+    if (typeof peerId !== 'string') throw new Error('Invalid peer ID.');
     collab.sendTo(peerId, payload);
   });
   ipcMain.handle(IpcChannels.CollabLeave, () => {

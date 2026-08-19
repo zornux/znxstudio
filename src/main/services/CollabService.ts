@@ -248,7 +248,12 @@ export class CollabService {
       socket.on('close', () => {
         this.client = null;
         this.clientBuffer = '';
-        if (settled) this.events.onClosed('the session ended');
+        if (!settled) {
+          settled = true;
+          resolve({ ok: false, error: 'connection closed before handshake completed' });
+        } else {
+          this.events.onClosed('the session ended');
+        }
       });
     });
   }

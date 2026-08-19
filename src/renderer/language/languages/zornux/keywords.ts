@@ -18,7 +18,7 @@ export const ZORNUX_KEYWORDS: readonly string[] = [
   'import', 'in', 'is', 'job', 'less', 'message', 'module', 'modulo', 'not',
   'nothing', 'on', 'or', 'otherwise', 'parallel', 'pipeline', 'policy', 'port',
   'private', 'protected', 'public', 'publish', 'receive', 'record', 'repeat',
-  'repository', 'restrict', 'save', 'secure', 'send', 'service', 'show', 'showing',
+  'repository', 'restrict', 'save', 'secure', 'select', 'send', 'service', 'show', 'showing',
   'start', 'status', 'step', 'table', 'task', 'test', 'than', 'throw', 'times',
   'to', 'transaction', 'true', 'try', 'update', 'use', 'using', 'while', 'with',
   // Legacy front-end tokens still used by the provisional parser/tests.

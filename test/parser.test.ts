@@ -47,7 +47,6 @@ describe('parser: AST', () => {
 
   test('never throws on garbage input', () => {
     for (const src of ['', '@#$%^', '((((', '}}}}', '"unclosed', 'a { b ( c [ d ] ) }']) {
-      expect(() => parseZornux(src)).toBeTruthy();
       parseZornux(src);
     }
     expect(true).toBe(true);

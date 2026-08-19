@@ -158,7 +158,7 @@ export class CpuProfilerModule implements IModule {
 
     const flame = document.createElement('div');
     flame.className = 'znxstudio-cpu-flame';
-    const maxDepth = Math.max(...rects.map((r) => r.depth));
+    const maxDepth = rects.length ? Math.max(...rects.map((r) => r.depth)) : 0;
     flame.style.height = `${(maxDepth + 1) * 20}px`;
     for (const rect of rects) {
       const block = document.createElement('div');

@@ -235,7 +235,7 @@ export class UpdateService {
     return {
       channel: this.status.channel,
       version: info.version,
-      url: `${this.options.releasePageBase ?? 'https://github.com/zornux/znxstudio/releases/tag'}/v${encodeURIComponent(info.version)}`,
+      url: `${this.options.releasePageBase ?? 'https://github.com/jay-m2/ZnxStudio/releases/tag'}/v${encodeURIComponent(info.version)}`,
       sha512: file?.sha512 ?? '',
       size: typeof file?.size === 'number' ? file.size : undefined,
       notes: normalizeReleaseNotes(info.releaseNotes),

@@ -153,9 +153,10 @@ function isReadOnlyCommand(exe: string, args: string[]): boolean {
 // Workspace confinement (pure path checks — no I/O)
 // ---------------------------------------------------------------------------
 
-/** Normalize a path for comparison (lowercase on Windows would go here). */
 function normalizePath(p: string): string {
-  return p.replace(/\\/g, '/').replace(/\/+$/, '');
+  let out = p.replace(/\\/g, '/').replace(/\/+$/, '');
+  if (typeof process !== 'undefined' && process.platform === 'win32') out = out.toLowerCase();
+  return out;
 }
 
 /** Check if a target path is inside one of the allowed roots. */

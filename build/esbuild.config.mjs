@@ -31,7 +31,8 @@ const workerPoints = Object.fromEntries(
   Object.entries(workerEntries).map(([name, rel]) => [name, join(root, 'node_modules', rel)]),
 );
 
-const shared = { bundle: true, sourcemap: true, logLevel: 'info' };
+const prod = !watch;
+const shared = { bundle: true, sourcemap: !prod, minify: prod, logLevel: 'info' };
 
 /** @type {{ name: string, options: import('esbuild').BuildOptions }[]} */
 const targets = [

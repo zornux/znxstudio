@@ -127,7 +127,12 @@ export class MobileService {
   private buildProcess: ChildProcess | null = null;
   private buildSender: WebContents | null = null;
   private sessionState: MobileSessionState = 'idle';
+  private selectedDeviceId: string | null = null;
   private generation = 0;
+
+  selectDevice(id: string): void {
+    this.selectedDeviceId = id;
+  }
 
   /** List connected Android devices (physical + running emulators). */
   async devices(): Promise<AndroidDevice[]> {

@@ -1,5 +1,5 @@
 import { realpathSync } from 'node:fs';
-import { normalize, resolve, sep } from 'node:path';
+import { dirname, normalize, resolve, sep } from 'node:path';
 
 /** True when `target` is `root` itself or nested inside it (lexical check). */
 function within(root: string, target: string): boolean {
@@ -29,8 +29,20 @@ export function confineToRoots(rawPath: string, roots: readonly string[]): strin
     const real = normalize(realpathSync(target));
     return roots.some((root) => within(root, real)) ? real : null;
   } catch {
-    // Target does not exist yet (a new-file write); the lexical check already
-    // confirmed the intended path is inside a root, so allow it.
+    // Target does not exist yet (a new-file write). Resolve the nearest
+    // existing ancestor to catch symlinked parent directories that escape
+    // workspace roots, rather than relying on the lexical check alone.
+    let ancestor = dirname(target);
+    while (ancestor !== dirname(ancestor)) {
+      try {
+        const realAncestor = normalize(realpathSync(ancestor));
+        if (roots.some((root) => within(root, realAncestor))) return target;
+        if (roots.some((root) => within(realAncestor, root))) return target;
+        return null;
+      } catch {
+        ancestor = dirname(ancestor);
+      }
+    }
     return target;
   }
 }

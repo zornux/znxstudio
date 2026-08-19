@@ -9,11 +9,9 @@ database and testing tools, source control, deployment, profiling, security
 tooling, and more — is delivered as modules on a language-agnostic workbench
 shell. See [`CHANGELOG.md`](CHANGELOG.md) for the full feature list.
 
-> **Status:** `1.0.0-rc.1` — feature-complete release candidate. The remaining
-> work before the `1.0.0` GA tag is release-engineering only (code signing,
-> notarization, cross-OS package builds, and a signed auto-update round-trip);
-> see [`docs/GA-1.0.md`](docs/GA-1.0.md). Run `npm run ga:check` for a full
-> GA-readiness gate.
+> **Status:** `1.0.0` — general availability. Windows signed via Azure Trusted
+> Signing; Linux packages via CI. Run `npm run ga:check` for the full GA-readiness
+> gate. See [`docs/GA-1.0.md`](docs/GA-1.0.md) for the release checklist.
 
 ## Highlights
 

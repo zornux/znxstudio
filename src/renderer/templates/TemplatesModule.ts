@@ -5,6 +5,7 @@ import type { IModule, ModuleContext } from '../core/Module';
 import { CommandIds } from '../commands/CommandIds';
 import { PROJECT_TEMPLATES, findTemplate, renderTemplate, type ProjectTemplate } from '../../shared/templates';
 import { validateProjectName } from '../wizards/newProjectWizard';
+import { joinPath } from '../explorer/paths';
 
 /**
  * Project Templates (Phase 5G). A gallery of starter templates shown as an
@@ -184,9 +185,9 @@ export class TemplatesModule implements IModule {
         // Verify init's authoritative manifest + the template's overrides exist.
         const dir = await window.znxstudio.fs.readDirectory(result.path);
         const names = dir.map((n) => n.name);
-        const manifest = await window.znxstudio.fs.readFile(`${result.path}\\zornux.project`).catch(() => '');
+        const manifest = await window.znxstudio.fs.readFile(joinPath(result.path, 'zornux.project')).catch(() => '');
         log(`templates scaffold entries=[${names.join(', ')}] manifestHasName=${manifest.includes(name)}`);
-        const main = await window.znxstudio.fs.readFile(`${result.path}\\src\\main.zx`).catch(() => '');
+        const main = await window.znxstudio.fs.readFile(joinPath(joinPath(result.path, 'src'), 'main.zx')).catch(() => '');
         log(`templates main.zx overridden=${main.includes(name)} (template greeting present)`);
       }
 

@@ -21,6 +21,7 @@ import { DocumentManager } from '../language/DocumentManager';
 import { toPlatformDiagnostics } from '../compiler/compilerDiagnostics';
 import { buildSummary, groupByFile } from './buildDiagnostics';
 import { ensureAndroidRunTarget } from '../mobile/deviceTarget';
+import { joinPath } from '../explorer/paths';
 
 /**
  * Run & Build pipeline. For Zornux workspaces it drives the real compiler:
@@ -65,7 +66,7 @@ export class RunBuildModule implements IModule {
       }),
       context.commands.onDidChangeEnablement(() => this.refreshRunDebugActions()),
     );
-    workspace.onDidChangeFolders(() => context.commands.notifyEnablementChanged());
+    context.subscriptions.push(workspace.onDidChangeFolders(() => context.commands.notifyEnablementChanged()));
 
     const status = this.status();
     status?.setItem('run.action', {
@@ -93,7 +94,7 @@ export class RunBuildModule implements IModule {
     });
 
     // Reflect streamed task (Run) completion in the status bar.
-    window.znxstudio.task.onExit((event) =>
+    const offExit = window.znxstudio.task.onExit((event) =>
       status?.setItem('runbuild.status', {
         text: event.code === 0 ? '✓ task ok' : `✗ task (${event.code ?? '—'})`,
         side: 'right',
@@ -101,6 +102,7 @@ export class RunBuildModule implements IModule {
         autoHideMs: 4000,
       }),
     );
+    context.subscriptions.push({ dispose: offExit });
 
     // When a file flagged by the last build is opened, the live compiler layer
     // takes over — drop the build's diagnostics for it to avoid duplicates.
@@ -334,7 +336,7 @@ export class RunBuildModule implements IModule {
         }
       }
 
-      const profileArg = profile ? ` --profile ${profile}` : '';
+      const profileArg = profile ? ` --profile "${profile}"` : '';
       const command = `"${compilerInfo.path}" run "${entry}"${profileArg}`;
       await this.streamTask('run', command, info.root, `> zornux run ${entry}${profileArg}`);
       return;
@@ -496,7 +498,7 @@ export class RunBuildModule implements IModule {
     const targetsZornux =
       info.detectedType === 'zornux-api' || info.detectedType === 'zornux-zoijs-fullstack' ||
       info.detectedType === 'zornux-mobile';
-    if (targetsZornux) return `${info.root.replace(/[\\/]+$/, '')}/src/main.zx`;
+    if (targetsZornux) return joinPath(joinPath(info.root, 'src'), 'main.zx');
     return null;
   }
 

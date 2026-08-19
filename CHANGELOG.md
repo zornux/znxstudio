@@ -10,6 +10,104 @@ ZnxStudio is an enterprise IDE platform built first-class for **Zornux** and
 
 ## [Unreleased]
 
+## [1.0.0] - 2026-08-19
+
+General availability release. Comprehensive security audit and reliability sweep
+across the entire codebase — 30+ fixes since rc.3.
+
+### Added — Android Visual Designer
+
+- **Visual Designer** for Android mobile apps — a drag-and-drop WYSIWYG design
+  surface backed by the Zornux mobile code generator.
+- **Mobile styling system** (5 phases) — style properties, themes, states,
+  motion/animation, and responsive layout.
+- **Android SDK auto-download** — the IDE downloads and manages the Android SDK
+  toolchain on first use.
+
+### Security — IPC Hardening
+
+- Added trust gates on `DebugRequest`, `ExtensionsUninstall`,
+  `ExtensionsSetEnabled`, `ConfigQuery`, `CollabSend`, `CollabSendTo`, and
+  `LspRequest` IPC handlers — closing trust-revocation bypass vectors.
+- Added path confinement via `confineToRoots` on `ConfigQuery` file/cwd params.
+- Added runtime subcommand validation (`show`|`validate`) on `ConfigQuery`.
+- Stripped renderer-supplied `compilerPath` from config IPC — prevents arbitrary
+  binary execution.
+- Fixed `pathBoundary.ts` symlink escape on new-file writes: ancestor walk now
+  resolves via `realpathSync` instead of trusting lexical-only checks.
+- Fixed Windows case-insensitive path confinement in `agentExec.ts` — `normalizePath`
+  now lowercases on `win32`, closing a workspace escape via case mismatch.
+- Fixed `ProjectService.scaffoldProject` template path traversal — post-join
+  resolve check prevents `../` escape.
+- Fixed command injection in `RunBuildModule` — unquoted `--profile` argument now
+  shell-quoted.
+- Added `isDestroyed()` guard in collab `broadcastToRenderer` — prevents crash
+  when window closes during a collaboration session.
+- Added `peerId` type validation in collab IPC.
+
+### Security — Agent Execution
+
+- Fixed `AgentExecService` workspace escape via absolute command paths — added
+  `isAbsolute` and `..` checks plus post-resolve containment verification.
+- Fixed `killTree` on Windows — now uses `taskkill /T /F` instead of POSIX-only
+  `process.kill(-pid)`.
+- Added `detached: !isWin` to agent `spawn()` so process group kill works on
+  Unix.
+
+### Fixed — Process Management
+
+- `TaskService` now spawns with `detached: true` on Unix and kills the process
+  group via `process.kill(-pid)`, preventing orphaned child processes.
+- `CollabService.join()` Promise leak — connection close before handshake now
+  resolves instead of leaking.
+- `AppWindow` unresponsive handler — no longer unconditionally destroys the
+  window on any unresponsive event (caused data loss during heavy operations);
+  now only force-closes if a close is actually pending.
+- `AppWindow.loadFile` error swallowing — `.catch()` with `dialog.showErrorBox`
+  replaces silent `void` ignore.
+
+### Fixed — Cross-platform Paths
+
+- Replaced hardcoded path separators with `joinPath` across 10+ modules:
+  `TemplatesModule`, `ProfilesModule`, `RunBuildModule`, `DebugModule`,
+  `DeploymentModule`, `FullStackModule`, `PreviewModule`, and
+  `DependencyGraphModule` — fixes broken self-tests and mixed-separator paths
+  on Linux/macOS.
+
+### Fixed — Event Listener Leaks
+
+- Fixed 10+ event listener leaks across renderer modules:
+  `RunBuildModule`, `TasksModule`, `TodoModule`, `DebugModule`,
+  `BreakpointModule` — all subscriptions now tracked via `context.subscriptions`
+  with proper `Disposable` wrappers.
+
+### Fixed — Miscellaneous
+
+- Added missing `select` keyword to the Zornux keyword list (present in the
+  compiler but missing from IDE syntax highlighting).
+- Fixed dead `MobileDeviceSelect` IPC handler — was validating device ID but
+  never calling any service method; now calls `mobile.selectDevice(id)`.
+- Fixed `LspNotify` and `TaskKill` crash risk — `ipcMain.on` handlers now
+  wrapped in try/catch (unhandled exceptions hit `uncaughtException` and
+  crashed the IDE).
+- Fixed `CpuProfilerModule` crash on empty flame graph — `Math.max` on empty
+  array produced `-Infinity` height.
+- Fixed vacuous test assertion in `parser.test.ts`.
+- Corrected stale GitHub release URL in `UpdateService` (`zornux/znxstudio` →
+  `jay-m2/ZnxStudio`).
+- Duplicate `[1.0.0-rc.1]` CHANGELOG sections consolidated.
+
+### Changed — Build & CI
+
+- Production builds now minified with source maps stripped (dev builds retain
+  source maps for debugging).
+- CI smoke test hardened — Electron exit code now checked via `set -o pipefail`;
+  a crash after startup log no longer masks as green.
+
+### Tests
+
+- 2255 tests, 0 failures, clean TypeScript.
+
 ## [1.0.0-rc.2] - 2026-08-17
 
 Second release candidate. Adds Android mobile developer tooling, a true dark
@@ -131,9 +229,9 @@ package builds, clean-machine acceptance, and a **signed** auto-update round-tri
 
 Run `npm run ga:check` to re-verify every gate that does **not** need certs.
 
-## [1.0.0-rc.1] — 2026-07-10
+## [1.0.0-rc.0] - 2026-07-10
 
-First release candidate. Consolidates Phases 1–20 into a shippable 1.0. Every
+Pre-hardening release candidate. Consolidates Phases 1–20 into a shippable 1.0. Every
 gate below is re-verified against the **real app** (headless self-test) or the
 full unit suite — see [`docs/RC-1.0.md`](docs/RC-1.0.md).
 
@@ -257,6 +355,8 @@ full unit suite — see [`docs/RC-1.0.md`](docs/RC-1.0.md).
   items that require certificates and macOS/Linux hardware. See
   [`docs/GA-1.0.md`](docs/GA-1.0.md) and [`docs/RELEASE.md`](docs/RELEASE.md).
 
-[Unreleased]: https://github.com/zornux/znxstudio/compare/v1.0.0-rc.2...HEAD
-[1.0.0-rc.2]: https://github.com/zornux/znxstudio/compare/v1.0.0-rc.1...v1.0.0-rc.2
-[1.0.0-rc.1]: https://github.com/zornux/znxstudio/releases/tag/v1.0.0-rc.1
+[Unreleased]: https://github.com/jay-m2/ZnxStudio/compare/v1.0.0...HEAD
+[1.0.0]: https://github.com/jay-m2/ZnxStudio/compare/v1.0.0-rc.2...v1.0.0
+[1.0.0-rc.2]: https://github.com/jay-m2/ZnxStudio/compare/v1.0.0-rc.1...v1.0.0-rc.2
+[1.0.0-rc.1]: https://github.com/jay-m2/ZnxStudio/compare/v1.0.0-rc.0...v1.0.0-rc.1
+[1.0.0-rc.0]: https://github.com/jay-m2/ZnxStudio/releases/tag/v1.0.0-rc.0

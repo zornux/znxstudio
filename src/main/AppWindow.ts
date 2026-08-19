@@ -1,4 +1,4 @@
-import { BrowserWindow, ipcMain, shell } from 'electron';
+import { BrowserWindow, dialog, ipcMain, shell } from 'electron';
 import { join } from 'node:path';
 import { HARDENED_WEB_PREFERENCES, isAllowedNavigation, windowOpenDecision } from '../shared/security';
 import { IpcChannels } from '../shared/ipc';
@@ -30,7 +30,9 @@ export function createMainWindow(): BrowserWindow {
   guardUnsavedOnClose(window);
 
   window.once('ready-to-show', () => window.show());
-  void window.loadFile(join(__dirname, '../renderer/index.html'));
+  window.loadFile(join(__dirname, '../renderer/index.html')).catch((err) => {
+    dialog.showErrorBox('ZnxStudio', `Failed to load UI: ${err instanceof Error ? err.message : String(err)}`);
+  });
 
   return window;
 }
@@ -84,8 +86,10 @@ function guardUnsavedOnClose(window: BrowserWindow): void {
     ipcMain.removeListener(IpcChannels.WindowCancelClose, onCancel);
     clearPending();
   });
-  // A hung/unresponsive renderer can't be asked — let the close proceed.
-  window.on('unresponsive', () => forceClose());
+  // A hung renderer during a pending close can't answer — let the close proceed.
+  // Only force-close if a close is actually pending, to avoid data loss during
+  // legitimate heavy operations (large file parse, extension loading, etc.).
+  window.on('unresponsive', () => { if (pendingTimer) forceClose(); });
 
   window.on('close', (event) => {
     if (allowClose) return;

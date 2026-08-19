@@ -54,10 +54,10 @@ export class TodoModule implements IModule {
       return undefined;
     });
 
-    this.workspace.onDidChangeWorkspace(() => {
+    context.subscriptions.push(this.workspace.onDidChangeWorkspace(() => {
       this.context.commands.notifyEnablementChanged();
       void this.scan();
-    });
+    }));
     this.renderMessage('Run “Scan for Task Comments” to find TODO/FIXME/… tags.');
     void this.scan();
     void selfTestCoordinator.run('todo', () => this.maybeSelfTest());

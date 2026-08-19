@@ -13,7 +13,9 @@ export function registerTaskIpc(): void {
     sharedWorkspaceTrust().assertTrusted('running tasks');
     return tasks.run(options, event.sender);
   });
-  ipcMain.on(IpcChannels.TaskKill, (_event, { id }: { id: string }) => tasks.kill(id));
+  ipcMain.on(IpcChannels.TaskKill, (_event, { id }: { id: string }) => {
+    try { tasks.kill(id); } catch { /* kill is best-effort */ }
+  });
   // Never orphan a running task when the app exits.
   app.on('will-quit', () => tasks.killAll());
 }

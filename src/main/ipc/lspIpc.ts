@@ -19,12 +19,13 @@ export function registerLspIpc(): void {
     }
     return lsp.start(config, event.sender);
   });
-  ipcMain.handle(IpcChannels.LspRequest, (_event, payload: { method: string; params?: unknown }) =>
-    lsp.request(payload.method, payload.params),
-  );
-  ipcMain.on(IpcChannels.LspNotify, (_event, payload: { method: string; params?: unknown }) =>
-    lsp.notify(payload.method, payload.params),
-  );
+  ipcMain.handle(IpcChannels.LspRequest, (_event, payload: { method: string; params?: unknown }) => {
+    trust.assertTrusted('Language Server');
+    return lsp.request(payload.method, payload.params);
+  });
+  ipcMain.on(IpcChannels.LspNotify, (_event, payload: { method: string; params?: unknown }) => {
+    try { lsp.notify(payload.method, payload.params); } catch { /* notification is best-effort */ }
+  });
   ipcMain.handle(IpcChannels.LspStop, () => lsp.stop());
   app.on('will-quit', () => { void lsp.stop(); });
 }

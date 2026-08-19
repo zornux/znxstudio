@@ -32,8 +32,10 @@ export class BreakpointModule implements IModule, BreakpointService {
     context.services.register<BreakpointService>(ServiceKeys.Breakpoints, this);
 
     const editor = this.editor();
-    editor?.onDidClickGutter((line) => this.toggleAt(line));
-    editor?.onDidChangeActiveFile(() => this.render(this.editor()?.currentUri() ?? null));
+    const gutterSub = editor?.onDidClickGutter((line) => this.toggleAt(line));
+    if (gutterSub) context.subscriptions.push(gutterSub);
+    const fileSub = editor?.onDidChangeActiveFile(() => this.render(this.editor()?.currentUri() ?? null));
+    if (fileSub) context.subscriptions.push(fileSub);
 
     context.commands.register(
       CommandIds.ToggleBreakpoint,
@@ -54,12 +56,13 @@ export class BreakpointModule implements IModule, BreakpointService {
     document.addEventListener('keydown', this.keyListener, true);
 
     // When a session ends, breakpoints are no longer verified against a run.
-    this.debugger()?.onDidChangeState((state) => {
+    const stateSub = this.debugger()?.onDidChangeState((state) => {
       if (!sessionActive(state)) {
         this.store.resetVerified();
         this.render(this.editor()?.currentUri() ?? null);
       }
     });
+    if (stateSub) context.subscriptions.push(stateSub);
   }
 
   deactivate(): void {

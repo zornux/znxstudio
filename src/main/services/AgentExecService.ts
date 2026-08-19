@@ -1,5 +1,5 @@
-import { spawn, type ChildProcess } from 'node:child_process';
-import { normalize, resolve } from 'node:path';
+import { spawn, execSync, type ChildProcess } from 'node:child_process';
+import { normalize, resolve, isAbsolute, sep } from 'node:path';
 import {
   AGENT_EXEC_DEFAULTS,
   classifyCommand,
@@ -33,9 +33,16 @@ export class AgentExecService {
       return this.errorResult(request.execId, start, `Command '${request.command}' requires approval but was not approved.`);
     }
 
+    if (isAbsolute(request.command) || request.command.includes('..')) {
+      return this.errorResult(request.execId, start, `Absolute or traversal paths are not allowed in commands.`);
+    }
     const exe = resolve(confined, request.command);
+    if (!exe.startsWith(confined + sep) && exe !== confined) {
+      return this.errorResult(request.execId, start, `Resolved command escapes workspace.`);
+    }
     const args = request.args;
     const env = sanitizeEnvironment(process.env as Record<string, string | undefined>);
+    const isWin = process.platform === 'win32';
 
     return new Promise<AgentExecResult>((resolvePromise) => {
       let child: ChildProcess;
@@ -47,6 +54,7 @@ export class AgentExecService {
           timeout: timeoutMs,
           killSignal: 'SIGTERM',
           windowsHide: true,
+          detached: !isWin,
         });
       } catch (err) {
         resolvePromise(this.errorResult(request.execId, start, `Failed to spawn: ${err instanceof Error ? err.message : String(err)}`));
@@ -123,8 +131,11 @@ export class AgentExecService {
   }
 
   private killTree(child: ChildProcess): void {
+    if (child.pid == null) return;
     try {
-      if (child.pid != null) {
+      if (process.platform === 'win32') {
+        execSync(`taskkill /T /F /pid ${child.pid}`, { windowsHide: true, stdio: 'ignore' });
+      } else {
         process.kill(-child.pid, 'SIGTERM');
       }
     } catch {

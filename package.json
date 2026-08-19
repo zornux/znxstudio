@@ -2,7 +2,7 @@
   "name": "znxstudio",
   "productName": "ZnxStudio",
   "desktopName": "znxstudio.desktop",
-  "version": "1.0.0-rc.3",
+  "version": "1.0.0",
   "description": "Enterprise IDE platform for Zornux & Zoijs.",
   "author": "ZnxStudio <release@znxstudio.dev>",
   "private": true,

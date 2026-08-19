@@ -1,7 +1,7 @@
 import { spawn } from 'node:child_process';
 import { existsSync } from 'node:fs';
 import { promises as fs } from 'node:fs';
-import { basename, dirname, join, resolve } from 'node:path';
+import { basename, dirname, join, resolve, sep } from 'node:path';
 import { app } from 'electron';
 import type {
   CreateProjectOptions,
@@ -87,7 +87,10 @@ export class ProjectService {
       }
 
       for (const file of request.files) {
-        const target = join(projectDir, file.path);
+        const target = resolve(join(projectDir, file.path));
+        if (!target.startsWith(projectDir + sep) && target !== projectDir) {
+          throw new Error(`Template path '${file.path}' escapes the project directory.`);
+        }
         await fs.mkdir(dirname(target), { recursive: true });
         await fs.writeFile(target, file.content, 'utf8');
       }

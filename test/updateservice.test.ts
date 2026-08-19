@@ -199,7 +199,7 @@ describe('UpdateService — electron-updater (GitHub-native)', () => {
     updater.quitAndInstall = () => { throw new Error('installer unavailable'); };
     const svc = new UpdateService({ currentVersion: '1.0.0', channel: 'stable', loadUpdater: () => updater });
     const available = await svc.check();
-    expect(available.release?.url).toBe('https://github.com/zornux/znxstudio/releases/tag/v1.2.0');
+    expect(available.release?.url).toBe('https://github.com/jay-m2/ZnxStudio/releases/tag/v1.2.0');
     await svc.download();
     expect(svc.install().phase).toBe('error');
     expect(svc.current().error).toBe('installer unavailable');

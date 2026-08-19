@@ -13,9 +13,10 @@ export function registerDebugIpc(): void {
     sharedWorkspaceTrust().assertTrusted('debugging');
     return debug.start(config, event.sender);
   });
-  ipcMain.handle(IpcChannels.DebugRequest, (_event, payload: { command: string; args?: unknown }) =>
-    debug.request(payload.command, payload.args),
-  );
+  ipcMain.handle(IpcChannels.DebugRequest, (_event, payload: { command: string; args?: unknown }) => {
+    sharedWorkspaceTrust().assertTrusted('debugging');
+    return debug.request(payload.command, payload.args);
+  });
   ipcMain.handle(IpcChannels.DebugStop, () => debug.stop());
   // Terminate any DAP adapter on quit so no debug session is orphaned.
   app.on('will-quit', () => { void debug.stop(); });

@@ -39,13 +39,16 @@ export function registerMarketplaceIpc(): void {
     sharedWorkspaceTrust().assertTrusted('Install Extension');
     return installer().then((i) => i.install(p.publisher, p.slug, p.version));
   });
-  ipcMain.handle(IpcChannels.ExtensionsUninstall, (_e, p: { publisher: string; slug: string; version: string }) =>
-    installer().then((i) => i.uninstall(p.publisher, p.slug, p.version)),
-  );
+  ipcMain.handle(IpcChannels.ExtensionsUninstall, (_e, p: { publisher: string; slug: string; version: string }) => {
+    sharedWorkspaceTrust().assertTrusted('Uninstall Extension');
+    return installer().then((i) => i.uninstall(p.publisher, p.slug, p.version));
+  });
   ipcMain.handle(
     IpcChannels.ExtensionsSetEnabled,
-    (_e, p: { publisher: string; slug: string; version: string; enabled: boolean }) =>
-      installer().then((i) => i.setEnabled(p.publisher, p.slug, p.version, p.enabled)),
+    (_e, p: { publisher: string; slug: string; version: string; enabled: boolean }) => {
+      sharedWorkspaceTrust().assertTrusted('Toggle Extension');
+      return installer().then((i) => i.setEnabled(p.publisher, p.slug, p.version, p.enabled));
+    },
   );
   ipcMain.handle(IpcChannels.ExtensionsList, () => installer().then((i) => i.listInstalled()));
   ipcMain.handle(IpcChannels.ExtensionsLoadEnabled, () => installer().then((i) => i.loadEnabled()));

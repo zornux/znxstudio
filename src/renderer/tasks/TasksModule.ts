@@ -65,8 +65,9 @@ export class TasksModule implements IModule {
     context.commands.register(CommandIds.TasksShow, () => this.reveal(), 'Tasks: Show Tasks');
     context.commands.register(CommandIds.TasksRefresh, () => this.discover(), 'Tasks: Refresh Tasks');
 
-    window.znxstudio.task.onExit((event) => this.onTaskExit(event.id, event.code));
-    this.workspace.onDidChangeWorkspace(() => void this.discover());
+    const offExit = window.znxstudio.task.onExit((event) => this.onTaskExit(event.id, event.code));
+    context.subscriptions.push({ dispose: offExit });
+    context.subscriptions.push(this.workspace.onDidChangeWorkspace(() => void this.discover()));
 
     void this.discover();
     void selfTestCoordinator.run('tasks', () => this.maybeSelfTest());

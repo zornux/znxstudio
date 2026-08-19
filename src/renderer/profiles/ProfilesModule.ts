@@ -12,6 +12,7 @@ import type { IModule, ModuleContext } from '../core/Module';
 import { CommandIds } from '../commands/CommandIds';
 import { normalizeRoot } from '../workspace/workspaceFolders';
 import { examplePath } from '../core/selftestFixtures';
+import { joinPath } from '../explorer/paths';
 import {
   ENVIRONMENT_PROFILES,
   isEnvironmentProfile,
@@ -291,7 +292,7 @@ export class ProfilesModule implements IModule, ProfileService {
     const editor = this.context.services.tryGet<EditorService>(ServiceKeys.Editor);
     const active = editor?.currentFile();
     if (active && active.toLowerCase().endsWith('.zx')) return active;
-    return `${root.replace(/[\\/]+$/, '')}/src/main.zx`;
+    return joinPath(joinPath(root, 'src'), 'main.zx');
   }
 
   private async runConfig(subcommand: 'show' | 'validate'): Promise<void> {

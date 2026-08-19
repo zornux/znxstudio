@@ -51,7 +51,9 @@ export function registerMobileIpc(): void {
     return mobile.devices();
   });
   ipcMain.handle(IpcChannels.MobileDeviceSelect, (_event, id: string) => {
+    trust.assertTrusted('Device Select');
     assertSafeId(id, 'device ID');
+    return mobile.selectDevice(id);
   });
   ipcMain.handle(IpcChannels.MobileEmulatorList, () => {
     trust.assertTrusted('Emulator List');
