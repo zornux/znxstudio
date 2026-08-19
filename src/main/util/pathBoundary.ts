@@ -37,7 +37,11 @@ export function confineToRoots(rawPath: string, roots: readonly string[]): strin
       try {
         const realAncestor = normalize(realpathSync(ancestor));
         if (roots.some((root) => within(root, realAncestor))) return target;
-        if (roots.some((root) => within(realAncestor, root))) return target;
+        // The ancestor is above the root (root is deeper). Nothing between
+        // them exists yet, so no intermediate symlink can escape. Use the
+        // lexical ancestor here — the resolved one may differ due to
+        // platform symlinks (e.g. macOS /tmp → /private/tmp).
+        if (roots.some((root) => within(normalize(ancestor), root))) return target;
         return null;
       } catch {
         ancestor = dirname(ancestor);
