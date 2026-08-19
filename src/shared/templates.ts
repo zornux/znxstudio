@@ -189,6 +189,50 @@ export const PROJECT_TEMPLATES: readonly ProjectTemplate[] = [
     ],
   },
   {
+    id: 'zornux-mobile-styled',
+    label: 'Zornux Mobile Styled',
+    description: 'A styled Zornux Mobile application with themes, animations, responsive layout, and gestures.',
+    icon: '🎨',
+    type: 'zornux-mobile',
+    runZornuxInit: false,
+    files: [
+      {
+        path: 'zornux.project',
+        content:
+          'name = ${name}\nversion = 0.1.0\ntype = mobile\nentry = main.zx\n\n' +
+          'android.application_id = com.example.${androidName}\nandroid.min_sdk = 24\nandroid.target_sdk = 34\n',
+      },
+      {
+        path: 'main.zx',
+        content:
+          'mobile app "${name}"\n\n' +
+          'theme AppTheme\n    primary "#6750A4"\n    secondary "#625B71"\n    background "#FFFBFE"\nend\n\n' +
+          'tokens\n    spacing small 8\n    spacing medium 16\n    spacing large 24\nend\n\n' +
+          'screen Home\n    state greeting = "Welcome to ${name}!"\n\n' +
+          '    transition\n        enter slide_left\n        exit fade\n    end\n\n' +
+          '    column\n        animate fade_in\n            duration 500\n        end\n\n' +
+          '        text greeting\n            style\n                font_size 24\n' +
+          '                color primary\n            end\n\n' +
+          '        card\n            style\n                corner_radius 16\n' +
+          '                elevation 4\n                padding 16\n' +
+          '            end\n\n' +
+          '            text "Swipe me!"\n\n' +
+          '            when swiped left\n                show "Swiped left!"\n            end\n        end\n\n' +
+          '        responsive\n            compact\n                text "Phone layout"\n' +
+          '            end\n            expanded\n                text "Tablet layout"\n' +
+          '            end\n        end\n\n' +
+          '        button "Go to Details"\n' +
+          '            when tapped\n                go to Details\n            end\n        end\n' +
+          '    end\nend\n\n' +
+          'screen Details\n    column\n        text "Details Screen"\n\n' +
+          '        button "Go Back"\n            when tapped\n                go back\n' +
+          '            end\n        end\n    end\nend\n\n' +
+          'start with Home\n',
+      },
+      { path: 'znxstudio.project.json', content: '${znxstudio-mobile}' },
+    ],
+  },
+  {
     id: 'zornux-empty',
     label: 'Empty Zornux Project',
     description: 'A minimal Zornux project — just what `zornux init` scaffolds (zornux.project + src/main.zx).',

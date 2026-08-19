@@ -5,6 +5,12 @@ const DESCRIPTORS_BY_KEYWORD = new Map(COMPONENT_CATALOG.map((descriptor) => [de
 const CONTAINERS = new Set(COMPONENT_CATALOG.filter((descriptor) => descriptor.isContainer).map((descriptor) => descriptor.zxKeyword));
 const COMPONENTS = new Set(DESCRIPTORS_BY_KEYWORD.keys());
 
+const STYLING_BLOCKS = new Set([
+  'style', 'theme', 'tokens', 'animate', 'transition', 'responsive',
+  'gradient', 'shadow', 'permissions',
+]);
+const RESPONSIVE_BREAKPOINTS = new Set(['compact', 'medium', 'expanded']);
+
 export function isMobileZornux(source: string): boolean {
   return /^\s*mobile\s+app\b/m.test(source);
 }
@@ -20,6 +26,9 @@ function nextContent(lines: string[], from: number): string {
 function opensBlock(line: string, lines: string[], index: number): boolean {
   const keyword = line.split(/\s+/)[0];
   if (keyword === 'screen' || keyword === 'when' || CONTAINERS.has(keyword)) return true;
+  if (STYLING_BLOCKS.has(keyword)) return true;
+  if (keyword === 'dark' && line.startsWith('dark theme')) return true;
+  if (RESPONSIVE_BREAKPOINTS.has(keyword)) return true;
   return COMPONENTS.has(keyword) && nextContent(lines, index).startsWith('when ');
 }
 
@@ -82,6 +91,15 @@ export function lintMobileZornux(source: string): ZornuxDiagnostic[] {
       blocks.push({ keyword, line: index });
       continue;
     }
+    if (STYLING_BLOCKS.has(keyword) || RESPONSIVE_BREAKPOINTS.has(keyword)) {
+      blocks.push({ keyword, line: index });
+      continue;
+    }
+    if (keyword === 'dark' && line.startsWith('dark theme')) {
+      blocks.push({ keyword: 'dark theme', line: index });
+      continue;
+    }
+    if (keyword === 'go' || keyword === 'use') continue;
     const descriptor = DESCRIPTORS_BY_KEYWORD.get(keyword);
     if (!descriptor) {
       report(index, 0, line.length, 'zx-mobile-unsupported-statement', `The visual designer cannot safely model '${keyword}'.`);

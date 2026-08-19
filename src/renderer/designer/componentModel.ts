@@ -227,6 +227,7 @@ export const COMPONENT_CATALOG: readonly ComponentDescriptor[] = [
     events: [
       { key: 'tapped', label: 'Tapped', zxKeyword: 'tapped', hasValue: false },
       { key: 'longPressed', label: 'Long Pressed', zxKeyword: 'long_pressed', hasValue: false },
+      { key: 'swiped', label: 'Swiped', zxKeyword: 'swiped', hasValue: false },
     ],
     previewHint: 'Tappable action button',
   },
@@ -412,7 +413,12 @@ export const COMPONENT_CATALOG: readonly ComponentDescriptor[] = [
       ...SPACING_PROPS,
       VISIBILITY_PROP,
     ],
-    events: [],
+    events: [
+      { key: 'swiped', label: 'Swiped', zxKeyword: 'swiped', hasValue: false },
+      { key: 'dragged', label: 'Dragged', zxKeyword: 'dragged', hasValue: false },
+      { key: 'pinched', label: 'Pinched', zxKeyword: 'pinched', hasValue: false },
+      { key: 'longPressed', label: 'Long Pressed', zxKeyword: 'long_pressed', hasValue: false },
+    ],
     previewHint: 'Vertical layout container',
   },
   {
@@ -432,7 +438,12 @@ export const COMPONENT_CATALOG: readonly ComponentDescriptor[] = [
       ...SPACING_PROPS,
       VISIBILITY_PROP,
     ],
-    events: [],
+    events: [
+      { key: 'swiped', label: 'Swiped', zxKeyword: 'swiped', hasValue: false },
+      { key: 'dragged', label: 'Dragged', zxKeyword: 'dragged', hasValue: false },
+      { key: 'pinched', label: 'Pinched', zxKeyword: 'pinched', hasValue: false },
+      { key: 'longPressed', label: 'Long Pressed', zxKeyword: 'long_pressed', hasValue: false },
+    ],
     previewHint: 'Horizontal layout container',
   },
   {

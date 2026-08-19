@@ -29,4 +29,13 @@ export const ZORNUX_KEYWORDS: readonly string[] = [
   'text', 'button', 'image', 'icon', 'input', 'checkbox', 'switch', 'slider',
   'dropdown', 'spacer', 'divider', 'top_bar', 'bottom_nav', 'tabs', 'fab', 'card',
   'list', 'chip', 'badge', 'progress', 'snackbar', 'dialog',
+  // Mobile styling system (Phases 1–5).
+  'style', 'theme', 'dark', 'tokens', 'animate', 'transition', 'responsive',
+  'gradient', 'shadow', 'permissions', 'toolbar',
+  // Gesture & interaction keywords.
+  'swiped', 'dragged', 'pinched', 'long_pressed', 'tapped',
+  // Responsive breakpoints.
+  'compact', 'medium', 'expanded',
+  // Navigation.
+  'go',
 ];

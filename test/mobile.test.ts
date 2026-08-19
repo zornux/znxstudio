@@ -8,8 +8,11 @@ import { MobileService } from '../src/main/services/MobileService';
 import { groupAndroidDevices, mobileSessionControls } from '../src/renderer/mobile/MobileModule';
 import { ensureAndroidRunTarget } from '../src/renderer/mobile/deviceTarget';
 import { countReadyAdbDevices } from '../src/main/services/AndroidEnvironmentProbe';
+import { AndroidSdkManager } from '../src/main/services/AndroidSdkManager';
+import { ToolchainService } from '../src/main/services/ToolchainService';
 import { mkdtemp, rm, writeFile } from 'node:fs/promises';
-import { tmpdir } from 'node:os';
+import { existsSync } from 'node:fs';
+import { tmpdir, platform, arch, homedir } from 'node:os';
 import { join } from 'node:path';
 
 /* ===== IPC channel contract parity ===== */
@@ -421,5 +424,110 @@ describe('mobile API surface completeness', () => {
     expect(IpcChannels.AndroidToolchainSdkList).toBeTruthy();
     expect(IpcChannels.AndroidToolchainSdkInstall).toBeTruthy();
     expect(IpcChannels.AndroidToolchainUpdate).toBeTruthy();
+  });
+});
+
+/* ===== AndroidSdkManager ===== */
+
+describe('AndroidSdkManager — structure and paths', () => {
+  test('managed root resolves to ~/.zornux/toolchains/android', () => {
+    const mgr = new AndroidSdkManager();
+    expect(mgr.sdkPath).toBe(join(homedir(), '.zornux', 'toolchains', 'android', 'sdk'));
+    expect(mgr.jdkPath).toBe(join(homedir(), '.zornux', 'toolchains', 'android', 'jdk'));
+  });
+
+  test('hasJdk checks for the java binary inside the managed JDK', () => {
+    const mgr = new AndroidSdkManager();
+    const result = mgr.hasJdk();
+    expect(typeof result).toBe('boolean');
+  });
+
+  test('hasCmdlineTools checks for sdkmanager binary', () => {
+    const mgr = new AndroidSdkManager();
+    const result = mgr.hasCmdlineTools();
+    expect(typeof result).toBe('boolean');
+  });
+
+  test('abort() can be called without error', () => {
+    const mgr = new AndroidSdkManager();
+    let threw = false;
+    try { mgr.abort(); } catch { threw = true; }
+    expect(threw).toBe(false);
+  });
+});
+
+describe('AndroidSdkManager — progress callback contract', () => {
+  test('installComponent streams progress with step/progress/complete/error fields', async () => {
+    const mgr = new AndroidSdkManager();
+    const events: Array<{ step: string; progress: number; complete: boolean; error: string | null }> = [];
+
+    await mgr.installComponent('platforms;android-99', (p) => events.push({ ...p }));
+
+    expect(events.length).toBeGreaterThan(0);
+    const last = events[events.length - 1];
+    expect(last.complete).toBe(true);
+    expect(last.progress).toBe(100);
+    for (const event of events) {
+      expect(typeof event.step).toBe('string');
+      expect(typeof event.progress).toBe('number');
+      expect(typeof event.complete).toBe('boolean');
+    }
+  });
+
+  test('updateComponents streams progress with correct shape', async () => {
+    const mgr = new AndroidSdkManager();
+    const events: Array<{ step: string; complete: boolean }> = [];
+
+    await mgr.updateComponents((p) => events.push({ step: p.step, complete: p.complete }));
+
+    expect(events.length).toBeGreaterThan(0);
+    expect(events[events.length - 1].complete).toBe(true);
+  });
+});
+
+describe('ToolchainService — updated integration', () => {
+  test('managedPath() returns the canonical toolchain directory', () => {
+    expect(ToolchainService.managedPath()).toBe(join(homedir(), '.zornux', 'toolchains', 'android'));
+  });
+
+  test('managedEnv() returns an object with the correct shape', () => {
+    const svc = new ToolchainService();
+    const env = svc.managedEnv();
+    expect(typeof env).toBe('object');
+    if (env.ANDROID_HOME) {
+      expect(env.ANDROID_HOME).toContain('.zornux');
+    }
+    if (env.JAVA_HOME) {
+      expect(typeof env.JAVA_HOME).toBe('string');
+    }
+  });
+
+  test('dispose() can be called without error', () => {
+    const svc = new ToolchainService();
+    let threw = false;
+    try { svc.dispose(); } catch { threw = true; }
+    expect(threw).toBe(false);
+  });
+
+  test('status() returns a ToolchainStatus with ready flag and components', async () => {
+    const svc = new ToolchainService();
+    const status = await svc.status();
+    expect(typeof status.ready).toBe('boolean');
+    expect(Array.isArray(status.components)).toBe(true);
+    for (const comp of status.components) {
+      expect(typeof comp.name).toBe('string');
+      expect(typeof comp.required).toBe('boolean');
+      expect(typeof comp.installed).toBe('boolean');
+    }
+  });
+
+  test('sdkList() returns component array matching the probe', async () => {
+    const svc = new ToolchainService();
+    const list = await svc.sdkList();
+    expect(Array.isArray(list)).toBe(true);
+    for (const comp of list) {
+      expect(typeof comp.name).toBe('string');
+      expect(typeof comp.installed).toBe('boolean');
+    }
   });
 });
