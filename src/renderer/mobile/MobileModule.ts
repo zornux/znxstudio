@@ -61,6 +61,7 @@ export class MobileModule implements IModule {
   private sessionStateUnsubscribe: (() => void) | null = null;
 
   // DOM elements
+  private toolchainSetupRunning = false;
   private sideBarEl: HTMLDivElement | null = null;
   private logOutputEl: HTMLPreElement | null = null;
   private debugStatusEl: HTMLDivElement | null = null;
@@ -205,10 +206,11 @@ export class MobileModule implements IModule {
       this.toolchainStatus = await window.znxstudio.androidToolchain.status();
       if (!this.toolchainStatus.ready) {
         this.status()?.setItem('android.toolchain', {
-          text: 'Android: Toolchain missing',
+          text: 'Android: Setting up toolchain…',
           side: 'right',
           priority: 25,
         });
+        void this.toolchainSetup();
       }
     } catch {
       // Toolchain check failed silently — doctor will surface this.
@@ -780,6 +782,8 @@ export class MobileModule implements IModule {
       this.context.layout.showToast('Android toolchain is already configured.', 'info');
       return;
     }
+    if (this.toolchainSetupRunning) return;
+    this.toolchainSetupRunning = true;
 
     this.context.layout.showToast('Setting up Android toolchain...', 'info');
     const output = this.output();
@@ -788,6 +792,11 @@ export class MobileModule implements IModule {
 
     const unsubscribe = window.znxstudio.androidToolchain.onSetupProgress((progress) => {
       output?.appendLine(`[${progress.progress}%] ${progress.step}`);
+      this.status()?.setItem('android.toolchain', {
+        text: `Android: ${progress.step}`,
+        side: 'right',
+        priority: 25,
+      });
       if (progress.error) {
         output?.appendLine(`ERROR: ${progress.error}`);
         this.context.layout.showToast(`Setup failed: ${progress.error}`, 'error');
@@ -795,6 +804,7 @@ export class MobileModule implements IModule {
       if (progress.complete && !progress.error) {
         output?.appendLine('Android toolchain setup complete.');
         this.context.layout.showToast('Android toolchain ready.', 'info');
+        this.status()?.removeItem?.('android.toolchain');
         void this.refreshToolchainStatus();
       }
     });
@@ -804,6 +814,7 @@ export class MobileModule implements IModule {
     } catch (error) {
       this.context.layout.showToast(`Setup failed: ${(error as Error).message}`, 'error');
     } finally {
+      this.toolchainSetupRunning = false;
       unsubscribe();
     }
   }
