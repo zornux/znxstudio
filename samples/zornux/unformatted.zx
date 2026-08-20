@@ -1,8 +1,8 @@
-// Badly indented on purpose — Format Document should clean this up.
-define greeting to "Hello"
-function main(){
-say greeting
-if true then {
-say "nested { not a real brace }"
-}
-}
+# Badly indented on purpose — Format Document should clean this up.
+create greeting = "Hello"
+function main
+show greeting
+if true
+show "nested"
+end
+end

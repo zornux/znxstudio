@@ -51,4 +51,52 @@ describe('parser: AST', () => {
     }
     expect(true).toBe(true);
   });
+
+  test('create keyword produces a Variable node', () => {
+    const { ast } = parseZornux('create name = "hello"\n');
+    const variable = ast.body.find((n) => n.kind === 'Variable');
+    expect(variable?.kind).toBe('Variable');
+    if (variable?.kind === 'Variable') {
+      expect(variable.name).toBe('name');
+    }
+  });
+
+  test('function with "with" parameters', () => {
+    const { ast } = parseZornux('function greet with name, age\n  show name\nend\n');
+    const fn = ast.body.find((n) => n.kind === 'Function');
+    expect(fn?.kind).toBe('Function');
+    if (fn?.kind === 'Function') {
+      expect(fn.params.map((p) => p.name)).toEqual(['name', 'age']);
+      expect(fn.body).toBeTruthy();
+    }
+  });
+
+  test('end-terminated class block', () => {
+    const { ast } = parseZornux('class Product\n  has name\nend\n');
+    const cls = ast.body.find((n) => n.kind === 'Class');
+    expect(cls?.kind).toBe('Class');
+    if (cls?.kind === 'Class') {
+      expect(cls.name).toBe('Product');
+      expect(cls.body).toBeTruthy();
+    }
+  });
+
+  test('import with alias', () => {
+    const { ast } = parseZornux('import Api.Identity as Auth\n');
+    const imp = ast.body.find((n) => n.kind === 'Import');
+    expect(imp?.kind).toBe('Import');
+    if (imp?.kind === 'Import') {
+      expect(imp.name).toBe('Api.Identity');
+      expect(imp.alias).toBe('Auth');
+    }
+  });
+
+  test('import with showing clause', () => {
+    const { ast } = parseZornux('import Utils showing trim, split\n');
+    const imp = ast.body.find((n) => n.kind === 'Import');
+    expect(imp?.kind).toBe('Import');
+    if (imp?.kind === 'Import') {
+      expect(imp.exposed.map((e) => e.name)).toEqual(['trim', 'split']);
+    }
+  });
 });

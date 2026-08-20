@@ -39,3 +39,30 @@ export const ZORNUX_KEYWORDS: readonly string[] = [
   // Navigation.
   'go',
 ];
+
+/**
+ * Known stdlib function names — provided for offline completion when the LSP
+ * server is unavailable. Aligned to the Zornux 1.8.0 standard library.
+ */
+export const ZORNUX_STDLIB: readonly string[] = [
+  // Text
+  'trim', 'trim_start', 'trim_end', 'to_upper', 'to_lower', 'split', 'join',
+  'starts_with', 'ends_with', 'contains', 'replace', 'length', 'substring',
+  'index_of', 'pad_start', 'pad_end',
+  // Regex
+  'matches', 'match_all', 'replace_pattern',
+  // Collections
+  'add', 'remove', 'count', 'first', 'last', 'where', 'select', 'sort_by',
+  'group_by', 'any', 'all', 'sum', 'average', 'min', 'max', 'distinct',
+  'take', 'skip', 'reverse', 'flatten', 'zip',
+  // Conversion
+  'to_text', 'to_number', 'to_whole', 'to_truth', 'to_json', 'from_json',
+  // Math
+  'abs', 'ceiling', 'floor', 'round', 'power', 'square_root',
+  // Date/time
+  'current_datetime', 'current_date', 'elapsed_time', 'format_date',
+  // Crypto
+  'hash', 'secure_random', 'uuid',
+  // I/O
+  'show', 'read_line', 'read_file', 'write_file',
+];

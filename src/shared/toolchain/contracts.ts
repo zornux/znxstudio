@@ -59,6 +59,12 @@ export const CAPABILITY = {
   jsonEnvelope: 'jsonEnvelope',
   formatting: 'formatting',
   disassemble: 'disassemble',
+  namedArguments: 'namedArguments',
+  postgresProvider: 'postgresProvider',
+  regexSupport: 'regexSupport',
+  importAliases: 'importAliases',
+  queryCapture: 'queryCapture',
+  mobileCodegen: 'mobileCodegen',
 } as const;
 
 export type CapabilityKey = (typeof CAPABILITY)[keyof typeof CAPABILITY];

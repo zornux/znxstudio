@@ -164,6 +164,35 @@ describe('toolchain — deriveInfo (fallback for binaries without `info`)', () =
     expect(supports(info, 'jsonEnvelope')).toBe(false);
     expect(supports(info, 'allocationStacks')).toBe(false);
   });
+
+  test('1.5.0 derives named arguments and postgres provider', () => {
+    const info = deriveInfo('1.5.0');
+    expect(supports(info, 'namedArguments')).toBe(true);
+    expect(supports(info, 'postgresProvider')).toBe(true);
+    expect(supports(info, 'importAliases')).toBe(true);
+    expect(supports(info, 'regexSupport')).toBe(true);
+    expect(supports(info, 'mobileCodegen')).toBe(false);
+  });
+
+  test('1.8.0 derives all new capabilities including query capture and mobile', () => {
+    const info = deriveInfo('1.8.0');
+    expect(supports(info, 'namedArguments')).toBe(true);
+    expect(supports(info, 'postgresProvider')).toBe(true);
+    expect(supports(info, 'importAliases')).toBe(true);
+    expect(supports(info, 'regexSupport')).toBe(true);
+    expect(supports(info, 'mobileCodegen')).toBe(true);
+    expect(supports(info, 'queryCapture')).toBe(true);
+  });
+
+  test('1.3.0 predates all 1.4+ capabilities', () => {
+    const info = deriveInfo('1.3.0');
+    expect(supports(info, 'namedArguments')).toBe(false);
+    expect(supports(info, 'postgresProvider')).toBe(false);
+    expect(supports(info, 'importAliases')).toBe(false);
+    expect(supports(info, 'regexSupport')).toBe(false);
+    expect(supports(info, 'mobileCodegen')).toBe(false);
+    expect(supports(info, 'queryCapture')).toBe(false);
+  });
 });
 
 describe('toolchain — resolveInfo', () => {

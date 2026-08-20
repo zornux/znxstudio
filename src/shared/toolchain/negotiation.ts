@@ -68,6 +68,12 @@ const BASE_CAPABILITIES: Record<CapabilityKey, boolean> = {
   profileTimestamps: false,
   gcStats: false,
   jsonEnvelope: false,
+  namedArguments: false,
+  postgresProvider: false,
+  regexSupport: false,
+  importAliases: false,
+  queryCapture: false,
+  mobileCodegen: false,
 };
 
 /**
@@ -81,6 +87,12 @@ const CAPABILITY_SINCE: { key: CapabilityKey; since: string }[] = [
   { key: CAPABILITY.profileTimestamps, since: '1.0.0-rc.4' },
   { key: CAPABILITY.gcStats, since: '1.0.0-rc.4' },
   { key: CAPABILITY.jsonEnvelope, since: '1.0.0-rc.8' },
+  { key: CAPABILITY.importAliases, since: '1.4.0' },
+  { key: CAPABILITY.regexSupport, since: '1.4.0' },
+  { key: CAPABILITY.namedArguments, since: '1.5.0' },
+  { key: CAPABILITY.postgresProvider, since: '1.5.0' },
+  { key: CAPABILITY.mobileCodegen, since: '1.7.0' },
+  { key: CAPABILITY.queryCapture, since: '1.8.0' },
 ];
 
 /** Read the protocols object tolerantly, defaulting any missing field to baseline. */

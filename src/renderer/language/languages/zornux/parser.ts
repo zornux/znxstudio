@@ -67,6 +67,7 @@ function parseStatements(cursor: Cursor, insideBlock: boolean): StatementNode[] 
   const statements: StatementNode[] = [];
   while (!cursor.atEnd()) {
     if (insideBlock && cursor.peek().kind === TokenKind.BraceClose) break;
+    if (insideBlock && isEndKeyword(cursor.peek())) break;
     const before = cursor.index;
     const statement = parseStatement(cursor);
     if (statement) statements.push(statement);
@@ -93,6 +94,8 @@ function parseStatement(cursor: Cursor): StatementNode | null {
         return parseClassLike(cursor, 'Record');
       case 'type':
         return parseType(cursor);
+      case 'create':
+        return parseVariable(cursor, 'Variable');
       case 'define':
         return parseVariable(cursor, 'Constant');
       case 'let':
@@ -181,12 +184,33 @@ function parseFunction(cursor: Cursor): FunctionNode {
   const name = nameToken?.value ?? '(anonymous)';
   const nameRange = nameToken?.range ?? keyword.range;
   const params = parseParameters(cursor);
-  const body = cursor.peek().kind === TokenKind.BraceOpen ? parseBlock(cursor) : null;
+  const body = cursor.peek().kind === TokenKind.BraceOpen
+    ? parseBlock(cursor)
+    : parseEndBlock(cursor);
   const end = body?.range.end ?? params.end ?? nameRange.end;
   return { kind: 'Function', name, nameRange, params: params.list, body, range: { start: keyword.range.start, end } };
 }
 
 function parseParameters(cursor: Cursor): { list: ParameterNode[]; end?: SrcPosition } {
+  // Real Zornux: `function name with param1, param2`
+  if (cursor.peek().kind === TokenKind.Keyword && cursor.peek().value === 'with') {
+    cursor.next();
+    const list: ParameterNode[] = [];
+    let end: SrcPosition | undefined;
+    while (cursor.peek().kind === TokenKind.Identifier) {
+      const id = cursor.next();
+      list.push({ kind: 'Parameter', name: id.value, nameRange: id.range, range: id.range });
+      end = id.range.end;
+      if (cursor.peek().kind === TokenKind.Punctuation && cursor.peek().value === ',') {
+        cursor.next();
+        continue;
+      }
+      break;
+    }
+    return { list, end };
+  }
+
+  // Legacy front-end: `function name(param1, param2)`
   if (cursor.peek().kind !== TokenKind.ParenOpen) return { list: [] };
   const open = cursor.next();
   const list: ParameterNode[] = [];
@@ -227,7 +251,9 @@ function parseClassLike(cursor: Cursor, kind: 'Class' | 'Record'): ClassNode {
   const nameToken = cursor.peek().kind === TokenKind.Identifier ? cursor.next() : null;
   const name = nameToken?.value ?? '(anonymous)';
   const nameRange = nameToken?.range ?? keyword.range;
-  const body = cursor.peek().kind === TokenKind.BraceOpen ? parseBlock(cursor) : null;
+  const body = cursor.peek().kind === TokenKind.BraceOpen
+    ? parseBlock(cursor)
+    : parseEndBlock(cursor);
   const end = body?.range.end ?? nameRange.end;
   return { kind, name, nameRange, body, range: { start: keyword.range.start, end } };
 }
@@ -313,6 +339,32 @@ function validateDelimiters(tokens: Token[], diagnostics: ZornuxDiagnostic[]): v
       range: unclosed.range,
     });
   }
+}
+
+/* ----- end-terminated blocks (real Zornux syntax) ----- */
+
+/** True when `token` is the `end` keyword — terminates function/class/if/etc. blocks. */
+function isEndKeyword(token: Token): boolean {
+  return token.kind === TokenKind.Keyword && token.value === 'end';
+}
+
+/**
+ * Parse an `end`-terminated block (real Zornux syntax). Called when the next
+ * token is NOT `{` — the body runs until the `end` keyword. Returns null when
+ * there is no body content and no `end` (e.g. a forward declaration).
+ */
+function parseEndBlock(cursor: Cursor): BlockNode | null {
+  const start = cursor.peek().range.start;
+  const body = parseStatements(cursor, true);
+  let end = start;
+  if (isEndKeyword(cursor.peek())) {
+    end = cursor.next().range.end;
+  } else if (body.length) {
+    end = body[body.length - 1].range.end;
+  } else {
+    return null;
+  }
+  return { kind: 'Block', body, range: { start, end } };
 }
 
 /* ----- helpers ----- */

@@ -64,6 +64,18 @@ describe('parseDatabaseBlocks', () => {
   test('no database blocks yields an empty list', () => {
     expect(parseDatabaseBlocks('class X\n    has y\nend\n')).toHaveLength(0);
   });
+
+  test('parses a postgres database block with a connection string', () => {
+    const source = `database ShopDb\n    provider postgres\n    connection "host=localhost dbname=shop"\n    table Products from Product\n    table Orders from Order\n    migrate on open\nend\n`;
+    const blocks = parseDatabaseBlocks(source);
+    expect(blocks).toHaveLength(1);
+    const db = blocks[0];
+    expect(db.name).toBe('ShopDb');
+    expect(db.provider).toBe('postgres');
+    expect(db.connection).toBe('host=localhost dbname=shop');
+    expect(db.tables).toHaveLength(2);
+    expect(db.migrateOnOpen).toBe(true);
+  });
 });
 
 describe('helpers', () => {
@@ -71,11 +83,17 @@ describe('helpers', () => {
     expect(isFileBackedProvider('sqlite')).toBe(true);
     expect(isFileBackedProvider('SQLite')).toBe(true);
     expect(isFileBackedProvider('memory')).toBe(false);
+    expect(isFileBackedProvider('postgres')).toBe(false);
   });
 
   test('describeTarget prefers the connection string, else summarises', () => {
     const blocks = parseDatabaseBlocks(MULTI);
     expect(describeTarget(blocks[0])).toBe('in-memory (ephemeral)');
     expect(describeTarget(blocks[1])).toBe('metrics.db');
+  });
+
+  test('describeTarget shows connection string for postgres', () => {
+    const blocks = parseDatabaseBlocks('database Db\n    provider postgres\n    connection "host=db.example.com dbname=app"\nend\n');
+    expect(describeTarget(blocks[0])).toBe('host=db.example.com dbname=app');
   });
 });

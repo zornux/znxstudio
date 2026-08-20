@@ -10,6 +10,29 @@ ZnxStudio is an enterprise IDE platform built first-class for **Zornux** and
 
 ## [Unreleased]
 
+### Added
+
+- **Zornux 1.8.0 compatibility** — updated capability negotiation, derive table,
+  and protocol contracts for all features introduced in Zornux 1.4.0 through 1.8.0
+  (named arguments, PostgreSQL provider, regex support, import aliases, mobile
+  codegen, query capture instrumentation).
+- **Real Zornux syntax** in the offline parser — `create` as a variable declarator,
+  `function name with param` parameter syntax, and `end`-terminated blocks for
+  functions, classes, and records.
+- **Offline stdlib completions** — 50+ standard library function names (trim,
+  regex, collections, conversion, math, date/time, crypto) suggested when the
+  language server is unavailable.
+- **New snippets** — database block (sqlite/postgres/memory), table, try/catch,
+  import/import-as/import-showing, test block.
+- Mobile diagnostic source labels (`zornux-mobile`, `zornux-mobile-build`) and
+  ZX1800–1899 "Mobile" code range in the diagnostic catalog.
+
+### Changed
+
+- Offline formatter now handles `end`-terminated blocks (previously brace-only).
+- All sample `.zx` files updated from legacy syntax (`define`/`let`/`say`/braces)
+  to canonical modern Zornux (`create`/`show`/`end`/`#` comments).
+
 ## [1.0.0] - 2026-08-19
 
 General availability release. Comprehensive security audit and reliability sweep
@@ -355,8 +378,8 @@ full unit suite — see [`docs/RC-1.0.md`](docs/RC-1.0.md).
   items that require certificates and macOS/Linux hardware. See
   [`docs/GA-1.0.md`](docs/GA-1.0.md) and [`docs/RELEASE.md`](docs/RELEASE.md).
 
-[Unreleased]: https://github.com/jay-m2/ZnxStudio/compare/v1.0.0...HEAD
-[1.0.0]: https://github.com/jay-m2/ZnxStudio/compare/v1.0.0-rc.2...v1.0.0
-[1.0.0-rc.2]: https://github.com/jay-m2/ZnxStudio/compare/v1.0.0-rc.1...v1.0.0-rc.2
-[1.0.0-rc.1]: https://github.com/jay-m2/ZnxStudio/compare/v1.0.0-rc.0...v1.0.0-rc.1
-[1.0.0-rc.0]: https://github.com/jay-m2/ZnxStudio/releases/tag/v1.0.0-rc.0
+[Unreleased]: https://github.com/zornux/znxstudio/compare/v1.0.0...HEAD
+[1.0.0]: https://github.com/zornux/znxstudio/compare/v1.0.0-rc.2...v1.0.0
+[1.0.0-rc.2]: https://github.com/zornux/znxstudio/compare/v1.0.0-rc.1...v1.0.0-rc.2
+[1.0.0-rc.1]: https://github.com/zornux/znxstudio/compare/v1.0.0-rc.0...v1.0.0-rc.1
+[1.0.0-rc.0]: https://github.com/zornux/znxstudio/releases/tag/v1.0.0-rc.0

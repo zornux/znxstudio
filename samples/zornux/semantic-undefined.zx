@@ -1,7 +1,7 @@
-// Undefined identifiers: 'total' resolves, 'missingValue' does not.
-define total to 0
+# Undefined identifiers: 'total' resolves, 'missingValue' does not.
+create total = 0
 
-function main() {
-  say total
-  say missingValue
-}
+function main
+  show total
+  show missingValue
+end

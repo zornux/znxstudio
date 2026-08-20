@@ -29,6 +29,7 @@ const CODE_RANGES: CodeRange[] = [
   { min: 1500, max: 1599, category: 'Testing' },
   { min: 1600, max: 1699, category: 'Docs' },
   { min: 1700, max: 1799, category: 'Debugger' },
+  { min: 1800, max: 1899, category: 'Mobile' },
   { min: 1900, max: 1999, category: 'Entry Point' },
   { min: 2000, max: 2099, category: 'Concurrency' },
   { min: 2100, max: 2199, category: 'Error Recovery' },
@@ -60,6 +61,8 @@ const SOURCE_LABELS: Record<string, string> = {
   'zornux-build': 'Build',
   'zornux-project': 'Project',
   'zornux-security': 'Security',
+  'zornux-mobile': 'Mobile',
+  'zornux-mobile-build': 'Mobile Build',
   zoijs: 'Zoijs',
 };
 

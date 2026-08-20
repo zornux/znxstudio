@@ -1,8 +1,8 @@
-// Duplicate declarations: flagged in the scope where they repeat.
-define count to 1
-define count to 2
+# Duplicate declarations: flagged in the scope where they repeat.
+create count = 1
+create count = 2
 
-function run() {
-  let temp is 0
-  let temp is 1
-}
+function run
+  create temp = 0
+  create temp = 1
+end

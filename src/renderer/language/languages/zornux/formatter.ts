@@ -24,6 +24,12 @@ export interface FormatOptions {
 const OPENERS = new Set([TokenKind.BraceOpen, TokenKind.ParenOpen, TokenKind.BracketOpen]);
 const CLOSERS = new Set([TokenKind.BraceClose, TokenKind.ParenClose, TokenKind.BracketClose]);
 
+const BLOCK_OPENERS = new Set([
+  'function', 'class', 'record', 'if', 'else', 'for', 'while', 'try', 'catch',
+  'finally', 'test', 'module', 'service', 'database', 'table', 'repository',
+  'policy', 'configuration', 'pipeline', 'step', 'job', 'task', 'transaction',
+]);
+
 export function formatZornux(source: string, options: FormatOptions): string {
   // Leave whitespace-only documents untouched.
   if (source.trim() === '') return source;
@@ -31,15 +37,24 @@ export function formatZornux(source: string, options: FormatOptions): string {
 
   const indentUnit = options.insertSpaces ? ' '.repeat(Math.max(1, options.tabSize)) : '\t';
 
+  const { tokens } = tokenize(source);
+
   // Group real delimiter tokens by line (strings/comments are single tokens,
   // so their inner braces never appear here).
   const delimitersByLine = new Map<number, Token[]>();
-  for (const token of tokenize(source).tokens) {
+  // Track `end`-keyword and block-opener keyword tokens by line.
+  const endKeywordLines = new Set<number>();
+  const blockOpenerLines = new Set<number>();
+  for (const token of tokens) {
     if (OPENERS.has(token.kind) || CLOSERS.has(token.kind)) {
       const line = token.range.start.line;
       const list = delimitersByLine.get(line) ?? [];
       list.push(token);
       delimitersByLine.set(line, list);
+    }
+    if (token.kind === TokenKind.Keyword) {
+      if (token.value === 'end') endKeywordLines.add(token.range.start.line);
+      if (BLOCK_OPENERS.has(token.value)) blockOpenerLines.add(token.range.start.line);
     }
   }
 
@@ -65,11 +80,18 @@ export function formatZornux(source: string, options: FormatOptions): string {
       else break;
     }
 
-    const indent = Math.max(0, depth - leadingClosers);
+    // `end` keyword on its own line dedents like a closing brace.
+    const isEndLine = endKeywordLines.has(i) && trimmed === 'end';
+    const dedent = leadingClosers + (isEndLine ? 1 : 0);
+
+    const indent = Math.max(0, depth - dedent);
     output.push(indent > 0 ? indentUnit.repeat(indent) + trimmed : trimmed);
 
     let net = 0;
     for (const token of delimitersByLine.get(i) ?? []) net += OPENERS.has(token.kind) ? 1 : -1;
+    // Block-opening keywords increase depth; `end` decreases it.
+    if (blockOpenerLines.has(i) && !delimitersByLine.has(i)) net++;
+    if (isEndLine) net--;
     depth = Math.max(0, depth + net);
   }
 

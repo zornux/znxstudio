@@ -37,7 +37,7 @@ import type {
 import type { LspProviderBackend } from '../lsp/LspProviders';
 import { ZORNUX_SEMANTIC_LEGEND } from '../lsp/semanticLegend';
 import { ZORNUX_MONARCH } from './zornux/grammar';
-import { ZORNUX_KEYWORDS } from './zornux/keywords';
+import { ZORNUX_KEYWORDS, ZORNUX_STDLIB } from './zornux/keywords';
 import { formatZornux } from './zornux/formatter';
 import { IncrementalTokenizer } from './zornux/incremental';
 import { parseZornux, type ZornuxParseResult } from './zornux/parser';
@@ -410,6 +410,9 @@ export class LanguageServiceZornux implements LanguageService {
       }));
       for (const keyword of ZORNUX_KEYWORDS) {
         items.push({ label: keyword, kind: 'keyword', detail: 'keyword', insertText: keyword });
+      }
+      for (const fn of ZORNUX_STDLIB) {
+        items.push({ label: fn, kind: 'function', detail: 'stdlib', insertText: fn });
       }
       return { items };
     },

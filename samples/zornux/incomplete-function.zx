@@ -1,6 +1,6 @@
-// Recoverable: the function block is never closed, but its symbols
-// (the import, the function, and the inner variable) should still appear.
+# Recoverable: the function block is never closed, but its symbols
+# (the import, the function, and the inner variable) should still appear.
 import util
 
-function start(config) {
-  let ready is true
+function start with config
+  create ready = true
