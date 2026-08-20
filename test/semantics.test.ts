@@ -69,6 +69,58 @@ describe('semantics: imports', () => {
   });
 });
 
+describe('semantics: block scoping', () => {
+  test('service/on blocks scope create declarations independently', () => {
+    const src = [
+      'import Shared.Envelope showing ok',
+      'service Api',
+      '  on GET "/"',
+      '    create rid = ok()',
+      '  end',
+      '  on POST "/items"',
+      '    create rid = ok()',
+      '  end',
+      'end',
+      '',
+    ].join('\n');
+    const dupes = model(src).diagnostics.filter((d) => d.code === 'zx-duplicate-declaration');
+    expect(dupes).toHaveLength(0);
+  });
+
+  test('if/for blocks inside handlers have their own scope', () => {
+    const src = [
+      'function process',
+      '  if true',
+      '    create x = 1',
+      '  end',
+      '  for each item in items',
+      '    create x = 2',
+      '  end',
+      'end',
+      '',
+    ].join('\n');
+    const dupes = model(src).diagnostics.filter((d) => d.code === 'zx-duplicate-declaration');
+    expect(dupes).toHaveLength(0);
+  });
+
+  test('import showing symbols resolve inside nested service blocks', () => {
+    const src = [
+      'import Utils showing helper, format',
+      'service TestApi',
+      '  on GET "/"',
+      '    create result = helper()',
+      '    create text = format(result)',
+      '  end',
+      'end',
+      '',
+    ].join('\n');
+    const unresolved = model(src).diagnostics.filter(
+      (d) => d.code === 'zx-undefined-identifier' && (d.message.includes("'helper'") || d.message.includes("'format'")),
+    );
+    expect(unresolved).toHaveLength(0);
+  });
+});
+
 describe('semantics: navigation', () => {
   const src = 'define shared to 10\nfunction a() {\n  say shared\n}\nfunction b() {\n  say shared\n}\n';
 

@@ -28,6 +28,7 @@ const BLOCK_OPENERS = new Set([
   'function', 'class', 'record', 'if', 'else', 'for', 'while', 'try', 'catch',
   'finally', 'test', 'module', 'service', 'database', 'table', 'repository',
   'policy', 'configuration', 'pipeline', 'step', 'job', 'task', 'transaction',
+  'on', 'repeat', 'app', 'screen',
 ]);
 
 export function formatZornux(source: string, options: FormatOptions): string {

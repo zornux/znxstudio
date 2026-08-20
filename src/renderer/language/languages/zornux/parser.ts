@@ -76,6 +76,13 @@ function parseStatements(cursor: Cursor, insideBlock: boolean): StatementNode[] 
   return statements;
 }
 
+const BLOCK_OPENING_KEYWORDS = new Set([
+  'service', 'on', 'pipeline', 'if', 'else', 'for', 'while', 'try', 'catch',
+  'finally', 'transaction', 'module', 'database', 'table', 'repository',
+  'policy', 'configuration', 'step', 'job', 'task', 'test', 'repeat',
+  'app', 'screen',
+]);
+
 function parseStatement(cursor: Cursor): StatementNode | null {
   const token = cursor.peek();
 
@@ -101,6 +108,9 @@ function parseStatement(cursor: Cursor): StatementNode | null {
       case 'let':
         return parseVariable(cursor, 'Variable');
       default:
+        if (BLOCK_OPENING_KEYWORDS.has(token.value)) {
+          return parseKeywordBlock(cursor);
+        }
         cursor.next();
         return null;
     }
@@ -342,6 +352,19 @@ function validateDelimiters(tokens: Token[], diagnostics: ZornuxDiagnostic[]): v
 }
 
 /* ----- end-terminated blocks (real Zornux syntax) ----- */
+
+/**
+ * Parse a keyword-initiated `end`-terminated block (service, on, if, for, etc.).
+ * Consumes the keyword and delegates to `parseEndBlock` for the body. Header
+ * tokens between the keyword and the first body statement are harmlessly parsed
+ * as null statements, while `create` declarations inside get their own scope.
+ */
+function parseKeywordBlock(cursor: Cursor): BlockNode | null {
+  const keyword = cursor.next();
+  const block = parseEndBlock(cursor);
+  if (!block) return null;
+  return { kind: 'Block', body: block.body, range: { start: keyword.range.start, end: block.range.end } };
+}
 
 /** True when `token` is the `end` keyword — terminates function/class/if/etc. blocks. */
 function isEndKeyword(token: Token): boolean {

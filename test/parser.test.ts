@@ -99,4 +99,54 @@ describe('parser: AST', () => {
       expect(imp.exposed.map((e) => e.name)).toEqual(['trim', 'split']);
     }
   });
+
+  test('service block creates scope for create declarations', () => {
+    const src = [
+      'service Api',
+      '  on GET "/"',
+      '    create rid = request_id()',
+      '  end',
+      '  on POST "/items"',
+      '    create rid = request_id()',
+      '  end',
+      'end',
+      '',
+    ].join('\n');
+    const { ast, diagnostics } = parseZornux(src);
+    const errors = diagnostics.filter((d) => d.severity === 'error');
+    expect(errors).toHaveLength(0);
+  });
+
+  test('if/for/while blocks create separate scopes', () => {
+    const src = [
+      'function process',
+      '  if true',
+      '    create x = 1',
+      '  end',
+      '  for each item in items',
+      '    create x = 2',
+      '  end',
+      'end',
+      '',
+    ].join('\n');
+    const { diagnostics } = parseZornux(src);
+    const errors = diagnostics.filter((d) => d.severity === 'error');
+    expect(errors).toHaveLength(0);
+  });
+
+  test('module block scopes imports for nested service', () => {
+    const src = [
+      'module Api.Test',
+      'import Utils showing helper',
+      'service TestApi',
+      '  on GET "/"',
+      '    create result = helper()',
+      '  end',
+      'end',
+      '',
+    ].join('\n');
+    const { ast, diagnostics } = parseZornux(src);
+    const errors = diagnostics.filter((d) => d.severity === 'error');
+    expect(errors).toHaveLength(0);
+  });
 });
