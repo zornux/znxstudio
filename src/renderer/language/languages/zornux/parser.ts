@@ -80,7 +80,7 @@ const BLOCK_OPENING_KEYWORDS = new Set([
   'service', 'on', 'pipeline', 'if', 'else', 'for', 'while', 'try', 'catch',
   'finally', 'transaction', 'module', 'database', 'table', 'repository',
   'policy', 'configuration', 'step', 'job', 'task', 'test', 'repeat',
-  'app', 'screen',
+  'app', 'screen', 'controller', 'web',
 ]);
 
 function parseStatement(cursor: Cursor): StatementNode | null {

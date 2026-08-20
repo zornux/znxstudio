@@ -21,6 +21,10 @@ export const ZORNUX_KEYWORDS: readonly string[] = [
   'repository', 'restrict', 'save', 'secure', 'select', 'send', 'service', 'show', 'showing',
   'start', 'status', 'step', 'table', 'task', 'test', 'than', 'throw', 'times',
   'to', 'transaction', 'true', 'try', 'update', 'use', 'using', 'while', 'with',
+  // Controller & web application (Phase 36).
+  'controller', 'web', 'require', 'current',
+  // HTTP verbs.
+  'GET', 'POST', 'PUT', 'PATCH', 'DELETE',
   // Legacy front-end tokens still used by the provisional parser/tests.
   'break', 'call', 'continue', 'define', 'elseif', 'export', 'foreach', 'let',
   'new', 'null', 'return', 'say', 'set', 'then', 'this', 'type', 'until', 'when',
