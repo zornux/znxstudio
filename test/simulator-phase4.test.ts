@@ -1356,10 +1356,8 @@ describe('Phase 4: Animation contracts', () => {
     let completed = false;
     scheduler.start({ id: 'test', duration: 100, onUpdate: (p) => { progress = p; }, onComplete: () => { completed = true; } });
     clock.advance(50);
-    scheduler.tick();
     expect(progress).toBeGreaterThan(0);
     clock.advance(60);
-    scheduler.tick();
     expect(completed).toBe(true);
     scheduler.dispose();
   });
@@ -1371,11 +1369,9 @@ describe('Phase 4: Animation contracts', () => {
     let updates = 0;
     scheduler.start({ id: 'cancel-test', duration: 200, onUpdate: () => { updates++; } });
     clock.advance(50);
-    scheduler.tick();
     const updatesBeforeCancel = updates;
     scheduler.cancel('cancel-test');
     clock.advance(100);
-    scheduler.tick();
     expect(updates).toBe(updatesBeforeCancel);
     scheduler.dispose();
   });
@@ -1389,7 +1385,6 @@ describe('Phase 4: Animation contracts', () => {
     scheduler.start({ id: 'a2', duration: 200, onUpdate: () => { u2++; } });
     scheduler.cancelAll();
     clock.advance(100);
-    scheduler.tick();
     expect(u1).toBe(0);
     expect(u2).toBe(0);
     scheduler.dispose();
