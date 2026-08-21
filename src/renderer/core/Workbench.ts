@@ -93,6 +93,7 @@ import { WizardsModule } from '../wizards/WizardsModule';
 import { RunBuildModule } from '../run/RunBuildModule';
 import { MobileModule } from '../mobile/MobileModule';
 import { DesignerModule } from '../designer/DesignerModule';
+import { SimulatorModule } from '../simulator/SimulatorModule';
 import { SettingsModule } from '../settings/SettingsModule';
 import { LayoutModule } from '../layout/LayoutModule';
 import { KeybindingsModule } from '../keybindings/KeybindingsModule';
@@ -268,6 +269,7 @@ export class Workbench {
       new RunBuildModule(),
       new MobileModule(),
       new DesignerModule(),
+      new SimulatorModule(),
       new CommandPaletteModule(),
       new SearchEverywhereModule(),
       new KeybindingsModule(),

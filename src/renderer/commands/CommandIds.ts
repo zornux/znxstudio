@@ -292,6 +292,47 @@ export const CommandIds = {
   DesignerSelectAll: 'znxstudio.designer.selectAll',
   DesignerAddScreen: 'znxstudio.designer.addScreen',
   DesignerToggleSource: 'znxstudio.designer.toggleSource',
+
+  // Znx Simulator
+  SimulatorOpen: 'znxstudio.simulator.open',
+  SimulatorClose: 'znxstudio.simulator.close',
+  SimulatorStart: 'znxstudio.simulator.start',
+  SimulatorStop: 'znxstudio.simulator.stop',
+  SimulatorRestart: 'znxstudio.simulator.restart',
+  SimulatorPause: 'znxstudio.simulator.pause',
+  SimulatorResume: 'znxstudio.simulator.resume',
+  SimulatorReset: 'znxstudio.simulator.reset',
+  SimulatorThemeToggle: 'znxstudio.simulator.themeToggle',
+  SimulatorOrientationToggle: 'znxstudio.simulator.orientationToggle',
+  SimulatorDeviceSelect: 'znxstudio.simulator.deviceSelect',
+  SimulatorConnectivity: 'znxstudio.simulator.connectivity',
+  SimulatorFontScaleUp: 'znxstudio.simulator.fontScaleUp',
+  SimulatorFontScaleDown: 'znxstudio.simulator.fontScaleDown',
+  SimulatorFontScaleReset: 'znxstudio.simulator.fontScaleReset',
+  SimulatorInspectToggle: 'znxstudio.simulator.inspectToggle',
+  SimulatorScreenshot: 'znxstudio.simulator.screenshot',
+  SimulatorTestRun: 'znxstudio.simulator.testRun',
+  SimulatorTestStop: 'znxstudio.simulator.testStop',
+  SimulatorHttpMode: 'znxstudio.simulator.httpMode',
+  SimulatorPermissionsReset: 'znxstudio.simulator.permissionsReset',
+  SimulatorStorageClear: 'znxstudio.simulator.storageClear',
+  SimulatorVerify: 'znxstudio.simulator.verify',
+  SimulatorParityReport: 'znxstudio.simulator.parityReport',
+
+  // Mobile Phase 5
+  MobileDashboard: 'znxstudio.mobile.dashboard',
+  MobileOnboarding: 'znxstudio.mobile.onboarding',
+  AndroidVerify: 'znxstudio.mobile.androidVerify',
+  MobileVerificationReport: 'znxstudio.mobile.verificationReport',
+
+  // Mobile Phase 6 — Android E2E + GA Certification
+  AndroidE2ERun: 'znxstudio.mobile.androidE2ERun',
+  AndroidE2EStop: 'znxstudio.mobile.androidE2EStop',
+  AndroidArtifactInspect: 'znxstudio.mobile.artifactInspect',
+  AndroidParityRun: 'znxstudio.mobile.parityRun',
+  AndroidSecurityAudit: 'znxstudio.mobile.securityAudit',
+  AndroidReleaseVerify: 'znxstudio.mobile.releaseVerify',
+  AndroidGACertify: 'znxstudio.mobile.gaCertify',
 } as const;
 
 export type CommandId = (typeof CommandIds)[keyof typeof CommandIds];

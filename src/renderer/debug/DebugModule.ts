@@ -125,6 +125,7 @@ export class DebugModule implements IModule, DebuggerService {
 
   private context!: ModuleContext;
   private surface!: HTMLElement;
+  private floatingToolbar: HTMLElement | null = null;
   private currentState: DebugState = 'idle';
   private keyListener: ((event: KeyboardEvent) => void) | undefined;
   private frames: StackFrame[] = [];
@@ -201,6 +202,8 @@ export class DebugModule implements IModule, DebuggerService {
 
   deactivate(): void {
     if (this.keyListener) document.removeEventListener('keydown', this.keyListener, true);
+    this.floatingToolbar?.remove();
+    this.floatingToolbar = null;
   }
 
   /**
@@ -288,9 +291,10 @@ export class DebugModule implements IModule, DebuggerService {
     const settings = this.context.services.tryGet<SettingsService>(ServiceKeys.Settings);
     const transport = String(settings?.get('zornux.debug.transport', 'stdio')) === 'tcp' ? 'tcp' : 'stdio';
     if (transport === 'tcp' && !(await this.remoteDebugAllowed())) return;
+    const displayName = program === '.' ? (info?.project?.name ?? info?.root.split(/[\\/]/).pop() ?? 'project') : program;
     await this.beginSession(
-      { program, compilerPath: compiler.path, workspaceRoot: info?.root ?? null, transport },
-      `launching ${program}${transport === 'tcp' ? ' (tcp)' : ''}`,
+      { program, compilerPath: compiler.path, workspaceRoot: info?.root ?? null, transport, stopOnEntry: true },
+      `launching ${displayName}${transport === 'tcp' ? ' (tcp)' : ''}`,
     );
   }
 
@@ -372,7 +376,7 @@ export class DebugModule implements IModule, DebuggerService {
     const bpCount = (result.breakpoints ?? []).reduce((n, s) => n + s.breakpoints.length, 0);
     const caps = result.capabilities ? Object.keys(result.capabilities).filter((k) => result.capabilities![k]) : [];
     this.append(`session started · ${bpCount} breakpoint(s) · capabilities: ${caps.join(', ') || 'none'}`);
-    this.setState('running');
+    if (this.currentState === 'starting') this.setState('running');
   }
 
   /**
@@ -698,6 +702,7 @@ export class DebugModule implements IModule, DebuggerService {
     this.context.commands.notifyEnablementChanged();
     this.render();
     this.updateStatus();
+    this.updateFloatingToolbar();
   }
 
   private append(line: string): void {
@@ -1026,18 +1031,58 @@ export class DebugModule implements IModule, DebuggerService {
     });
   }
 
+  private updateFloatingToolbar(): void {
+    const live = this.currentState !== 'idle' && this.currentState !== 'terminated' && this.currentState !== 'error';
+    if (!live) {
+      this.floatingToolbar?.remove();
+      this.floatingToolbar = null;
+      return;
+    }
+    if (!this.floatingToolbar) {
+      this.floatingToolbar = document.createElement('div');
+      this.floatingToolbar.className = 'znxstudio-debug-floating-toolbar';
+      document.body.appendChild(this.floatingToolbar);
+    }
+
+    const bar = this.floatingToolbar;
+    bar.replaceChildren();
+
+    const btn = (label: string, title: string, command: string): void => {
+      const el = document.createElement('button');
+      el.className = 'znxstudio-debug-float-btn';
+      el.textContent = label;
+      el.title = title;
+      el.setAttribute('aria-label', title);
+      el.disabled = !this.context.commands.isEnabled(command);
+      el.addEventListener('click', () => this.context.commands.executeFromUi(command));
+      bar.appendChild(el);
+    };
+
+    if (this.currentState === 'stopped') {
+      btn('▷', 'Continue (F5)', CommandIds.DebugContinue);
+      btn('⤼', 'Step Over (F10)', CommandIds.DebugStepOver);
+      btn('⤷', 'Step Into (F11)', CommandIds.DebugStepIn);
+      btn('⤴', 'Step Out (Shift+F11)', CommandIds.DebugStepOut);
+    } else {
+      btn('⏸', 'Pause (F6)', CommandIds.DebugPause);
+    }
+    btn('⏹', 'Stop (Shift+F5)', CommandIds.DebugStop);
+  }
+
   /* ----- helpers ----- */
   private resolveEntry(info: WorkspaceInfo | null): string | null {
+    if (!info) return null;
+    const isZornuxProject =
+      info.detectedType === 'zornux-api' || info.detectedType === 'zornux-zoijs-fullstack';
+    if (isZornuxProject) return '.';
+
     const editor = this.context.services.tryGet<EditorService>(ServiceKeys.Editor);
     const active = editor?.currentFile();
     const workspace = this.context.services.tryGet<WorkspaceService>(ServiceKeys.Workspace);
-    if (active && active.toLowerCase().endsWith('.zx') && workspace?.folderContaining(active)?.root === info?.root) {
+    if (active && active.toLowerCase().endsWith('.zx') && workspace?.folderContaining(active)?.root === info.root) {
       return active;
     }
-    if (!info) return null;
-    const targetsZornux =
-      info.detectedType === 'zornux-api' || info.detectedType === 'zornux-zoijs-fullstack';
-    return targetsZornux ? joinPath(joinPath(info.root, 'src'), 'main.zx') : null;
+    return null;
   }
 
   private workspaceInfo(): WorkspaceInfo | null {

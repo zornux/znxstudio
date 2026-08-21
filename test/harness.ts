@@ -38,6 +38,10 @@ export interface Matchers {
   toBeFalsy(): void;
   toBeGreaterThan(value: number): void;
   toBeLessThan(value: number): void;
+  toBeDefined(): void;
+  toBeUndefined(): void;
+  toBeGreaterThanOrEqual(value: number): void;
+  toBeLessThanOrEqual(value: number): void;
 }
 
 export function expect(actual: any): Matchers {
@@ -74,6 +78,18 @@ export function expect(actual: any): Matchers {
     },
     toBeLessThan(value) {
       if (!(actual < value)) fail(`expected ${format(actual)} < ${value}`);
+    },
+    toBeDefined() {
+      if (actual === undefined || actual === null) fail(`expected ${format(actual)} to be defined`);
+    },
+    toBeUndefined() {
+      if (actual !== undefined) fail(`expected ${format(actual)} to be undefined`);
+    },
+    toBeGreaterThanOrEqual(value) {
+      if (!(actual >= value)) fail(`expected ${format(actual)} >= ${value}`);
+    },
+    toBeLessThanOrEqual(value) {
+      if (!(actual <= value)) fail(`expected ${format(actual)} <= ${value}`);
     },
   };
 }

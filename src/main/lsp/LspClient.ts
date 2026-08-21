@@ -30,7 +30,9 @@ export class LspClient {
     this.child.stdout?.on('data', (chunk: Buffer) => {
       for (const message of this.decoder.push(chunk)) this.dispatch(message);
     });
-    this.child.stderr?.on('data', (chunk: Buffer) => (this.stderr += chunk.toString()));
+    this.child.stderr?.on('data', (chunk: Buffer) => {
+      this.stderr += chunk.toString();
+    });
     this.child.on('error', (error) => {
       this.failAll(error);
       this.exitHandler(null);

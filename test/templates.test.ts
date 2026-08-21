@@ -98,14 +98,14 @@ describe('renderTemplate substitution', () => {
     const rendered = renderTemplate(findTemplate('zornux-cli')!, 'Cli');
     const manifest = rendered.files.find((f) => f.path === 'znxstudio.project.json')!;
     const parsed = JSON.parse(manifest.content) as { scripts: Record<string, string> };
-    expect(parsed.scripts.run).toBe('zornux run src/main.zx');
+    expect(parsed.scripts.run).toBe('zornux run .');
   });
 
   test('the fullstack manifest runs Zornux for the backend and serves the web/ frontend', () => {
     const rendered = renderTemplate(findTemplate('zornux-zoijs-fullstack')!, 'Shop');
     const manifest = rendered.files.find((f) => f.path === 'znxstudio.project.json')!;
     const parsed = JSON.parse(manifest.content) as { scripts: Record<string, string> };
-    expect(parsed.scripts.run).toContain('zornux run');
+    expect(parsed.scripts.run).toContain('zornux serve');
     expect(parsed.scripts.serve).toContain('web');
   });
 

@@ -1,0 +1,715 @@
+/* Znx Simulator styles */
+
+.zsim-panel {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  overflow: hidden;
+  background: var(--znx-bg-secondary, #1e1e1e);
+  color: var(--znx-fg-primary, #d4d4d4);
+}
+
+.zsim-toolbar {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px 8px;
+  background: var(--znx-bg-tertiary, #252526);
+  border-bottom: 1px solid var(--znx-border, #3c3c3c);
+  flex-shrink: 0;
+}
+
+.zsim-toolbar-btn {
+  background: none;
+  border: 1px solid transparent;
+  color: var(--znx-fg-primary, #d4d4d4);
+  cursor: pointer;
+  padding: 4px 6px;
+  border-radius: 3px;
+  font-size: 14px;
+  line-height: 1;
+}
+.zsim-toolbar-btn:hover {
+  background: var(--znx-bg-hover, #2a2d2e);
+  border-color: var(--znx-border, #3c3c3c);
+}
+
+.zsim-toolbar-sep {
+  width: 1px;
+  height: 16px;
+  background: var(--znx-border, #3c3c3c);
+  margin: 0 4px;
+}
+
+.zsim-toolbar-state {
+  margin-left: auto;
+  font-size: 11px;
+  opacity: 0.7;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.zsim-device-container {
+  flex: 1;
+  overflow: auto;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 16px;
+}
+
+/* Viewport */
+.zsim-viewport {
+  width: 393px;
+  height: 852px;
+  overflow-y: auto;
+  overflow-x: hidden;
+  background: #ffffff;
+  color: #1a1a1a;
+  font-family: 'Roboto', system-ui, sans-serif;
+  font-size: 14px;
+  line-height: 1.5;
+  position: relative;
+  border-radius: 8px;
+  box-shadow: 0 4px 24px rgba(0, 0, 0, 0.3);
+}
+.zsim-viewport[data-theme='dark'] {
+  background: #121212;
+  color: #e0e0e0;
+}
+
+/* Screen */
+.zsim-screen {
+  min-height: 100%;
+  display: flex;
+  flex-direction: column;
+}
+
+.zsim-empty {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 100%;
+  opacity: 0.5;
+  font-style: italic;
+}
+
+/* Node base */
+.zsim-node {
+  position: relative;
+}
+.zsim-node.zsim-hidden { display: none; }
+.zsim-node.zsim-disabled { opacity: 0.5; pointer-events: none; }
+.zsim-node.zsim-highlighted {
+  outline: 2px solid #2196f3;
+  outline-offset: -1px;
+}
+
+/* Layout containers */
+.zsim-column { display: flex; flex-direction: column; }
+.zsim-row { display: flex; flex-direction: row; }
+.zsim-stack { display: grid; }
+.zsim-stack > .zsim-node { grid-area: 1 / 1; }
+.zsim-grid { display: grid; }
+.zsim-scroll { overflow: auto; flex: 1; min-height: 0; }
+.zsim-scrollable { overflow-y: auto; flex: 1; min-height: 0; }
+
+/* Text */
+.zsim-text-content { display: block; }
+
+/* Button */
+.zsim-button-inner {
+  background: var(--zsim-primary, #6200ee);
+  color: #fff;
+  border: none;
+  border-radius: 4px;
+  padding: 8px 16px;
+  font-size: 14px;
+  cursor: pointer;
+  width: 100%;
+}
+.zsim-button-inner:hover { opacity: 0.9; }
+.zsim-button-inner:disabled { opacity: 0.5; cursor: default; }
+.zsim-button-inner.zsim-loading { opacity: 0.7; cursor: wait; }
+.zsim-btn-secondary {
+  background: var(--zsim-secondary, #625B71);
+}
+.zsim-btn-outline {
+  background: transparent;
+  border: 1px solid var(--zsim-primary, #6200ee);
+  color: var(--zsim-primary, #6200ee);
+}
+.zsim-btn-text {
+  background: transparent;
+  color: var(--zsim-primary, #6200ee);
+  padding: 8px;
+}
+
+/* Input */
+.zsim-input-wrapper { display: flex; flex-direction: column; gap: 4px; }
+.zsim-input-label { font-size: 12px; font-weight: 500; }
+.zsim-input-field {
+  background: transparent;
+  border: 1px solid #888;
+  border-radius: 4px;
+  padding: 8px 12px;
+  font-size: 14px;
+  color: inherit;
+  width: 100%;
+  box-sizing: border-box;
+}
+.zsim-input-field:focus { border-color: var(--zsim-primary, #6200ee); outline: none; }
+.zsim-input-wrapper.zsim-error .zsim-input-field { border-color: #f44336; }
+.zsim-supporting-text { font-size: 11px; opacity: 0.7; }
+
+/* Checkbox / Switch */
+.zsim-checkbox, .zsim-switch {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  cursor: pointer;
+}
+.zsim-switch-track {
+  width: 36px;
+  height: 20px;
+  background: #888;
+  border-radius: 10px;
+  position: relative;
+  display: inline-block;
+}
+.zsim-switch input:checked + .zsim-switch-track { background: var(--zsim-primary, #6200ee); }
+
+/* Slider */
+.zsim-slider-wrapper { display: flex; align-items: center; gap: 8px; }
+.zsim-slider { width: 100%; flex: 1; }
+.zsim-slider-value { font-size: 12px; min-width: 28px; text-align: right; font-variant-numeric: tabular-nums; }
+
+/* Dropdown */
+.zsim-dropdown {
+  width: 100%;
+  padding: 8px;
+  border: 1px solid #888;
+  border-radius: 4px;
+  background: transparent;
+  color: inherit;
+  font-size: 14px;
+}
+.zsim-dropdown-label { font-size: 12px; font-weight: 500; margin-bottom: 4px; }
+
+/* Image */
+.zsim-image {
+  display: block;
+  width: 100%;
+  height: auto;
+  object-fit: contain;
+}
+.zsim-image-placeholder {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: #f0f0f0;
+  min-height: 100px;
+  border-radius: 4px;
+  color: #888;
+  font-size: 12px;
+}
+.zsim-viewport[data-theme='dark'] .zsim-image-placeholder { background: #2a2a2a; }
+
+/* Progress */
+.zsim-progress-bar {
+  height: 4px;
+  background: #e0e0e0;
+  border-radius: 2px;
+  overflow: hidden;
+}
+.zsim-progress-fill {
+  height: 100%;
+  background: var(--zsim-primary, #6200ee);
+  transition: width 0.3s;
+}
+.zsim-indeterminate .zsim-progress-fill {
+  animation: zsim-indeterminate 1.5s infinite linear;
+}
+@keyframes zsim-indeterminate {
+  0% { transform: translateX(-100%); }
+  100% { transform: translateX(100%); }
+}
+.zsim-spinner {
+  width: 24px;
+  height: 24px;
+  border: 3px solid #e0e0e0;
+  border-top-color: var(--zsim-primary, #6200ee);
+  border-radius: 50%;
+  animation: zsim-spin 0.8s linear infinite;
+}
+@keyframes zsim-spin {
+  to { transform: rotate(360deg); }
+}
+
+/* Divider */
+.zsim-divider {
+  border: none;
+  border-top: 1px solid #e0e0e0;
+  margin: 0;
+}
+
+/* Navbar */
+.zsim-navbar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 12px 16px;
+  background: var(--zsim-primary, #6200ee);
+  color: #fff;
+}
+.zsim-navbar-back {
+  background: none;
+  border: none;
+  color: inherit;
+  font-size: 18px;
+  cursor: pointer;
+  padding: 0 4px;
+}
+.zsim-navbar-title { font-size: 18px; font-weight: 500; }
+
+/* Bottom nav / Tabs */
+.zsim-bottomnav, .zsim-tabs {
+  display: flex;
+  border-top: 1px solid #e0e0e0;
+}
+.zsim-tabs { border-top: none; border-bottom: 1px solid #e0e0e0; }
+.zsim-tab-item {
+  flex: 1;
+  background: none;
+  border: none;
+  padding: 8px;
+  color: inherit;
+  cursor: pointer;
+  font-size: 12px;
+  text-align: center;
+  opacity: 0.6;
+}
+.zsim-tab-item.zsim-tab-active {
+  opacity: 1;
+  border-bottom: 2px solid var(--zsim-primary, #6200ee);
+}
+
+/* FAB */
+.zsim-fab {
+  position: absolute;
+  bottom: 16px;
+  right: 16px;
+  background: var(--zsim-primary, #6200ee);
+  color: #fff;
+  border: none;
+  border-radius: 16px;
+  padding: 12px 20px;
+  font-size: 16px;
+  cursor: pointer;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+}
+
+/* Card */
+.zsim-card {
+  background: var(--zsim-surface, #ffffff);
+  border-radius: 8px;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.12);
+  padding: 16px;
+}
+.zsim-viewport[data-theme='dark'] .zsim-card { background: #1e1e1e; }
+
+/* List */
+.zsim-list { display: flex; flex-direction: column; }
+.zsim-list-separator { border: none; border-top: 1px solid #e0e0e0; margin: 0; }
+
+/* Chip */
+.zsim-chip {
+  display: inline-flex;
+  align-items: center;
+  padding: 4px 12px;
+  border: 1px solid #888;
+  border-radius: 16px;
+  font-size: 13px;
+}
+.zsim-chip-selected {
+  background: var(--zsim-primary, #6200ee);
+  color: #fff;
+  border-color: transparent;
+}
+
+/* Badge */
+.zsim-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 20px;
+  height: 20px;
+  background: #f44336;
+  color: #fff;
+  border-radius: 10px;
+  font-size: 11px;
+  padding: 0 6px;
+}
+
+/* Snackbar */
+.zsim-snackbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  background: #323232;
+  color: #fff;
+  padding: 12px 16px;
+  border-radius: 4px;
+  font-size: 14px;
+}
+.zsim-snackbar-dismissed { opacity: 0.3; pointer-events: none; }
+.zsim-snackbar button {
+  background: none;
+  border: none;
+  color: var(--zsim-primary, #bb86fc);
+  cursor: pointer;
+  font-weight: 500;
+}
+
+/* Dialog */
+.zsim-dialog-overlay {
+  position: absolute;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 150;
+}
+.zsim-dialog {
+  background: var(--zsim-surface, #ffffff);
+  border-radius: 16px;
+  padding: 24px;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+  max-width: 300px;
+  width: 85%;
+}
+.zsim-dialog-title { font-size: 18px; font-weight: 500; margin-bottom: 16px; }
+.zsim-dialog-actions { display: flex; justify-content: flex-end; gap: 8px; margin-top: 16px; }
+.zsim-dialog-actions button {
+  background: none;
+  border: none;
+  color: var(--zsim-primary, #6200ee);
+  cursor: pointer;
+  padding: 8px 12px;
+  font-weight: 500;
+}
+.zsim-dialog-confirm { font-weight: 600; }
+
+/* Toast */
+.zsim-toast {
+  position: absolute;
+  bottom: 16px;
+  left: 50%;
+  transform: translateX(-50%) translateY(60px);
+  background: #323232;
+  color: #fff;
+  padding: 8px 16px;
+  border-radius: 4px;
+  font-size: 14px;
+  opacity: 0;
+  transition: opacity 0.3s, transform 0.3s;
+  pointer-events: none;
+  z-index: 100;
+}
+.zsim-toast.zsim-toast-visible {
+  opacity: 1;
+  transform: translateX(-50%) translateY(0);
+}
+
+/* Permission dialog overlay */
+.zsim-permission-dialog {
+  position: absolute;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 200;
+}
+.zsim-permission-card {
+  background: var(--zsim-surface, #ffffff);
+  border-radius: 16px;
+  padding: 24px;
+  max-width: 280px;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+}
+.zsim-permission-title { font-size: 18px; font-weight: 500; margin-bottom: 12px; }
+.zsim-permission-actions { display: flex; justify-content: flex-end; gap: 8px; margin-top: 16px; }
+.zsim-permission-actions button {
+  background: none;
+  border: none;
+  color: var(--zsim-primary, #6200ee);
+  cursor: pointer;
+  padding: 8px 12px;
+  font-weight: 500;
+}
+.zsim-permission-allow { font-weight: 600; }
+
+/* Reduced motion */
+.zsim-reduced-motion * { animation: none !important; transition: none !important; }
+
+/* Icon */
+.zsim-icon { font-size: 24px; }
+
+/* Inspector panel */
+.zsim-inspector-panel {
+  border-top: 1px solid var(--znx-border, #3c3c3c);
+  max-height: 40%;
+  overflow-y: auto;
+  flex-shrink: 0;
+}
+
+.zsim-inspector-tabs {
+  display: flex;
+  gap: 0;
+  border-bottom: 1px solid var(--znx-border, #3c3c3c);
+  background: var(--znx-bg-tertiary, #252526);
+}
+.zsim-inspector-tab {
+  background: none;
+  border: none;
+  color: var(--znx-fg-primary, #d4d4d4);
+  padding: 6px 12px;
+  cursor: pointer;
+  font-size: 11px;
+  opacity: 0.6;
+  border-bottom: 2px solid transparent;
+}
+.zsim-inspector-tab:hover { opacity: 0.9; }
+.zsim-inspector-tab-active {
+  opacity: 1;
+  border-bottom-color: var(--zsim-primary, #6200ee);
+}
+
+.zsim-inspector-content {
+  padding: 8px;
+  font-size: 12px;
+  font-family: 'Consolas', 'Courier New', monospace;
+}
+
+.zsim-inspector-pre {
+  white-space: pre-wrap;
+  word-break: break-word;
+  margin: 0;
+  font-size: 11px;
+  line-height: 1.4;
+}
+
+.zsim-inspect-header {
+  font-weight: 600;
+  font-size: 13px;
+  margin-bottom: 4px;
+}
+
+.zsim-source-link {
+  background: none;
+  border: none;
+  color: #4fc3f7;
+  cursor: pointer;
+  padding: 0;
+  font-size: 11px;
+  margin-bottom: 8px;
+  display: block;
+}
+.zsim-source-link:hover { text-decoration: underline; }
+
+.zsim-inspect-section {
+  font-weight: 600;
+  font-size: 11px;
+  margin-top: 8px;
+  margin-bottom: 2px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  opacity: 0.7;
+}
+
+.zsim-event-row {
+  padding: 2px 0;
+  font-size: 11px;
+  border-bottom: 1px solid var(--znx-border, #3c3c3c);
+}
+
+.zsim-perm-row {
+  padding: 4px 0;
+  font-size: 12px;
+}
+
+/* Navbar barStyle variants */
+.zsim-navbar-large { padding: 16px; }
+.zsim-navbar-large .zsim-navbar-title { font-size: 28px; font-weight: 700; }
+.zsim-navbar-medium .zsim-navbar-title { font-size: 22px; }
+
+/* FAB size variants */
+.zsim-fab-small { padding: 8px 12px; font-size: 14px; border-radius: 12px; }
+.zsim-fab-large { padding: 16px 28px; font-size: 20px; border-radius: 20px; }
+
+/* Chip style variants */
+.zsim-chip-filled { background: var(--zsim-primary, #6200ee); color: #fff; border-color: transparent; }
+.zsim-chip-outline { background: transparent; }
+.zsim-chip-elevated { background: var(--zsim-surface, #ffffff); box-shadow: 0 1px 3px rgba(0, 0, 0, 0.15); border-color: transparent; }
+
+/* Input icon layout */
+.zsim-input-row { display: flex; align-items: center; gap: 8px; }
+.zsim-input-icon { font-size: 20px; flex-shrink: 0; opacity: 0.6; }
+.zsim-input-leading { order: -1; }
+.zsim-input-trailing { order: 1; }
+
+/* Focusable focus ring */
+.zsim-focusable:focus { outline: 2px solid var(--zsim-primary, #6200ee); outline-offset: 2px; }
+
+/* Bottom nav / tab icon layout */
+.zsim-tab-icon { display: block; font-size: 20px; margin-bottom: 2px; }
+
+/* --- Phase 3: Viewport chrome --- */
+.zsim-device-frame {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  border: 2px solid var(--zsim-outline, #79747e);
+  border-radius: 16px;
+  overflow: hidden;
+  background: var(--zsim-surface, #ffffff);
+}
+
+/* Status bar */
+.zsim-status-bar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 0 12px;
+  height: 24px;
+  font-size: 11px;
+  font-weight: 600;
+  background: var(--zsim-surface, #ffffff);
+  color: var(--zsim-on-surface, #1c1b1f);
+  flex-shrink: 0;
+}
+.zsim-sb-left, .zsim-sb-right { display: flex; align-items: center; gap: 4px; }
+.zsim-sb-battery { font-size: 10px; }
+
+/* App container */
+.zsim-app-container {
+  flex: 1;
+  overflow: auto;
+  position: relative;
+}
+
+/* Navigation bar */
+.zsim-navigation-bar {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  height: 48px;
+  background: var(--zsim-surface, #ffffff);
+  flex-shrink: 0;
+}
+.zsim-navbar-three-button {
+  display: flex;
+  gap: 48px;
+  font-size: 18px;
+  color: var(--zsim-on-surface-variant, #49454f);
+}
+.zsim-navbar-three-button span { cursor: pointer; user-select: none; }
+.zsim-navbar-gesture-indicator {
+  width: 134px;
+  height: 5px;
+  border-radius: 3px;
+  background: var(--zsim-on-surface, #1c1b1f);
+  opacity: 0.4;
+  margin-top: auto;
+  margin-bottom: 8px;
+}
+
+/* Keyboard region */
+.zsim-keyboard-region {
+  height: 0;
+  background: var(--zsim-surface-variant, #e7e0ec);
+  transition: height 0.2s ease;
+  overflow: hidden;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 12px;
+  color: var(--zsim-on-surface-variant, #49454f);
+  flex-shrink: 0;
+}
+.zsim-keyboard-region.zsim-keyboard-visible { height: 260px; }
+
+/* Error and compile banners */
+.zsim-error-banner {
+  position: absolute;
+  bottom: 56px;
+  left: 8px;
+  right: 8px;
+  background: var(--zsim-error, #b3261e);
+  color: #ffffff;
+  padding: 8px 12px;
+  border-radius: 8px;
+  font-size: 13px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  z-index: 100;
+}
+.zsim-error-banner-actions { display: flex; gap: 8px; margin-left: auto; flex-shrink: 0; }
+.zsim-error-banner-actions button {
+  background: rgba(255,255,255,0.2);
+  border: none;
+  color: #ffffff;
+  padding: 4px 10px;
+  border-radius: 4px;
+  font-size: 12px;
+  cursor: pointer;
+}
+.zsim-compile-banner {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 8px;
+  background: var(--zsim-error-container, #f9dedc);
+  color: var(--zsim-on-error-container, #410e0b);
+  font-size: 13px;
+  flex-shrink: 0;
+}
+
+/* Touch markers */
+.zsim-touch-marker {
+  position: absolute;
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  background: rgba(98, 0, 238, 0.3);
+  border: 2px solid rgba(98, 0, 238, 0.6);
+  pointer-events: none;
+  transform: translate(-50%, -50%);
+  z-index: 200;
+  animation: zsim-touch-fade 0.6s ease-out forwards;
+}
+@keyframes zsim-touch-fade {
+  0% { opacity: 1; transform: translate(-50%, -50%) scale(1); }
+  100% { opacity: 0; transform: translate(-50%, -50%) scale(1.5); }
+}
+
+/* Transition overlay */
+.zsim-transition-overlay {
+  position: absolute;
+  inset: 0;
+  z-index: 50;
+  pointer-events: none;
+}
+
+/* Inspector overlay */
+.zsim-inspector-highlight {
+  position: absolute;
+  border: 2px solid rgba(98, 0, 238, 0.7);
+  background: rgba(98, 0, 238, 0.1);
+  pointer-events: none;
+  z-index: 150;
+  border-radius: 4px;
+}

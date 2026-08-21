@@ -169,6 +169,10 @@ import './fssecurity.test';
 import './zornuxRuntime.test';
 import './mobile.test';
 import './designer.test';
+import './simulator.test';
+import './simulator-phase4.test';
+import './simulator-phase5.test';
+import './android-phase6.test';
 import { runAll } from './harness';
 
 console.log('\nZornux language front-end — test suite');

@@ -1,0 +1,14 @@
+// Counter — Phase 4 fixture: basic state management, increment, decrement, reset
+app Counter {
+  start: Main
+
+  screen Main {
+    state count: whole = 0
+
+    text { content: "Counter App"; size: heading }
+    text { content: "Count: {count}" }
+    button { label: "Increment"; on tapped { set count to count + 1 } }
+    button { label: "Decrement"; on tapped { set count to count - 1 } }
+    button { label: "Reset"; style: outline; on tapped { set count to 0 } }
+  }
+}

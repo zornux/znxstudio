@@ -1,0 +1,15 @@
+// Todo — Phase 4 fixture: list operations, text input, item selection
+app Todo {
+  start: Home
+
+  screen Home {
+    state todos: list = ["Buy milk", "Walk dog"]
+    state newTodo: text = ""
+    state selectedIndex: whole = -1
+
+    text { content: "Todo List"; size: heading }
+    input { placeholder: "New todo..."; binding: newTodo }
+    button { label: "Add"; on tapped { set newTodo to "" } }
+    list { binding: todos; separator: true; on item_tapped { set selectedIndex to _index } }
+  }
+}

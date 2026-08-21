@@ -1,0 +1,25 @@
+// Forms — Phase 4 fixture: all input types, checkbox, switch, slider, dropdown
+app Forms {
+  start: Main
+
+  screen Main {
+    state name: text = ""
+    state email: text = ""
+    state age: whole = 0
+    state bio: text = ""
+    state agree: truth = false
+    state notify: truth = true
+    state volume: whole = 50
+    state country: text = ""
+
+    input { label: "Name"; binding: name; leadingIcon: person }
+    input { label: "Email"; inputType: email; binding: email }
+    input { label: "Age"; inputType: number; binding: age }
+    input { label: "Bio"; inputType: multiline; binding: bio }
+    checkbox { label: "I agree"; binding: agree }
+    switch { label: "Notifications"; binding: notify }
+    slider { min: 0; max: 100; step: 1; binding: volume; showValue: true }
+    dropdown { label: "Country"; items: "USA,UK,Germany,Japan"; binding: country }
+    button { label: "Submit"; on tapped { show "Form submitted" } }
+  }
+}

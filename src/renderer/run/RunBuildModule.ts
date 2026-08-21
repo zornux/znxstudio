@@ -310,19 +310,20 @@ export class RunBuildModule implements IModule {
     if (compiler && compilerInfo?.available && compilerInfo.path && entry) {
       // Thread the workspace's active environment profile (Phase 5F) into run.
       const profile = this.context.services.tryGet<ProfileService>(ServiceKeys.Profile)?.active();
+      const verb = info.detectedType === 'zornux-api' ? 'serve' : 'run';
 
       // Prefer a real PTY terminal tab: it has interactive stdin, so a program
       // that calls read_line(...) can actually be typed into. The Output panel is
       // one-way, so fall back to it only when the PTY is unavailable.
       const terminal = this.context.services.tryGet<TerminalRunnerService>(ServiceKeys.Terminal);
       if (terminal) {
-        const args = ['run', entry, ...(profile ? ['--profile', profile] : [])];
+        const args = [verb, entry, ...(profile ? ['--profile', profile] : [])];
         try {
           await terminal.runCommand({
             command: compilerInfo.path,
             args,
             cwd: info.root,
-            label: `Run ${baseName(entry)}`,
+            label: `Run ${entry === '.' ? info.project?.name ?? baseName(info.root) : baseName(entry)}`,
           });
           this.status()?.setItem('runbuild.status', {
             text: '▶ running…',
@@ -337,8 +338,8 @@ export class RunBuildModule implements IModule {
       }
 
       const profileArg = profile ? ` --profile "${profile}"` : '';
-      const command = `"${compilerInfo.path}" run "${entry}"${profileArg}`;
-      await this.streamTask('run', command, info.root, `> zornux run ${entry}${profileArg}`);
+      const command = `"${compilerInfo.path}" ${verb} "${entry}"${profileArg}`;
+      await this.streamTask(verb, command, info.root, `> zornux ${verb} ${entry}${profileArg}`);
       return;
     }
     if (info.project?.scripts?.run) {
@@ -489,16 +490,17 @@ export class RunBuildModule implements IModule {
 
   /* ----- helpers ----- */
   private zornuxEntry(info: WorkspaceInfo): string | null {
+    const isZornuxProject =
+      info.detectedType === 'zornux-api' || info.detectedType === 'zornux-zoijs-fullstack' ||
+      info.detectedType === 'zornux-mobile';
+    if (isZornuxProject) return '.';
+
     const editor = this.context.services.tryGet<EditorService>(ServiceKeys.Editor);
     const active = editor?.currentFile();
     const workspace = this.context.services.tryGet<WorkspaceService>(ServiceKeys.Workspace);
     if (active && active.toLowerCase().endsWith('.zx') && workspace?.folderContaining(active)?.root === info.root) {
       return active;
     }
-    const targetsZornux =
-      info.detectedType === 'zornux-api' || info.detectedType === 'zornux-zoijs-fullstack' ||
-      info.detectedType === 'zornux-mobile';
-    if (targetsZornux) return joinPath(joinPath(info.root, 'src'), 'main.zx');
     return null;
   }
 

@@ -10,7 +10,8 @@ export function registerLspIpc(): void {
   const lsp = new LanguageServerService();
   const trust = sharedWorkspaceTrust();
 
-  ipcMain.handle(IpcChannels.LspStart, (event, config: LspStartConfig) => {
+  ipcMain.handle(IpcChannels.LspStart, async (event, config: LspStartConfig) => {
+    await trust.load();
     trust.assertTrusted('Language Server');
     if (config.rootPath) {
       const safe = confineToRoots(config.rootPath, trust.getRoots());

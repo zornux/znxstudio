@@ -113,7 +113,10 @@ export class DebugService {
       }
 
       await client.sendRequest('configurationDone', {});
-      const launch = await client.sendRequest('launch', { program: config.program });
+      const launch = await client.sendRequest('launch', {
+        program: config.program,
+        ...(config.stopOnEntry ? { stopOnEntry: true } : {}),
+      });
       if (!launch.success) {
         return this.fail(launch.message || client.stderrText() || 'launch failed');
       }

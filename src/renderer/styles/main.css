@@ -3523,6 +3523,41 @@ button.znxstudio-solution-action:focus-visible {
   outline-offset: 1px;
 }
 .znxstudio-debug-btn:disabled { cursor: default; opacity: 0.45; }
+
+/* Floating debug toolbar — anchored top-center over the editor during a live session. */
+.znxstudio-debug-floating-toolbar {
+  position: fixed;
+  top: 36px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 500;
+  display: flex;
+  gap: 2px;
+  padding: 3px 6px;
+  background: var(--z-bg-panel);
+  border: 1px solid var(--z-border);
+  border-radius: 6px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.35);
+}
+.znxstudio-debug-float-btn {
+  font: inherit;
+  font-size: 16px;
+  line-height: 1;
+  width: 30px;
+  height: 26px;
+  padding: 0;
+  border: none;
+  border-radius: 4px;
+  background: transparent;
+  color: var(--z-fg);
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+.znxstudio-debug-float-btn:hover { background: var(--z-bg-hover); }
+.znxstudio-debug-float-btn:focus-visible { outline: 1px solid var(--z-accent); outline-offset: -1px; }
+.znxstudio-debug-float-btn:disabled { cursor: default; opacity: 0.35; }
 .znxstudio-debug-btn.is-text {
   min-height: 20px;
   padding: 0 4px;

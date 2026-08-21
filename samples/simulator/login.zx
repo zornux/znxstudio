@@ -1,0 +1,28 @@
+// Login — Phase 4 fixture: multi-screen, form validation, HTTP, auth flow
+app Login {
+  start: Login
+
+  screen Login {
+    state email: text = ""
+    state password: text = ""
+    state error: text = ""
+    state loading: truth = false
+
+    text { content: "Sign In"; size: heading }
+    input { label: "Email"; inputType: email; binding: email }
+    input { label: "Password"; inputType: password; binding: password }
+    text { content: "{error}"; color: error }
+    button {
+      label: "Sign In"
+      on tapped {
+        set loading to true
+        fetch POST /api/login
+      }
+    }
+  }
+
+  screen Home {
+    state welcome: text = "Welcome!"
+    text { content: "{welcome}"; size: heading }
+  }
+}

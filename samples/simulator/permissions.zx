@@ -1,0 +1,16 @@
+// Permissions — Phase 4 fixture: permission request flow, status display
+app Permissions {
+  start: Main
+  permissions: camera, location, notifications
+  capabilities: camera, location
+
+  screen Main {
+    state cameraStatus: text = "not_requested"
+    state locationStatus: text = "not_requested"
+
+    button { label: "Request Camera"; on tapped { request camera } }
+    button { label: "Request Location"; on tapped { request location } }
+    text { content: "Camera: {cameraStatus}" }
+    text { content: "Location: {locationStatus}" }
+  }
+}

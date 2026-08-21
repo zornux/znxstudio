@@ -303,6 +303,8 @@ export interface DebugLaunchConfig {
    * and ignore it.
    */
   exceptionFilters?: string[];
+  /** Pause at the first statement of the program (like VS Code's stopOnEntry). */
+  stopOnEntry?: boolean;
 }
 
 export interface DebugStartResult {
@@ -1169,5 +1171,10 @@ export interface ZnxStudioApi {
   agentExec: {
     run(request: import('./ai/agentExec').AgentExecRequest): Promise<import('./ai/agentExec').AgentExecResult>;
     cancel(execId: string): void;
+  };
+  simulator: {
+    compile(workspaceRoot: string): Promise<import('./simulatorTypes').SimulatorCompileResult>;
+    screenshot(request: import('./simulatorTypes').ScreenshotRequest): Promise<import('./simulatorTypes').ScreenshotResult>;
+    onSessionState(callback: (state: string) => void): () => void;
   };
 }

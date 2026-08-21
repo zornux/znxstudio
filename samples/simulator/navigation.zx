@@ -1,0 +1,22 @@
+// Navigation — Phase 4 fixture: multi-screen navigation, back stack
+app Navigation {
+  start: Home
+
+  screen Home {
+    navbar { title: "Home" }
+    button { label: "Go to Screen A"; on tapped { go to ScreenA } }
+    button { label: "Go to Screen B"; on tapped { go to ScreenB } }
+  }
+
+  screen ScreenA {
+    state visited: truth = true
+    navbar { title: "Screen A"; showBack: true; on back_tapped { go back } }
+    text { content: "This is Screen A" }
+    button { label: "Go B"; on tapped { go to ScreenB } }
+  }
+
+  screen ScreenB {
+    navbar { title: "Screen B"; showBack: true; on back_tapped { go back } }
+    text { content: "This is Screen B" }
+  }
+}

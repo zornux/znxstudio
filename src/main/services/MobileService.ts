@@ -252,17 +252,22 @@ export class MobileService {
     const child = this.runProcess;
     if (!child) return;
 
-    ++this.generation;
+    const gen = ++this.generation;
     this.runProcess = null;
     this.runDeviceId = null;
     this.setSessionState('stopping');
 
+    const settle = () => {
+      if (this.generation === gen) this.setSessionState('idle');
+    };
+
     if (process.platform === 'win32' && child.pid !== undefined) {
-      execFile('taskkill', ['/pid', String(child.pid), '/T', '/F'], () => {});
+      execFile('taskkill', ['/pid', String(child.pid), '/T', '/F'], () => settle());
     } else {
+      child.once('close', () => settle());
       child.kill();
+      setTimeout(() => settle(), 3000);
     }
-    this.setSessionState('idle');
   }
 
   /** Current run status. */
@@ -289,6 +294,7 @@ export class MobileService {
     this.debugDeviceId = config.deviceId;
     this.debugState = 'launching';
     this.debugSender = sender;
+    this.logSender = sender;
     const gen = ++this.generation;
     this.setSessionState('debugging', sender);
 
@@ -354,17 +360,23 @@ export class MobileService {
     const child = this.debugProcess;
     if (!child) return;
 
-    ++this.generation;
+    const gen = ++this.generation;
     this.debugProcess = null;
     this.debugDeviceId = null;
     this.debugState = 'idle';
+    this.setSessionState('stopping');
+
+    const settle = () => {
+      if (this.generation === gen) this.setSessionState('idle');
+    };
 
     if (process.platform === 'win32' && child.pid !== undefined) {
-      execFile('taskkill', ['/pid', String(child.pid), '/T', '/F'], () => {});
+      execFile('taskkill', ['/pid', String(child.pid), '/T', '/F'], () => settle());
     } else {
+      child.once('close', () => settle());
       child.kill();
+      setTimeout(() => settle(), 3000);
     }
-    this.setSessionState('idle');
   }
 
   /** Current debug status. */
@@ -894,17 +906,26 @@ export class MobileService {
   private androidEnv(): NodeJS.ProcessEnv {
     const root = this.androidSdkRoot();
     if (!root) return { ...process.env };
+    const sep = process.platform === 'win32' ? ';' : ':';
     const additions = [
       join(root, 'platform-tools'),
       join(root, 'emulator'),
       join(root, 'cmdline-tools', 'latest', 'bin'),
     ];
-    return {
+    const env: NodeJS.ProcessEnv = {
       ...process.env,
       ANDROID_HOME: root,
       ANDROID_SDK_ROOT: root,
-      PATH: `${additions.join(process.platform === 'win32' ? ';' : ':')}${process.platform === 'win32' ? ';' : ':'}${process.env.PATH ?? ''}`,
+      PATH: `${additions.join(sep)}${sep}${process.env.PATH ?? ''}`,
     };
+    const managedJdk = join(homedir(), '.zornux', 'toolchains', 'android', 'jdk');
+    if (existsSync(join(managedJdk, 'bin', process.platform === 'win32' ? 'java.exe' : 'java'))) {
+      env.JAVA_HOME = managedJdk;
+      env.PATH = `${join(managedJdk, 'bin')}${sep}${env.PATH}`;
+    } else if (process.env.JAVA_HOME) {
+      env.JAVA_HOME = process.env.JAVA_HOME;
+    }
+    return env;
   }
 
   private execFile(command: string, args: string[]): Promise<ExecResult> {

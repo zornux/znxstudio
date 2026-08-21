@@ -376,6 +376,7 @@ export class MobileModule implements IModule {
     logActions.style.gap = '4px';
     logActions.appendChild(this.createButton('Clear', () => {
       if (this.logOutputEl) this.logOutputEl.textContent = '';
+      this.logLineCount = 0;
     }));
     logSection.appendChild(logActions);
     const logOutput = document.createElement('pre');
@@ -1511,12 +1512,14 @@ export class MobileModule implements IModule {
     if (!this.projectConfig) return;
 
     const cfg = this.projectConfig;
-    const fields = [
+    const fields: [string, string][] = [
       ['Application ID', cfg.applicationId],
       ['Version', cfg.version],
       ['Min SDK', String(cfg.minSdk)],
       ['Target SDK', String(cfg.targetSdk)],
+      ['Compile SDK', String(cfg.compileSdk)],
     ];
+    if (cfg.versionCode != null) fields.push(['Version Code', String(cfg.versionCode)]);
 
     for (const [label, value] of fields) {
       const row = document.createElement('div');
@@ -1611,6 +1614,8 @@ export class MobileModule implements IModule {
 
   private logBuffer: string[] = [];
   private logFlushScheduled = false;
+  private logLineCount = 0;
+  private static readonly MAX_LOG_LINES = 10_000;
 
   private appendLog(line: string): void {
     if (!this.logOutputEl) return;
@@ -1619,8 +1624,15 @@ export class MobileModule implements IModule {
       this.logFlushScheduled = true;
       requestAnimationFrame(() => {
         if (this.logOutputEl && this.logBuffer.length > 0) {
+          this.logLineCount += this.logBuffer.length;
           this.logOutputEl.textContent += this.logBuffer.join('\n') + '\n';
           this.logBuffer.length = 0;
+          if (this.logLineCount > MobileModule.MAX_LOG_LINES) {
+            const lines = this.logOutputEl.textContent!.split('\n');
+            const trimmed = lines.slice(lines.length - MobileModule.MAX_LOG_LINES);
+            this.logOutputEl.textContent = trimmed.join('\n');
+            this.logLineCount = trimmed.length;
+          }
           this.logOutputEl.scrollTop = this.logOutputEl.scrollHeight;
         }
         this.logFlushScheduled = false;
@@ -1630,10 +1642,12 @@ export class MobileModule implements IModule {
 
   /* ===== Helpers ===== */
 
-  private navigateToSource(file: string, _line?: number): void {
+  private navigateToSource(file: string, line?: number): void {
     const editor = this.context.services.tryGet<EditorService>(ServiceKeys.Editor);
     if (editor && file) {
-      void editor.openFile(file);
+      void editor.openFile(file).then(() => {
+        if (line != null) editor.revealPosition(line - 1, 0);
+      });
     }
   }
 

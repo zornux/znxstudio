@@ -198,6 +198,12 @@ export const IpcChannels = {
   AndroidToolchainSdkInstall: 'toolchain:android-sdk-install',
   AndroidToolchainUpdate: 'toolchain:android-update',
 
+  // Znx Simulator (renderer-side runtime — no main-process execution needed,
+  // but these channels coordinate compile requests and screenshot capture)
+  SimulatorCompile: 'simulator:compile',
+  SimulatorScreenshot: 'simulator:screenshot',
+  SimulatorSessionState: 'simulator:session-state',
+
   // Language server (LSP)
   LspStart: 'lsp:start',
   LspRequest: 'lsp:request',

@@ -48,11 +48,11 @@ export interface RenderedTemplate {
 function scriptsFor(type: WorkspaceType): Record<string, string> {
   switch (type) {
     case 'zornux-api':
-      return { run: 'zornux run src/main.zx' };
+      return { run: 'zornux serve .' };
     case 'zornux-mobile':
       return { run: 'zornux mobile run android', build: 'zornux mobile build android' };
     case 'zornux-zoijs-fullstack':
-      return { run: 'zornux run src/main.zx', serve: 'python3 -m http.server 8000 --directory web' };
+      return { run: 'zornux serve .', serve: 'python3 -m http.server 8000 --directory web' };
     case 'zoijs-frontend':
       return { serve: 'python3 -m http.server 8000' };
     default:
@@ -76,12 +76,12 @@ function workspaceDirsFor(type: WorkspaceType): { sourceDirs: string[]; generate
   }
 }
 
-function znxstudioManifest(name: string, type: WorkspaceType, langs: string[], frameworks: string[]): string {
+function znxstudioManifest(name: string, type: WorkspaceType, langs: string[], frameworks: string[], scriptsOverride?: Record<string, string>): string {
   const manifest = {
     name,
     type,
     version: '0.1.0',
-    scripts: scriptsFor(type),
+    scripts: scriptsOverride ?? scriptsFor(type),
     languageTargets: langs,
     frameworkTargets: frameworks,
     extensionRequirements: [],
@@ -320,7 +320,7 @@ export const PROJECT_TEMPLATES: readonly ProjectTemplate[] = [
         path: 'zornux.project',
         content:
           'name = ${name}\nversion = 0.1.0\ntype = mobile\nentry = main.zx\n\n' +
-          'android.application_id = com.example.${androidName}\nandroid.min_sdk = 24\nandroid.target_sdk = 34\n',
+          'android.application_id = com.example.${androidName}\nandroid.min_sdk = 24\nandroid.target_sdk = 35\nandroid.compile_sdk = 35\n',
       },
       {
         path: 'main.zx',
@@ -343,7 +343,7 @@ export const PROJECT_TEMPLATES: readonly ProjectTemplate[] = [
         path: 'zornux.project',
         content:
           'name = ${name}\nversion = 0.1.0\ntype = mobile\nentry = main.zx\n\n' +
-          'android.application_id = com.example.${androidName}\nandroid.min_sdk = 24\nandroid.target_sdk = 34\n',
+          'android.application_id = com.example.${androidName}\nandroid.min_sdk = 24\nandroid.target_sdk = 35\nandroid.compile_sdk = 35\n',
       },
       {
         path: 'main.zx',
@@ -370,7 +370,7 @@ export const PROJECT_TEMPLATES: readonly ProjectTemplate[] = [
         path: 'zornux.project',
         content:
           'name = ${name}\nversion = 0.1.0\ntype = mobile\nentry = main.zx\n\n' +
-          'android.application_id = com.example.${androidName}\nandroid.min_sdk = 24\nandroid.target_sdk = 34\n',
+          'android.application_id = com.example.${androidName}\nandroid.min_sdk = 24\nandroid.target_sdk = 35\nandroid.compile_sdk = 35\n',
       },
       {
         path: 'main.zx',
@@ -420,7 +420,7 @@ export const PROJECT_TEMPLATES: readonly ProjectTemplate[] = [
     runZornuxInit: true,
     files: [
       { path: 'src/main.zx', content: 'show "Hello from ${name}!"\n\ncreate name = read_line("What is your name? ")\nshow "Nice to meet you, " + name + "."\n' },
-      { path: 'znxstudio.project.json', content: '${znxstudio-api}' },
+      { path: 'znxstudio.project.json', content: '${znxstudio-cli}' },
       README('${name}', 'A Zornux command-line application.'),
     ],
   },
@@ -433,8 +433,8 @@ export const PROJECT_TEMPLATES: readonly ProjectTemplate[] = [
     runZornuxInit: true,
     files: [
       ...todoApiFiles(),
-      { path: 'zornux.config.zxcfg', content: 'listen_port = 8080\n' },
-      { path: 'zornux.config.production.zxcfg', content: 'listen_port = 80\n' },
+      { path: 'zornux.config.zxcfg', content: 'listen_port is 8080\n' },
+      { path: 'zornux.config.production.zxcfg', content: 'listen_port is 80\n' },
       { path: 'znxstudio.project.json', content: '${znxstudio-api}' },
       README('${name}', 'A Zornux Web API example. Demonstrates layered architecture, validation, dependency injection, and configuration. Use the Profiles view to switch environments.'),
     ],
@@ -482,6 +482,7 @@ export function findTemplate(id: string): ProjectTemplate | undefined {
 export function renderTemplate(template: ProjectTemplate, name: string): RenderedTemplate {
   const macros: Record<string, string> = {
     'znxstudio-api': znxstudioManifest(name, 'zornux-api', ['zornux'], []),
+    'znxstudio-cli': znxstudioManifest(name, 'zornux-api', ['zornux'], [], { run: 'zornux run .' }),
     'znxstudio-mobile': znxstudioManifest(name, 'zornux-mobile', ['zornux'], []),
     'znxstudio-fullstack': znxstudioManifest(name, 'zornux-zoijs-fullstack', ['zornux', 'javascript'], ['zoijs']),
     'znxstudio-zoijs': znxstudioManifest(name, 'zoijs-frontend', ['javascript'], ['zoijs']),

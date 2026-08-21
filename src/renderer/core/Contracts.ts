@@ -102,6 +102,7 @@ export const ServiceKeys = {
   InputBox: 'znxstudio.service.inputBox',
   Terminal: 'znxstudio.service.terminal',
   AiContext: 'znxstudio.service.aiContext',
+  Simulator: 'znxstudio.service.simulator',
 } as const;
 
 /** A program to run in a new integrated-terminal tab. */
@@ -955,4 +956,16 @@ export interface ProfileService {
   setActive(profile: EnvironmentProfile): void;
   list(): readonly EnvironmentProfile[];
   readonly onDidChangeProfile: Event<EnvironmentProfile>;
+}
+
+export interface SimulatorService {
+  readonly state: import('../../shared/simulatorTypes').SimulatorSessionState;
+  start(app: import('../../shared/simulatorTypes').MobileIRApp): Promise<void>;
+  reload(app: import('../../shared/simulatorTypes').MobileIRApp): Promise<void>;
+  stop(): void;
+  restart(): Promise<void>;
+  pause(): void;
+  resume(): void;
+  reset(): void;
+  readonly onDidChangeState: Event<import('../../shared/simulatorTypes').SimulatorSessionState>;
 }

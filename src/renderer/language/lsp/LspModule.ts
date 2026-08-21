@@ -6,6 +6,7 @@ import {
   type LanguageServerStatus,
   type SettingsService,
   type StatusService,
+  type TrustService,
   type WorkspaceService,
 } from '../../core/Contracts';
 import type { LspStartResult, WorkspaceInfo } from '../../../shared/types';
@@ -125,8 +126,17 @@ export class LspModule implements IModule {
       else this.engine.clear(uri, SECURITY_SOURCE);
     });
 
-    // If the server dies, reflect it (and the TS fallback resumes automatically).
-    this.client.onClosed(() => this.publishStatus());
+    // If the server dies, clear its diagnostics so stale findings (especially
+    // false ZX1300 from a partial scan) don't linger, then update the status bar.
+    this.client.onClosed(() => {
+      if (this.engine && this.documents) {
+        for (const doc of this.documents.all()) {
+          this.engine.clear(doc.uri, LSP_DIAGNOSTIC_SOURCE);
+          this.engine.clear(doc.uri, SECURITY_SOURCE);
+        }
+      }
+      this.publishStatus();
+    });
 
     // A running server should never keep publishing findings the user turned off.
     if (this.settings) context.subscriptions.push(this.settings.onDidChange((change) => {
@@ -149,6 +159,17 @@ export class LspModule implements IModule {
     // Restart against a new root when the workspace changes (enables project-aware
     // diagnostics for the new folder).
     this.workspace?.onDidChangeWorkspace((info) => void this.startServer(info));
+
+    // Retry the server when trust is granted — the initial start may have been
+    // blocked by assertTrusted() in Restricted Mode.
+    const trust = context.services.tryGet<TrustService>(ServiceKeys.Trust);
+    if (trust) {
+      context.subscriptions.push(trust.onDidChange((state) => {
+        if (state.trusted && !this.client.isRunning()) {
+          void this.startServer(this.workspace?.currentWorkspace() ?? null);
+        }
+      }));
+    }
 
     this.ready = this.startServer(this.workspace?.currentWorkspace() ?? null);
     void selfTestCoordinator.run('language-server', () => this.maybeSelfTest());
@@ -178,6 +199,7 @@ export class LspModule implements IModule {
       if (result.success) {
         this.verifySemanticLegend(result);
         this.openExistingDocuments();
+        this.clearStaleFrontendDiagnostics();
       }
     } catch (error) {
       this.lastStart = { success: false, error: (error as Error).message };
@@ -263,6 +285,17 @@ export class LspModule implements IModule {
       | { legend?: { tokenTypes?: string[] } }
       | undefined;
     return provider?.legend?.tokenTypes;
+  }
+
+  /** The LSP now owns live analysis — clear any stale provisional diagnostics
+   *  the frontend analyzer published while the server was still starting. */
+  private clearStaleFrontendDiagnostics(): void {
+    if (!this.engine || !this.documents) return;
+    for (const doc of this.documents.all()) {
+      if (doc.languageId === 'zornux') {
+        this.engine.clear(doc.uri, DiagnosticSources.ZornuxFrontend);
+      }
+    }
   }
 
   /** didOpen every already-open Zornux document (server (re)start / late join). */

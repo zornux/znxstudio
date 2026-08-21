@@ -1,0 +1,49 @@
+name: E2E Simulator Tests
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    paths:
+      - 'src/renderer/simulator/**'
+      - 'test/e2e/**'
+      - 'test/simulator*.test.ts'
+      - 'samples/simulator/**'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  e2e:
+    name: e2e-simulator (linux)
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+      - run: npm ci
+      - run: npm run build
+
+      - name: Run headless simulator tests
+        run: npm test
+
+      - name: Electron E2E tests (xvfb)
+        run: |
+          xvfb-run -a bash -c 'ZNXSTUDIO_E2E=1 timeout -k 10 300 npx electron . --no-sandbox --enable-logging 2>&1 | tee e2e.log' || true
+          grep -q "\[perf\] startup" e2e.log
+
+      - name: Upload test artifacts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: e2e-artifacts
+          path: |
+            e2e.log
+            test-results/
+            screenshots/
+          retention-days: 14
+          if-no-files-found: ignore

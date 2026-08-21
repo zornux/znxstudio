@@ -280,6 +280,11 @@ const api: ZnxStudioApi = {
     run: (request) => ipcRenderer.invoke(IpcChannels.AgentExec, request),
     cancel: (execId) => ipcRenderer.send(IpcChannels.AgentExecCancel, { execId }),
   },
+  simulator: {
+    compile: (workspaceRoot: string) => ipcRenderer.invoke(IpcChannels.SimulatorCompile, workspaceRoot),
+    screenshot: (request: unknown) => ipcRenderer.invoke(IpcChannels.SimulatorScreenshot, request),
+    onSessionState: (callback: (state: string) => void) => subscribe<string>(IpcChannels.SimulatorSessionState, callback),
+  },
 };
 
 contextBridge.exposeInMainWorld('znxstudio', api);

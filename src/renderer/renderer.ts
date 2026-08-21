@@ -1,4 +1,5 @@
 import './styles/main.css';
+import './simulator/simulator.css';
 import * as monaco from 'monaco-editor';
 import { Workbench } from './core/Workbench';
 
