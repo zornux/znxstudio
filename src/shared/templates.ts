@@ -137,6 +137,180 @@ const zoijsIndexHtml = (mainSrc: string): string =>
   '    <script type="module" src="' + mainSrc + '"></script>\n' +
   '  </body>\n</html>\n';
 
+/* ----- Todo REST API template files (layered architecture) ----- */
+
+function todoApiFiles(): TemplateFile[] {
+  return [
+    {
+      path: 'src/main.zx',
+      content:
+        '# Composition root — wires the layers and starts the server.\n' +
+        '#   zornux run .     start the API\n' +
+        '#   zornux check .   validate the project\n\n' +
+        'import TodoController showing TodoApi\n' +
+        'import TodoServiceModule showing TodoService\n\n' +
+        'configuration AppConfig\n' +
+        '    has listen_port as whole is 8080\nend\n\n' +
+        'create settings from AppConfig\n\n' +
+        'application\n' +
+        '    use TodoService\n' +
+        '    use TodoApi\nend\n\n' +
+        'publish TodoApi on port settings.listen_port\n',
+    },
+    {
+      path: 'src/models/todo.zx',
+      content:
+        'module TodoModels\n\n' +
+        'public class Todo\n' +
+        '    has id\n' +
+        '    has title\n' +
+        '    has completed\n' +
+        'end\n',
+    },
+    {
+      path: 'src/contracts/todo_store.zx',
+      content:
+        'module TodoContracts\n\n' +
+        'public contract TodoStore\n' +
+        '    requires function add with title\n' +
+        '    requires function list_all\n' +
+        '    requires function find_by_id with id\n' +
+        '    requires function modify with id, title, completed\n' +
+        '    requires function remove with id\n' +
+        'end\n',
+    },
+    {
+      path: 'src/requests/todo_requests.zx',
+      content:
+        'module TodoRequests\n\n' +
+        'public record CreateTodoRequest\n' +
+        '    has title\n' +
+        '        required\n' +
+        '        minimum length 1\n' +
+        'end\n\n' +
+        'public record UpdateTodoRequest\n' +
+        '    has title\n' +
+        '        required\n' +
+        '        minimum length 1\n' +
+        '    has completed\n' +
+        'end\n',
+    },
+    {
+      path: 'src/responses/api_responses.zx',
+      content:
+        'module TodoResponses\n\n' +
+        'public function ok_envelope with data\n' +
+        '    give back { "success": true, "data": data }\n' +
+        'end\n\n' +
+        'public function error_envelope with code, detail\n' +
+        '    give back { "success": false, "error": { "code": code, "message": detail } }\n' +
+        'end\n',
+    },
+    {
+      path: 'src/services/todo_service.zx',
+      content:
+        'module TodoServiceModule\n\n' +
+        'import TodoContracts showing TodoStore\n' +
+        'import TodoModels showing Todo\n\n' +
+        'public class TodoService follows TodoStore\n' +
+        '    has store\n' +
+        '    has next_id\n\n' +
+        '    when created\n' +
+        '        store = []\n' +
+        '        next_id = 1\n' +
+        '    end\n\n' +
+        '    function add with title\n' +
+        '        create todo from Todo\n' +
+        '        todo.id = next_id\n' +
+        '        todo.title = title\n' +
+        '        todo.completed = false\n' +
+        '        next_id = next_id + 1\n' +
+        '        store = add_item(store, todo)\n' +
+        '        give back todo\n' +
+        '    end\n\n' +
+        '    function list_all\n' +
+        '        give back store\n' +
+        '    end\n\n' +
+        '    function find_by_id with id\n' +
+        '        for each todo in store\n' +
+        '            if todo.id is id\n' +
+        '                give back todo\n' +
+        '            end\n' +
+        '        end\n' +
+        '        give back nothing\n' +
+        '    end\n\n' +
+        '    function modify with id, title, completed\n' +
+        '        create updated = nothing\n' +
+        '        create new_store = []\n' +
+        '        for each todo in store\n' +
+        '            if todo.id is id\n' +
+        '                todo.title = title\n' +
+        '                todo.completed = completed\n' +
+        '                updated = todo\n' +
+        '            end\n' +
+        '            new_store = add_item(new_store, todo)\n' +
+        '        end\n' +
+        '        store = new_store\n' +
+        '        give back updated\n' +
+        '    end\n\n' +
+        '    function remove with id\n' +
+        '        create found = false\n' +
+        '        create new_store = []\n' +
+        '        for each todo in store\n' +
+        '            if todo.id is id\n' +
+        '                found = true\n' +
+        '            else\n' +
+        '                new_store = add_item(new_store, todo)\n' +
+        '            end\n' +
+        '        end\n' +
+        '        store = new_store\n' +
+        '        give back found\n' +
+        '    end\n' +
+        'end\n',
+    },
+    {
+      path: 'src/controllers/todo_controller.zx',
+      content:
+        'module TodoController\n\n' +
+        'import TodoRequests showing CreateTodoRequest, UpdateTodoRequest\n' +
+        'import TodoResponses showing ok_envelope, error_envelope\n' +
+        'import TodoServiceModule showing TodoService\n\n' +
+        'public service TodoApi\n' +
+        '    use TodoService\n\n' +
+        '    on GET "/todos"\n' +
+        '        create todos = TodoService.list_all()\n' +
+        '        give back ok ok_envelope(todos)\n' +
+        '    end\n\n' +
+        '    on GET "/todos/:id"\n' +
+        '        create todo = TodoService.find_by_id(id)\n' +
+        '        if todo is nothing\n' +
+        '            give back status 404 with body error_envelope("NOT_FOUND", "Todo not found")\n' +
+        '        end\n' +
+        '        give back ok ok_envelope(todo)\n' +
+        '    end\n\n' +
+        '    on POST "/todos" with CreateTodoRequest body\n' +
+        '        create todo = TodoService.add(body.title)\n' +
+        '        give back created ok_envelope(todo)\n' +
+        '    end\n\n' +
+        '    on PUT "/todos/:id" with UpdateTodoRequest body\n' +
+        '        create todo = TodoService.modify(id, body.title, body.completed)\n' +
+        '        if todo is nothing\n' +
+        '            give back status 404 with body error_envelope("NOT_FOUND", "Todo not found")\n' +
+        '        end\n' +
+        '        give back ok ok_envelope(todo)\n' +
+        '    end\n\n' +
+        '    on DELETE "/todos/:id"\n' +
+        '        create removed = TodoService.remove(id)\n' +
+        '        if removed is false\n' +
+        '            give back status 404 with body error_envelope("NOT_FOUND", "Todo not found")\n' +
+        '        end\n' +
+        '        give back no content\n' +
+        '    end\n' +
+        'end\n',
+    },
+  ];
+}
+
 export const PROJECT_TEMPLATES: readonly ProjectTemplate[] = [
   {
     id: 'zornux-mobile-blank',
@@ -249,28 +423,24 @@ export const PROJECT_TEMPLATES: readonly ProjectTemplate[] = [
     type: 'zornux-api',
     runZornuxInit: true,
     files: [
-      { path: 'src/main.zx', content: 'show "Hello from ${name}!"\n\nlet name = ask "What is your name? "\nshow "Nice to meet you, " + name + "."\n' },
+      { path: 'src/main.zx', content: 'show "Hello from ${name}!"\n\ncreate name = read_line("What is your name? ")\nshow "Nice to meet you, " + name + "."\n' },
       { path: 'znxstudio.project.json', content: '${znxstudio-api}' },
       README('${name}', 'A Zornux command-line application.'),
     ],
   },
   {
-    id: 'zornux-service',
-    label: 'Configured Zornux Service',
-    description: 'A Zornux web service with layered configuration (base + production) — pairs with Workspace Profiles.',
+    id: 'zornux-todo-api',
+    label: 'Todo REST API',
+    description: 'A complete Zornux backend with layered architecture: model, contract, service, controller, validation, and configuration.',
     icon: '⚙',
     type: 'zornux-api',
     runZornuxInit: true,
     files: [
-      {
-        path: 'src/main.zx',
-        content:
-          'configuration AppConfig {\n  host: text = "localhost"\n  listen_port: whole = 8080\n}\n\nserve on AppConfig.listen_port\nshow "${name} listening on " + AppConfig.host + ":" + AppConfig.listen_port\n',
-      },
-      { path: 'zornux.config.zxcfg', content: 'host = "localhost"\nlisten_port = 8080\n' },
-      { path: 'zornux.config.production.zxcfg', content: 'host = "0.0.0.0"\nlisten_port = 80\n' },
+      ...todoApiFiles(),
+      { path: 'zornux.config.zxcfg', content: 'listen_port = 8080\n' },
+      { path: 'zornux.config.production.zxcfg', content: 'listen_port = 80\n' },
       { path: 'znxstudio.project.json', content: '${znxstudio-api}' },
-      README('${name}', 'A configurable Zornux web service. Use the Profiles view to switch environments.'),
+      README('${name}', 'A Todo REST API built with Zornux. Demonstrates layered architecture, validation, dependency injection, and configuration. Use the Profiles view to switch environments.'),
     ],
   },
   {
