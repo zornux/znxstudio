@@ -73,7 +73,7 @@ export class CompilerService {
     let info: CompilerInfo;
     try {
       const { code, stdout } = await this.exec(located.path, ['--version'], undefined, VERSION_TIMEOUT_MS);
-      const match = /zornux\s+([0-9][\w.\-]*)/i.exec(stdout);
+      const match = /zornux\s+([0-9][\w.-]*)/i.exec(stdout);
       info =
         code === 0
           ? { available: true, path: located.path, version: match ? match[1] : null, source: located.source }

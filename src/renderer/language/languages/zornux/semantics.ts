@@ -94,7 +94,8 @@ export function analyze(file: FileNode, tokens: Token[]): SemanticModel {
   processStatements(file.body, fileScope, { diagnostics, imports, declPositions });
 
   const references: ReferenceInfo[] = [];
-  resolveReferences(tokens, fileScope, declPositions, references, diagnostics);
+  const headerRanges = collectHeaderRanges(file.body);
+  resolveReferences(tokens, fileScope, declPositions, references, diagnostics, headerRanges);
 
   diagnostics.sort(
     (a, b) =>
@@ -285,12 +286,32 @@ function declare(scope: Scope, symbol: SymbolInfo, ctx: BuildContext): void {
 }
 
 /* ----- reference resolution ----- */
+
+function collectHeaderRanges(statements: StatementNode[]): SrcRange[] {
+  const ranges: SrcRange[] = [];
+  for (const node of statements) {
+    if (node.kind === 'Block') {
+      if (node.headerRange) ranges.push(node.headerRange);
+      ranges.push(...collectHeaderRanges(node.body));
+    }
+  }
+  return ranges;
+}
+
+function insideHeaderRange(pos: SrcPosition, headers: SrcRange[]): boolean {
+  for (const range of headers) {
+    if (positionLE(range.start, pos) && positionLT(pos, range.end)) return true;
+  }
+  return false;
+}
+
 function resolveReferences(
   tokens: Token[],
   fileScope: Scope,
   declPositions: Set<string>,
   references: ReferenceInfo[],
   diagnostics: SemanticDiagnostic[],
+  headerRanges: SrcRange[],
 ): void {
   let previous: Token | null = null;
 
@@ -298,7 +319,8 @@ function resolveReferences(
     if (token.kind === TokenKind.Identifier) {
       const isDeclaration = declPositions.has(posKey(token.range.start));
       const isMemberAccess = previous?.kind === TokenKind.Punctuation && previous.value === '.';
-      if (!isDeclaration && !isMemberAccess) {
+      const isHeader = insideHeaderRange(token.range.start, headerRanges);
+      if (!isDeclaration && !isMemberAccess && !isHeader) {
         const scope = findScope(fileScope, token.range.start);
         const symbol = resolveName(scope, token.value);
         if (symbol) {

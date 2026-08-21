@@ -65,6 +65,9 @@ export interface BlockNode {
   kind: 'Block';
   body: StatementNode[];
   range: SrcRange;
+  /** Span from the opening keyword to the start of the body — identifiers inside
+   *  are header context (names, prefixes, clauses) and must not be resolved. */
+  headerRange?: SrcRange;
 }
 
 export type StatementNode =

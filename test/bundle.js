@@ -17064,7 +17064,7 @@ function parseStatus(porcelain) {
     if (raw2.length < 4) continue;
     const index = raw2[0];
     const worktree = raw2[1];
-    let rest = raw2.slice(3);
+    const rest = raw2.slice(3);
     const untracked = index === "?" && worktree === "?";
     const conflicted = isConflict(index, worktree);
     let path2 = rest;

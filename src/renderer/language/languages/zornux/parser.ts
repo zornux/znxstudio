@@ -363,7 +363,13 @@ function parseKeywordBlock(cursor: Cursor): BlockNode | null {
   const keyword = cursor.next();
   const block = parseEndBlock(cursor);
   if (!block) return null;
-  return { kind: 'Block', body: block.body, range: { start: keyword.range.start, end: block.range.end } };
+  const headerEnd = block.body.length > 0 ? block.body[0].range.start : block.range.end;
+  return {
+    kind: 'Block',
+    body: block.body,
+    range: { start: keyword.range.start, end: block.range.end },
+    headerRange: { start: keyword.range.start, end: headerEnd },
+  };
 }
 
 /** True when `token` is the `end` keyword — terminates function/class/if/etc. blocks. */

@@ -15,6 +15,15 @@ describe('diagnostic catalog: categories', () => {
     expect(categoryOf('ZX1300')).toBe('Module');
     expect(categoryOf('ZX1400')).toBe('Package');
     expect(categoryOf('ZX3600')).toBe('Deployment');
+    expect(categoryOf('ZX4000')).toBe('Semantic Analysis');
+    expect(categoryOf('ZX5000')).toBe('Mobile');
+    expect(categoryOf('ZX5100')).toBe('Mobile IR');
+    expect(categoryOf('ZX5200')).toBe('Android Tooling');
+    expect(categoryOf('ZX5300')).toBe('Mobile Capabilities');
+    expect(categoryOf('ZX5400')).toBe('Mobile Styling');
+    expect(categoryOf('ZX5500')).toBe('Mobile Profiling');
+    expect(categoryOf('ZX5700')).toBe('Android Release');
+    expect(categoryOf('ZX6100')).toBe('Web Architecture');
   });
 
   test('returns null for unknown / non-ZX codes', () => {

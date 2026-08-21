@@ -147,7 +147,7 @@ export class MarketplaceRegistryService {
       }
     } catch (error) {
       const err = error as Error;
-      throw new Error(err.name === 'AbortError' ? 'Marketplace request timed out.' : err.message);
+      throw new Error(err.name === 'AbortError' ? 'Marketplace request timed out.' : err.message, { cause: error });
     } finally {
       clearTimeout(timer);
     }
@@ -178,7 +178,7 @@ async function readBoundedText(response: Response, limit: number): Promise<strin
     }
     return text + decoder.decode();
   } catch (error) {
-    if (error instanceof TypeError) throw new Error('Marketplace returned invalid UTF-8.');
+    if (error instanceof TypeError) throw new Error('Marketplace returned invalid UTF-8.', { cause: error });
     throw error;
   } finally {
     reader.releaseLock();

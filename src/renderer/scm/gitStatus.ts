@@ -57,7 +57,7 @@ export function parseStatus(porcelain: string): GitFileStatus[] {
     if (raw.length < 4) continue;
     const index = raw[0];
     const worktree = raw[1];
-    let rest = raw.slice(3);
+    const rest = raw.slice(3);
     const untracked = index === '?' && worktree === '?';
     const conflicted = isConflict(index, worktree);
 

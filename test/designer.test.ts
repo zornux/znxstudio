@@ -587,7 +587,7 @@ describe('SourceSync', () => {
     for (const descriptor of COMPONENT_CATALOG) {
       const node = doc.createNode(descriptor.kind);
       for (const property of descriptor.properties) {
-        if (property.type === 'boolean') node.properties[property.key] = !Boolean(property.defaultValue);
+        if (property.type === 'boolean') node.properties[property.key] = !property.defaultValue;
         else if (property.type === 'number') node.properties[property.key] = Number(property.defaultValue) + 7;
         else if (property.type === 'enum') node.properties[property.key] = property.options?.at(-1) ?? property.defaultValue;
         else node.properties[property.key] = property.zxAttr === ''

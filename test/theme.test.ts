@@ -171,7 +171,7 @@ describe('theme system — smooth transitions', () => {
     ];
     for (const selector of surfaces) {
       const pattern = new RegExp(
-        selector.replace(/\./g, '\\.').replace(/\-/g, '\\-') + '\\s*\\{[^}]*transition[^}]*\\}',
+        selector.replace(/\./g, '\\.').replace(/-/g, '\\-') + '\\s*\\{[^}]*transition[^}]*\\}',
       );
       expect(pattern.test(css)).toBeTruthy();
     }

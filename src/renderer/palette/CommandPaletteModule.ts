@@ -112,7 +112,7 @@ export class CommandPaletteModule implements IModule {
   }
 
   private toggle(): void {
-    this.open ? this.hide() : this.show();
+    if (this.open) this.hide(); else this.show();
   }
 
   private show(): void {

@@ -452,11 +452,11 @@ export class AndroidSdkManager {
           '-NoProfile', '-Command',
           `Expand-Archive -Force -Path '${zipPath}' -DestinationPath '${destDir}'`,
         ], { timeout: 300_000 }, (error) => {
-          error ? reject(new Error(`Zip extraction failed: ${error.message}`)) : resolve();
+          if (error) reject(new Error(`Zip extraction failed: ${error.message}`)); else resolve();
         });
       } else {
         execFile('unzip', ['-o', '-q', zipPath, '-d', destDir], { timeout: 300_000 }, (error) => {
-          error ? reject(new Error(`Zip extraction failed: ${error.message}`)) : resolve();
+          if (error) reject(new Error(`Zip extraction failed: ${error.message}`)); else resolve();
         });
       }
     });
@@ -465,7 +465,7 @@ export class AndroidSdkManager {
   private extractTarGz(tarPath: string, destDir: string): Promise<void> {
     return new Promise<void>((resolve, reject) => {
       execFile('tar', ['-xzf', tarPath, '-C', destDir], { timeout: 300_000 }, (error) => {
-        error ? reject(new Error(`Tar extraction failed: ${error.message}`)) : resolve();
+        if (error) reject(new Error(`Tar extraction failed: ${error.message}`)); else resolve();
       });
     });
   }

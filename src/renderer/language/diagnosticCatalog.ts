@@ -12,7 +12,7 @@ interface CodeRange {
   category: string;
 }
 
-// Authoritative ranges from the Zornux diagnostics standard (ZX0001–ZX3999).
+// Authoritative ranges from the Zornux diagnostics standard (ZX0001–ZX6199).
 const CODE_RANGES: CodeRange[] = [
   { min: 1, max: 99, category: 'Lexer' },
   { min: 100, max: 299, category: 'Parser' },
@@ -51,6 +51,15 @@ const CODE_RANGES: CodeRange[] = [
   { min: 3700, max: 3799, category: 'Security' },
   { min: 3800, max: 3899, category: 'Memory safety' },
   { min: 3900, max: 3999, category: 'Profiling' },
+  { min: 4000, max: 4099, category: 'Semantic Analysis' },
+  { min: 5000, max: 5099, category: 'Mobile' },
+  { min: 5100, max: 5199, category: 'Mobile IR' },
+  { min: 5200, max: 5299, category: 'Android Tooling' },
+  { min: 5300, max: 5399, category: 'Mobile Capabilities' },
+  { min: 5400, max: 5499, category: 'Mobile Styling' },
+  { min: 5500, max: 5599, category: 'Mobile Profiling' },
+  { min: 5700, max: 5799, category: 'Android Release' },
+  { min: 6100, max: 6199, category: 'Web Architecture' },
 ];
 
 /** Friendly label for each diagnostics-engine source key (the layer). */

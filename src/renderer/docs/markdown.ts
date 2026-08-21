@@ -40,7 +40,7 @@ export type LinkKind = 'internal' | 'anchor' | 'external' | 'unsafe';
 
 /** Control characters let `java\nscript:` slip past a naive scheme test. */
 const CONTROL_CHARACTERS = /[\u0000-\u001f\u007f]/g;
-const HAS_SCHEME = /^[a-z][a-z0-9+.\-]*:/i;
+const HAS_SCHEME = /^[a-z][a-z0-9+.-]*:/i;
 
 /**
  * Decide what a link target is. Anything this cannot vouch for is `unsafe`, and

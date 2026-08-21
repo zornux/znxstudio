@@ -146,10 +146,11 @@ export class SearchEverywhereModule implements IModule {
     try {
       await this.collectCandidates(sequence);
     } finally {
-      if (sequence !== this.collectionSequence) return;
-      this.loading = false;
-      this.listEl.removeAttribute('aria-busy');
-      if (this.open) this.refresh();
+      if (sequence === this.collectionSequence) {
+        this.loading = false;
+        this.listEl.removeAttribute('aria-busy');
+        if (this.open) this.refresh();
+      }
     }
   }
 

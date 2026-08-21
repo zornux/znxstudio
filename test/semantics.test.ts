@@ -164,3 +164,51 @@ describe('semantics: completion + signature', () => {
     expect(ctx?.activeParameter).toBe(1);
   });
 });
+
+describe('semantics: module and block headers', () => {
+  const messages = (src: string) => model(src).diagnostics.map((d) => d.message);
+
+  test('module header names do not produce false diagnostics', () => {
+    const src = 'module Api.ShopService\n\nimport Utils showing helper\ncreate x = helper()\nend\n';
+    const msgs = messages(src);
+    expect(msgs.some((m) => m.includes("'Api'"))).toBe(false);
+    expect(msgs.some((m) => m.includes("'ShopService'"))).toBe(false);
+  });
+
+  test('service header name does not produce false diagnostics', () => {
+    const src = 'service ShopApi\n  on GET "/"\n    give back ok []\n  end\nend\n';
+    const msgs = messages(src);
+    expect(msgs.some((m) => m.includes("'ShopApi'"))).toBe(false);
+  });
+
+  test('controller header names do not produce false diagnostics', () => {
+    const src = 'controller Products at "/products"\n  on GET "/"\n    give back ok []\n  end\nend\n';
+    const msgs = messages(src);
+    expect(msgs.some((m) => m.includes("'Products'"))).toBe(false);
+    expect(msgs.some((m) => m.includes("'at'"))).toBe(false);
+  });
+
+  test('full module with imports has no false undefined errors', () => {
+    const src = [
+      'module Api.ShopService',
+      '',
+      'import Infrastructure.Config showing Config',
+      'import Domain.Entities.User showing User',
+      '',
+      'public service ShopApi',
+      '    use Config',
+      '    on GET "/"',
+      '        give back ok []',
+      '    end',
+      'end',
+      'end',
+    ].join('\n');
+    const undefined_diags = model(src).diagnostics.filter((d) => d.code === 'zx-undefined-identifier');
+    const false_names = undefined_diags.map((d) => d.message);
+    expect(false_names.some((m) => m.includes("'Api'"))).toBe(false);
+    expect(false_names.some((m) => m.includes("'ShopService'"))).toBe(false);
+    expect(false_names.some((m) => m.includes("'ShopApi'"))).toBe(false);
+    expect(false_names.some((m) => m.includes("'Config'"))).toBe(false);
+    expect(false_names.some((m) => m.includes("'User'"))).toBe(false);
+  });
+});
