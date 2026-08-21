@@ -152,7 +152,7 @@ describe('Zornux template syntax correctness', () => {
   }
 });
 
-describe('Todo REST API template structure', () => {
+describe('Zornux Web API template structure', () => {
   const rendered = renderTemplate(findTemplate('zornux-todo-api')!, 'MyTodos');
 
   test('generates the expected project file set', () => {
@@ -208,10 +208,11 @@ describe('Todo REST API template structure', () => {
     expect(requests.content).toContain('minimum length 1');
   });
 
-  test('service implements the contract', () => {
+  test('service is a proper service declaration with inline state', () => {
     const service = rendered.files.find((f) => f.path === 'src/services/todo_service.zx')!;
-    expect(service.content).toContain('public class TodoService follows TodoStore');
-    expect(service.content).toContain('import TodoContracts showing TodoStore');
+    expect(service.content).toContain('public service TodoService');
+    expect(service.content).toContain('create store = []');
+    expect(service.content).toContain('create next_id = 1');
     expect(service.content).toContain('import TodoModels showing Todo');
   });
 

@@ -110,6 +110,14 @@
   --z-grade-b: #b5cea8;
   --z-status-tint-a: #241a4f;
   --z-status-tint-b: #083c49;
+
+  /* ---- Template icon product-family tints ---- */
+  --z-tmpl-zornux: #7657e8;
+  --z-tmpl-zornux-bg: rgba(118, 87, 232, 0.14);
+  --z-tmpl-zoijs: #3fb4f0;
+  --z-tmpl-zoijs-bg: rgba(63, 180, 240, 0.14);
+  --z-tmpl-mobile: #a480e6;
+  --z-tmpl-mobile-bg: rgba(164, 128, 230, 0.14);
 }
 
 :root[data-theme='znxstudio-light'] {
@@ -190,6 +198,14 @@
   --z-grade-b: #4d7c0f;
   --z-status-tint-a: #c4b5fd;
   --z-status-tint-b: #67e8f9;
+
+  /* ---- Template icon product-family tints (light) ---- */
+  --z-tmpl-zornux: #5b3dc7;
+  --z-tmpl-zornux-bg: rgba(91, 61, 199, 0.10);
+  --z-tmpl-zoijs: #0284c7;
+  --z-tmpl-zoijs-bg: rgba(2, 132, 199, 0.10);
+  --z-tmpl-mobile: #7c3aed;
+  --z-tmpl-mobile-bg: rgba(124, 58, 237, 0.10);
 }
 
 /* Tide: deep marine surfaces with teal signals and a restrained coral accent. */
@@ -2464,7 +2480,34 @@ button.znxstudio-solution-action:focus-visible {
   transform: translateY(-1px);
 }
 .znxstudio-template-icon {
-  font-size: 24px;
+  width: 40px;
+  height: 40px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 8px;
+  background: var(--z-tmpl-icon-bg, color-mix(in srgb, var(--z-accent) 10%, transparent));
+  color: var(--z-tmpl-icon-fg, var(--z-accent));
+}
+.znxstudio-template-icon svg {
+  width: 28px;
+  height: 28px;
+}
+.znxstudio-template-icon[data-family='zornux'] {
+  color: var(--z-tmpl-zornux);
+  background: var(--z-tmpl-zornux-bg);
+}
+.znxstudio-template-icon[data-family='mobile'] {
+  color: var(--z-tmpl-mobile);
+  background: var(--z-tmpl-mobile-bg);
+}
+.znxstudio-template-icon[data-family='zoijs'] {
+  color: var(--z-tmpl-zoijs);
+  background: var(--z-tmpl-zoijs-bg);
+}
+.znxstudio-template-icon[data-family='fullstack'] {
+  color: var(--z-tmpl-zornux);
+  background: linear-gradient(135deg, var(--z-tmpl-zornux-bg), var(--z-tmpl-zoijs-bg));
 }
 .znxstudio-template-name {
   font-weight: 600;

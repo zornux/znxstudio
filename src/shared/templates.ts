@@ -10,6 +10,7 @@
  * `${name}` in any file body is replaced with the project name.
  */
 import type { WorkspaceType } from './types';
+import { TEMPLATE_ICONS } from './templateIcons';
 
 export interface TemplateFile {
   /** Path relative to the project directory, using forward slashes. */
@@ -137,7 +138,7 @@ const zoijsIndexHtml = (mainSrc: string): string =>
   '    <script type="module" src="' + mainSrc + '"></script>\n' +
   '  </body>\n</html>\n';
 
-/* ----- Todo REST API template files (layered architecture) ----- */
+/* ----- Zornux Web API template files (layered architecture) ----- */
 
 function todoApiFiles(): TemplateFile[] {
   return [
@@ -210,15 +211,10 @@ function todoApiFiles(): TemplateFile[] {
       path: 'src/services/todo_service.zx',
       content:
         'module TodoServiceModule\n\n' +
-        'import TodoContracts showing TodoStore\n' +
         'import TodoModels showing Todo\n\n' +
-        'public class TodoService follows TodoStore\n' +
-        '    has store\n' +
-        '    has next_id\n\n' +
-        '    when created\n' +
-        '        store = []\n' +
-        '        next_id = 1\n' +
-        '    end\n\n' +
+        'public service TodoService\n' +
+        '    create store = []\n' +
+        '    create next_id = 1\n\n' +
         '    function add with title\n' +
         '        create todo from Todo\n' +
         '        todo.id = next_id\n' +
@@ -316,7 +312,7 @@ export const PROJECT_TEMPLATES: readonly ProjectTemplate[] = [
     id: 'zornux-mobile-blank',
     label: 'Zornux Mobile Application',
     description: 'A Zornux Mobile Android application with a single screen.',
-    icon: '📱',
+    icon: TEMPLATE_ICONS['zornux-mobile-blank'],
     type: 'zornux-mobile',
     runZornuxInit: false,
     files: [
@@ -339,7 +335,7 @@ export const PROJECT_TEMPLATES: readonly ProjectTemplate[] = [
     id: 'zornux-mobile-nav',
     label: 'Zornux Mobile Navigation',
     description: 'A Zornux Mobile Android application with two screens and navigation.',
-    icon: '📱',
+    icon: TEMPLATE_ICONS['zornux-mobile-nav'],
     type: 'zornux-mobile',
     runZornuxInit: false,
     files: [
@@ -366,7 +362,7 @@ export const PROJECT_TEMPLATES: readonly ProjectTemplate[] = [
     id: 'zornux-mobile-styled',
     label: 'Zornux Mobile Styled',
     description: 'A styled Zornux Mobile application with themes, animations, responsive layout, and gestures.',
-    icon: '🎨',
+    icon: TEMPLATE_ICONS['zornux-mobile-styled'],
     type: 'zornux-mobile',
     runZornuxInit: false,
     files: [
@@ -410,7 +406,7 @@ export const PROJECT_TEMPLATES: readonly ProjectTemplate[] = [
     id: 'zornux-empty',
     label: 'Empty Zornux Project',
     description: 'A minimal Zornux project — just what `zornux init` scaffolds (zornux.project + src/main.zx).',
-    icon: '📦',
+    icon: TEMPLATE_ICONS['zornux-empty'],
     type: 'zornux-api',
     runZornuxInit: true,
     files: [],
@@ -419,7 +415,7 @@ export const PROJECT_TEMPLATES: readonly ProjectTemplate[] = [
     id: 'zornux-cli',
     label: 'Zornux CLI App',
     description: 'A command-line Zornux program with a small starter and an IDE manifest.',
-    icon: '🛠',
+    icon: TEMPLATE_ICONS['zornux-cli'],
     type: 'zornux-api',
     runZornuxInit: true,
     files: [
@@ -430,9 +426,9 @@ export const PROJECT_TEMPLATES: readonly ProjectTemplate[] = [
   },
   {
     id: 'zornux-todo-api',
-    label: 'Todo REST API',
+    label: 'Zornux Web API',
     description: 'A complete Zornux backend with layered architecture: model, contract, service, controller, validation, and configuration.',
-    icon: '⚙',
+    icon: TEMPLATE_ICONS['zornux-todo-api'],
     type: 'zornux-api',
     runZornuxInit: true,
     files: [
@@ -440,14 +436,14 @@ export const PROJECT_TEMPLATES: readonly ProjectTemplate[] = [
       { path: 'zornux.config.zxcfg', content: 'listen_port = 8080\n' },
       { path: 'zornux.config.production.zxcfg', content: 'listen_port = 80\n' },
       { path: 'znxstudio.project.json', content: '${znxstudio-api}' },
-      README('${name}', 'A Todo REST API built with Zornux. Demonstrates layered architecture, validation, dependency injection, and configuration. Use the Profiles view to switch environments.'),
+      README('${name}', 'A Zornux Web API example. Demonstrates layered architecture, validation, dependency injection, and configuration. Use the Profiles view to switch environments.'),
     ],
   },
   {
     id: 'zornux-zoijs-fullstack',
     label: 'Zornux + Zoijs Fullstack',
     description: 'A full-stack app: a Zornux backend and a real Zoijs (.js) frontend.',
-    icon: '🧩',
+    icon: TEMPLATE_ICONS['zornux-zoijs-fullstack'],
     type: 'zornux-zoijs-fullstack',
     runZornuxInit: true,
     vendorZoijsDir: 'web/vendor/zoijs',
@@ -464,7 +460,7 @@ export const PROJECT_TEMPLATES: readonly ProjectTemplate[] = [
     id: 'zoijs-frontend',
     label: 'Zoijs Frontend',
     description: 'A no-build Zoijs single-page frontend (real .js components + import map).',
-    icon: '🎨',
+    icon: TEMPLATE_ICONS['zoijs-frontend'],
     type: 'zoijs-frontend',
     runZornuxInit: false,
     vendorZoijsDir: 'vendor/zoijs',

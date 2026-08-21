@@ -124,7 +124,12 @@ export class LanguagePlatformModule implements IModule {
     //     superseding the front-end squiggles once it returns.
     context.subscriptions.push(this.documents.onDidOpen((doc) => {
       void this.ensureActivatedForDocument(doc);
-      this.scheduleDiagnostics(doc, 0);
+      // Stagger the provisional front-end behind the compiler on first open so
+      // the authoritative check lands first, preventing a brief flash of
+      // single-file-only warnings (e.g. unresolved imports) that the compiler
+      // would immediately clear.
+      const frontendDelay = doc.languageId === 'zornux' ? 300 : 0;
+      this.scheduleDiagnostics(doc, frontendDelay);
       this.scheduleCompilerCheck(doc, 250, false);
     }));
     context.subscriptions.push(this.documents.onDidChange((doc) => {
@@ -184,6 +189,12 @@ export class LanguagePlatformModule implements IModule {
     // server is down (see scheduleCompilerCheck for the matching gate).
     if (doc.languageId === 'zornux' && this.languageServerRunning() && !isMobileZornux(doc.model.getValue())) {
       this.engine.clear(doc.uri, service.metadata.id);
+      return;
+    }
+    // When the compiler has already provided authoritative diagnostics for this
+    // document, the provisional front-end layer is redundant — skip to avoid
+    // re-publishing squiggles the compiler intentionally cleared.
+    if (doc.languageId === 'zornux' && this.compilerCheckedHash.has(doc.uri)) {
       return;
     }
     try {

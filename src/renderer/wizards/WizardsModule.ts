@@ -132,7 +132,11 @@ export class WizardsModule implements IModule {
       if (this.wizard?.state.templateId === template.id) card.classList.add('is-selected');
       const icon = document.createElement('div');
       icon.className = 'znxstudio-template-icon';
-      icon.textContent = template.icon;
+      icon.dataset.family = template.type.startsWith('zornux-mobile') ? 'mobile'
+        : template.type === 'zoijs-frontend' ? 'zoijs'
+        : template.type === 'zornux-zoijs-fullstack' ? 'fullstack'
+        : 'zornux';
+      icon.innerHTML = template.icon;
       const name = document.createElement('div');
       name.className = 'znxstudio-template-name';
       name.textContent = template.label;
