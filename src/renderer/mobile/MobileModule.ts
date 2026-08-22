@@ -21,7 +21,6 @@ import type {
   MobileReleaseCheckResult,
   MobileSessionState,
   MobileTestReport,
-  ToolchainComponent,
   ToolchainStatus,
 } from '../../shared/types';
 import { ensureAndroidRunTarget } from './deviceTarget';

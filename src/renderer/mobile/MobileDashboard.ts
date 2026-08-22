@@ -9,18 +9,13 @@
  */
 import type {
   VerificationStage,
-  VerificationState,
   VerificationMetadata,
-  VerificationReport,
   ReleasePolicy,
-  ReleasePolicyLevel,
 } from '../../shared/verificationTypes';
 import type {
   ParityReport,
-  ParitySummary,
 } from '../../shared/parityTypes';
 import type {
-  ReadinessLevel,
   ReadinessReport,
 } from './MobileOnboarding';
 

@@ -21,7 +21,6 @@ import { DocumentManager } from '../language/DocumentManager';
 import { toPlatformDiagnostics } from '../compiler/compilerDiagnostics';
 import { buildSummary, groupByFile } from './buildDiagnostics';
 import { ensureAndroidRunTarget } from '../mobile/deviceTarget';
-import { joinPath } from '../explorer/paths';
 
 /**
  * Run & Build pipeline. For Zornux workspaces it drives the real compiler:

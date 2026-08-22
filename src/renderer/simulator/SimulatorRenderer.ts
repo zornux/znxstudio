@@ -1,5 +1,5 @@
 import { Emitter, type Event } from '../core/Emitter';
-import type { MobileIRNode, MobileIRScreen, SimulatorTheme, InspectedComponent } from '../../shared/simulatorTypes';
+import type { MobileIRNode, InspectedComponent } from '../../shared/simulatorTypes';
 import type { SimulatorRuntime } from './SimulatorRuntime';
 
 const SEMANTIC_COLORS: Record<string, string> = {

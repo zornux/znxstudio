@@ -327,7 +327,7 @@ function emitNode(node: ComponentNode, depth: number): string[] {
   // Inline attributes (non-default, non-content properties)
   const attrs: string[] = [];
   for (const prop of descriptor.properties) {
-    if (prop.zxAttr === '' || prop.zxAttr === '') continue;
+    if (prop.zxAttr === '') continue;
     const val = node.properties[prop.key];
     if (val === undefined || val === prop.defaultValue) continue;
     if (typeof val === 'string' && val === '') continue;
