@@ -177,7 +177,7 @@ function todoApiFiles(): TemplateFile[] {
         '    requires function list_all\n' +
         '    requires function find_by_id with id\n' +
         '    requires function modify with id, title, completed\n' +
-        '    requires function remove with id\n' +
+        '    requires function delete_by_id with id\n' +
         'end\n',
     },
     {
@@ -249,7 +249,7 @@ function todoApiFiles(): TemplateFile[] {
         '        store = new_store\n' +
         '        give back updated\n' +
         '    end\n\n' +
-        '    function remove with id\n' +
+        '    function delete_by_id with id\n' +
         '        create found = false\n' +
         '        create new_store = []\n' +
         '        for each todo in store\n' +
@@ -296,7 +296,7 @@ function todoApiFiles(): TemplateFile[] {
         '        give back ok ok_envelope(todo)\n' +
         '    end\n\n' +
         '    on DELETE "/todos/:id"\n' +
-        '        create removed = TodoService.remove(id)\n' +
+        '        create removed = TodoService.delete_by_id(id)\n' +
         '        if removed is false\n' +
         '            give back status 404 with body error_envelope("NOT_FOUND", "Todo not found")\n' +
         '        end\n' +

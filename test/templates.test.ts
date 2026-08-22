@@ -197,7 +197,7 @@ describe('Zornux Web API template structure', () => {
     expect(contract.content).toContain('requires function list_all');
     expect(contract.content).toContain('requires function find_by_id');
     expect(contract.content).toContain('requires function modify');
-    expect(contract.content).toContain('requires function remove');
+    expect(contract.content).toContain('requires function delete_by_id');
   });
 
   test('request records have declarative validation', () => {
