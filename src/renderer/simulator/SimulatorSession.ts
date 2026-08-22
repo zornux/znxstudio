@@ -78,7 +78,8 @@ export class SimulatorSession {
   }
 
   stop(): void {
-    this.runtime.reset();
+    this.runtime.unloadApp();
+    this.renderer.renderCurrentScreen();
     this.setState('stopped');
   }
 

@@ -3,6 +3,7 @@ import {
   type EditorService,
   type OutputService,
   type QuickPickService,
+  type WorkspaceService,
 } from '../core/Contracts';
 import type { IModule, ModuleContext, Disposable } from '../core/Module';
 import { CommandIds } from '../commands/CommandIds';
@@ -11,6 +12,9 @@ import { SimulatorSession } from './SimulatorSession';
 import { SimulatorInspector } from './SimulatorInspector';
 import { SimulatorTestRunner } from './SimulatorTestRunner';
 import { SIMULATOR_DEVICE_PROFILES, getDeviceProfile } from './SimulatorDeviceProfile';
+import { parseSource } from '../designer/sourceSync';
+import { compileDesignerToIR } from './SimulatorCompiler';
+import { joinPath } from '../explorer/paths';
 
 export class SimulatorModule implements IModule {
   readonly id = 'znxstudio.simulator';
@@ -252,6 +256,8 @@ export class SimulatorModule implements IModule {
     this.session?.stop();
     this.inspector?.dispose();
     this.inspector = null;
+    this.deviceShell = null;
+    if (this.deviceStage) this.deviceStage.innerHTML = '';
   }
 
   private async restartSimulator(): Promise<void> {
@@ -268,10 +274,48 @@ export class SimulatorModule implements IModule {
     this.lastApp = null;
   }
 
-  private startFromEditor(): void {
+  private async startFromEditor(): Promise<void> {
     const output = this.context.services.tryGet<OutputService>(ServiceKeys.Output);
     output?.appendLine('[Simulator] Compiling Mobile IR from current file...');
-    output?.appendLine('[Simulator] Use the designer or provide a MobileIRApp to start the simulator');
+    const editor = this.context.services.tryGet<EditorService>(ServiceKeys.Editor);
+    const workspace = this.context.services.tryGet<WorkspaceService>(ServiceKeys.Workspace);
+    const root = workspace?.currentFolder() ?? null;
+    let sourcePath = editor?.currentFile() ?? null;
+
+    try {
+      if (!sourcePath || !sourcePath.toLowerCase().endsWith('.zx')) {
+        if (!root) {
+          this.context.layout.showToast('Open a Zornux mobile source file before starting the simulator.', 'error');
+          return;
+        }
+        const conventional = joinPath(root, 'src/main.zx');
+        sourcePath = await window.znxstudio.fs.pathExists(conventional) ? conventional : null;
+        if (!sourcePath) {
+          this.context.layout.showToast('No src/main.zx file found in the workspace.', 'error');
+          return;
+        }
+      }
+
+      const doc = parseSource(await window.znxstudio.fs.readFile(sourcePath));
+      const screens = [...doc.getScreens()];
+      if (!doc.appName || screens.length === 0) {
+        this.context.layout.showToast('The source file must define a mobile app with at least one screen.', 'error');
+        return;
+      }
+      const result = compileDesignerToIR(doc.appName, screens, doc.startScreen || undefined);
+      if (!result.ok || !result.app) {
+        const message = result.diagnostics.map((diagnostic) => diagnostic.message).join('; ') || 'Compilation failed';
+        output?.appendLine(`[Simulator] Compile error: ${message}`);
+        this.context.layout.showToast(`Simulator compile error: ${message}`, 'error');
+        return;
+      }
+      await this.startSimulator(result.app);
+      output?.appendLine(`[Simulator] Running ${result.app.name}`);
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      output?.appendLine(`[Simulator] Failed: ${message}`);
+      this.context.layout.showToast(`Simulator failed: ${message}`, 'error');
+    }
   }
 
   private toggleTheme(): void {

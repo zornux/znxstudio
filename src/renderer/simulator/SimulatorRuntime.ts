@@ -265,6 +265,12 @@ export class SimulatorRuntime {
     if (this.app) this.loadApp(this.app);
   }
 
+  /** Stop the current application and release its model without disposing the runtime. */
+  unloadApp(): void {
+    this.app = null;
+    this.reset();
+  }
+
   dispose(): void {
     this.stateStore.dispose();
     this.navigation.dispose();

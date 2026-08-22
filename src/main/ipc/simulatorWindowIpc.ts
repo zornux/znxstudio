@@ -4,6 +4,7 @@ import { readFileSync, writeFileSync } from 'node:fs';
 import { IpcChannels } from '../../shared/ipc';
 import { HARDENED_WEB_PREFERENCES, isAllowedNavigation } from '../../shared/security';
 import type { MobileIRApp } from '../../shared/simulatorTypes';
+import { simulatorWindowHtmlPath, simulatorWindowPreloadPath } from '../simulatorWindowPath';
 
 interface SavedBounds { x?: number; y?: number; width: number; height: number; }
 let simulatorWindow: BrowserWindow | null = null;
@@ -39,7 +40,7 @@ export function registerSimulatorWindowIpc(): void {
     simulatorWindow = new BrowserWindow({
       ...bounds, minWidth: 390, minHeight: 560, title: `${appPayload.name} — Znx Simulator`,
       backgroundColor: '#111318', show: false,
-      webPreferences: { preload: join(__dirname, '../../preload/preload.js'), ...HARDENED_WEB_PREFERENCES },
+      webPreferences: { preload: simulatorWindowPreloadPath(__dirname), ...HARDENED_WEB_PREFERENCES },
     });
     simulatorWindow.setMenuBarVisibility(false);
     simulatorWindow.webContents.setWindowOpenHandler(() => ({ action: 'deny' }));
@@ -60,7 +61,7 @@ export function registerSimulatorWindowIpc(): void {
       simulatorWindow = null;
       if (ownerWindow && !ownerWindow.isDestroyed()) ownerWindow.webContents.send(IpcChannels.SimulatorWindowClosed);
     });
-    void simulatorWindow.loadFile(join(__dirname, '../../renderer/simulator.html'));
+    void simulatorWindow.loadFile(simulatorWindowHtmlPath(__dirname));
   });
   ipcMain.handle(IpcChannels.SimulatorWindowPayload, () => payload);
   ipcMain.handle(IpcChannels.SimulatorWindowDock, () => {

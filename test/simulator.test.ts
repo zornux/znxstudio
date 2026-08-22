@@ -1,4 +1,6 @@
 import { describe, expect, test } from './harness';
+import { simulatorWindowHtmlPath, simulatorWindowPreloadPath } from '../src/main/simulatorWindowPath';
+import { join } from 'node:path';
 import { IpcChannels } from '../src/shared/ipc';
 import { CommandIds } from '../src/renderer/commands/CommandIds';
 import type {
@@ -42,6 +44,25 @@ import { SimulatorTestRunnerV2 } from '../src/renderer/simulator/SimulatorTestRu
 import { SimulatorInspector } from '../src/renderer/simulator/SimulatorInspector';
 import { SimulatorSession } from '../src/renderer/simulator/SimulatorSession';
 import { SimulatorRenderer } from '../src/renderer/simulator/SimulatorRenderer';
+
+describe('simulator movable window', () => {
+  test('loads the simulator page from the built renderer directory', () => {
+    const mainBundleDir = join('workspace', 'dist', 'main');
+    expect(simulatorWindowHtmlPath(mainBundleDir)).toBe(join('workspace', 'dist', 'renderer', 'simulator.html'));
+    expect(simulatorWindowPreloadPath(mainBundleDir)).toBe(join('workspace', 'dist', 'preload', 'preload.js'));
+  });
+});
+
+describe('simulator start and stop lifecycle', () => {
+  test('unload removes the running app instead of immediately loading it again', () => {
+    const runtime = new SimulatorRuntime();
+    runtime.loadApp(makeTestApp());
+    expect(runtime.getApp()).toBeTruthy();
+    runtime.unloadApp();
+    expect(runtime.getApp()).toBeNull();
+    runtime.dispose();
+  });
+});
 
 /* ===== Helper: test app ===== */
 
