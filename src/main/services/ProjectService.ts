@@ -15,6 +15,7 @@ import type {
 } from '../../shared/types';
 
 import { resolveZornux } from '../util/zornuxRuntime';
+import { androidPackageFragment, assertProjectFolderName } from '../../shared/projectName';
 
 const MANIFEST_FILE = 'znxstudio.project.json';
 
@@ -32,6 +33,7 @@ const DEFAULT_SCRIPTS: Record<string, string> = {
  */
 export class ProjectService {
   async createProject(options: CreateProjectOptions): Promise<CreatedProject> {
+    assertProjectFolderName(options.name);
     const projectDir = join(options.location, options.name);
     await fs.mkdir(join(projectDir, 'src'), { recursive: true });
 
@@ -60,11 +62,20 @@ export class ProjectService {
       `# ${options.name}\n\nCreated with ZnxStudio.\n`,
       'utf8',
     );
-    await fs.writeFile(
-      join(projectDir, 'src', 'main.zx'),
-      `Say "Hello from ${options.name}".\n`,
-      'utf8',
-    );
+    if (options.type === 'zornux-mobile') {
+      const androidName = androidPackageFragment(options.name);
+      manifest.scripts = { run: 'zornux mobile run android', build: 'zornux mobile build android' };
+      manifest.workspace = { sourceDirs: ['src'], generatedDirs: ['.zornux'], configFiles: ['zornux.project', MANIFEST_FILE] };
+      await fs.writeFile(join(projectDir, MANIFEST_FILE), `${JSON.stringify(manifest, null, 2)}\n`, 'utf8');
+      await fs.writeFile(join(projectDir, 'zornux.project'),
+        `name = ${options.name}\nversion = 0.1.0\ntype = mobile\nentry = src/main.zx\n\n` +
+        `android.application_id = com.example.${androidName}\nandroid.version_code = 1\n` +
+        'android.min_sdk = 24\nandroid.target_sdk = 35\nandroid.compile_sdk = 35\n', 'utf8');
+      await fs.writeFile(join(projectDir, 'src', 'main.zx'),
+        `mobile app "${options.name}"\n\nscreen Home\n    column\n        text "Hello from ${options.name}!"\n    end\nend\n\nstart with Home\n`, 'utf8');
+    } else {
+      await fs.writeFile(join(projectDir, 'src', 'main.zx'), `Say "Hello from ${options.name}".\n`, 'utf8');
+    }
 
     return { path: projectDir, name: options.name };
   }
@@ -79,6 +90,7 @@ export class ProjectService {
   async scaffoldProject(request: ScaffoldRequest): Promise<ScaffoldResult> {
     const projectDir = join(request.location, request.name);
     try {
+      assertProjectFolderName(request.name);
       await fs.mkdir(projectDir, { recursive: true });
 
       if (request.runZornuxInit) {

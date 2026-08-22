@@ -65,7 +65,7 @@ const targets = [
     name: 'renderer',
     options: {
       ...shared,
-      entryPoints: { renderer: join(root, 'src/renderer/renderer.ts') },
+      entryPoints: { renderer: join(root, 'src/renderer/renderer.ts'), simulatorWindow: join(root, 'src/renderer/simulator/SimulatorWindow.ts') },
       outdir: join(dist, 'renderer'),
       platform: 'browser',
       format: 'esm',
@@ -90,6 +90,7 @@ const targets = [
 
 function copyStaticAssets() {
   copyFileSync(join(root, 'src/renderer/index.html'), join(dist, 'renderer/index.html'));
+  copyFileSync(join(root, 'src/renderer/simulator.html'), join(dist, 'renderer/simulator.html'));
 }
 
 async function run() {

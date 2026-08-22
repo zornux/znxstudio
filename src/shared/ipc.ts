@@ -203,6 +203,10 @@ export const IpcChannels = {
   SimulatorCompile: 'simulator:compile',
   SimulatorScreenshot: 'simulator:screenshot',
   SimulatorSessionState: 'simulator:session-state',
+  SimulatorWindowOpen: 'simulator:window-open',
+  SimulatorWindowPayload: 'simulator:window-payload',
+  SimulatorWindowDock: 'simulator:window-dock',
+  SimulatorWindowClosed: 'simulator:window-closed',
 
   // Language server (LSP)
   LspStart: 'lsp:start',

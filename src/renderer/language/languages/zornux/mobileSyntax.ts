@@ -10,6 +10,10 @@ const STYLING_BLOCKS = new Set([
   'gradient', 'shadow', 'permissions',
 ]);
 const RESPONSIVE_BREAKPOINTS = new Set(['compact', 'medium', 'expanded']);
+const FLAT_BLOCKS = new Set([
+  'style', 'theme', 'tokens', 'animate', 'transition',
+  'gradient', 'shadow', 'permissions',
+]);
 
 export function isMobileZornux(source: string): boolean {
   return /^\s*mobile\s+app\b/m.test(source);
@@ -23,13 +27,35 @@ function nextContent(lines: string[], from: number): string {
   return '';
 }
 
+function nextContentAfterStyling(lines: string[], from: number): string {
+  let depth = 0;
+  for (let index = from + 1; index < lines.length; index++) {
+    const value = lines[index].trim();
+    if (!value || value.startsWith('#')) continue;
+    if (value === 'end') {
+      if (depth === 0) return value;
+      depth--;
+      continue;
+    }
+    if (depth === 0) {
+      const kw = value.split(/\s+/)[0];
+      if (STYLING_BLOCKS.has(kw) || (kw === 'dark' && value.startsWith('dark theme'))) {
+        depth++;
+        continue;
+      }
+      return value;
+    }
+  }
+  return '';
+}
+
 function opensBlock(line: string, lines: string[], index: number): boolean {
   const keyword = line.split(/\s+/)[0];
   if (keyword === 'screen' || keyword === 'when' || CONTAINERS.has(keyword)) return true;
   if (STYLING_BLOCKS.has(keyword)) return true;
   if (keyword === 'dark' && line.startsWith('dark theme')) return true;
   if (RESPONSIVE_BREAKPOINTS.has(keyword)) return true;
-  return COMPONENTS.has(keyword) && nextContent(lines, index).startsWith('when ');
+  return COMPONENTS.has(keyword) && nextContentAfterStyling(lines, index).startsWith('when ');
 }
 
 export function formatMobileZornux(source: string, tabSize: number, insertSpaces: boolean): string {
@@ -71,7 +97,8 @@ export function lintMobileZornux(source: string): ZornuxDiagnostic[] {
   for (let index = 0; index < lines.length; index++) {
     const line = lines[index].trim();
     if (!line || line.startsWith('#')) continue;
-    if (blocks.at(-1)?.keyword === 'when' && line !== 'end') continue;
+    const topBlock = blocks.at(-1)?.keyword;
+    if (topBlock && (topBlock === 'when' || topBlock === 'dark theme' || FLAT_BLOCKS.has(topBlock)) && line !== 'end') continue;
     const screen = line.match(/^screen\s+([A-Za-z_]\w*)$/);
     if (screen) screens.add(screen[1]);
     const start = line.match(/^start\s+with\s+([A-Za-z_]\w*)$/);

@@ -3,17 +3,20 @@ import { IpcChannels } from '../src/shared/ipc';
 import { CommandIds } from '../src/renderer/commands/CommandIds';
 import { HARDENED_WEB_PREFERENCES } from '../src/shared/security';
 import { PROJECT_TEMPLATES, renderTemplate, type ProjectTemplate } from '../src/shared/templates';
-import { parseAdbDevices, parseAvdNames, parseMobileBuildOutput, validateAndroidProjectConfig } from '../src/main/services/MobileService';
+import { normalizeAndroidDeviceStatus, normalizeApiLevel, parseAdbDevices, parseAvdNames, parseMobileBuildOutput, validateAndroidProjectConfig } from '../src/main/services/MobileService';
 import { MobileService } from '../src/main/services/MobileService';
-import { groupAndroidDevices, mobileSessionControls } from '../src/renderer/mobile/MobileModule';
+import { androidDeviceListsEqual, androidReleaseBlockers, androidStopOperation, groupAndroidDevices, mobileSessionControls, nativeAndroidTargetId } from '../src/renderer/mobile/MobileModule';
 import { ensureAndroidRunTarget } from '../src/renderer/mobile/deviceTarget';
 import { countReadyAdbDevices } from '../src/main/services/AndroidEnvironmentProbe';
 import { AndroidSdkManager } from '../src/main/services/AndroidSdkManager';
 import { ToolchainService } from '../src/main/services/ToolchainService';
-import { mkdtemp, rm, writeFile } from 'node:fs/promises';
+import { mkdir, mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
 import { existsSync } from 'node:fs';
 import { tmpdir, platform, arch, homedir } from 'node:os';
 import { join } from 'node:path';
+import { assertProjectFolderName } from '../src/shared/projectName';
+import { parseSource } from '../src/renderer/designer/sourceSync';
+import { compileDesignerToIR } from '../src/renderer/simulator/SimulatorCompiler';
 
 /* ===== IPC channel contract parity ===== */
 
@@ -95,6 +98,18 @@ describe('mobile command IDs', () => {
 });
 
 describe('Android deployment toolbar', () => {
+  test('never passes the built-in simulator sentinel to native Android commands', () => {
+    expect(nativeAndroidTargetId('__znx_simulator__')).toBeUndefined();
+    expect(nativeAndroidTargetId(null)).toBeUndefined();
+    expect(nativeAndroidTargetId('emulator-5554')).toBe('emulator-5554');
+  });
+
+  test('detects device metadata and availability changes during polling', () => {
+    const ready = [{ id: 'usb-1', name: 'Pixel', type: 'physical' as const, apiLevel: '35', status: 'device' as const }];
+    expect(androidDeviceListsEqual(ready, [...ready])).toBeTruthy();
+    expect(androidDeviceListsEqual(ready, [{ ...ready[0], status: 'offline' }])).toBeFalsy();
+    expect(androidDeviceListsEqual(ready, [{ ...ready[0], apiLevel: '36' }])).toBeFalsy();
+  });
   test('groups physical and virtual deployment targets without losing status', () => {
     const physical = { id: 'usb-1', name: 'Pixel', type: 'physical' as const, apiLevel: '35', status: 'device' as const };
     const emulator = { id: 'emulator-5554', name: 'Pixel_8_API_35', type: 'emulator' as const, apiLevel: '35', status: 'offline' as const };
@@ -115,6 +130,14 @@ describe('Android deployment toolbar', () => {
     expect(mobileSessionControls('debugging', true).canStop).toBeTruthy();
     expect(mobileSessionControls('stopping', true).canStop).toBeFalsy();
     expect(mobileSessionControls('idle', true).canStop).toBeFalsy();
+  });
+
+  test('routes the global stop action to the active Android operation', () => {
+    expect(androidStopOperation('running')).toBe('run');
+    expect(androidStopOperation('debugging')).toBe('debug');
+    expect(androidStopOperation('testing')).toBe('test');
+    expect(androidStopOperation('profiling')).toBe('profile');
+    expect(androidStopOperation('building')).toBe('build');
   });
 
   test('uses a ready physical device without launching an emulator', async () => {
@@ -163,6 +186,15 @@ describe('Android deployment toolbar', () => {
 });
 
 describe('direct Android SDK discovery fallback', () => {
+  test('normalizes CLI JSON metadata without treating unknown states as ready', () => {
+    expect(normalizeApiLevel(35)).toBe('35');
+    expect(normalizeApiLevel(' 36 ')).toBe('36');
+    expect(normalizeApiLevel(0)).toBeNull();
+    expect(normalizeAndroidDeviceStatus('device')).toBe('device');
+    expect(normalizeAndroidDeviceStatus('unauthorized')).toBe('unauthorized');
+    expect(normalizeAndroidDeviceStatus('bootloader')).toBe('offline');
+  });
+
   test('parses ready, offline, and unauthorized ADB targets', () => {
     const devices = parseAdbDevices([
       'List of devices attached',
@@ -278,6 +310,51 @@ describe('mobile project templates', () => {
     const parsed = JSON.parse(manifest!.content);
     expect(parsed.workspace.generatedDirs).toContain('.zornux');
   });
+
+  test('mobile templates include a deployable monotonic Android version code', () => {
+    for (const template of PROJECT_TEMPLATES.filter((item) => item.type === 'zornux-mobile')) {
+      const rendered = renderTemplate(template, 'release-app');
+      const project = rendered.files.find((file) => file.path === 'zornux.project');
+      expect(project?.content).toContain('android.version_code = 1');
+    }
+  });
+
+  test('a rendered mobile scaffold is readable and compilable end to end', async () => {
+    const location = await mkdtemp(join(tmpdir(), 'znxstudio-mobile-create-'));
+    try {
+      const template = PROJECT_TEMPLATES.find((item) => item.id === 'zornux-mobile-blank')!;
+      const rendered = renderTemplate(template, 'Deployable App');
+      for (const file of rendered.files) {
+        const target = join(location, file.path);
+        await mkdir(join(target, '..'), { recursive: true });
+        await writeFile(target, file.content);
+      }
+      const config = await new MobileService().projectConfig(location);
+      const source = await readFile(join(location, 'main.zx'), 'utf8');
+      const document = parseSource(source);
+      const compiled = compileDesignerToIR(document.appName, [...document.getScreens()], document.startScreen || undefined);
+      expect(config?.versionCode).toBe(1);
+      expect(config?.applicationId).toBe('com.example.deployable_app');
+      expect(compiled.ok).toBeTruthy();
+    } finally {
+      await rm(location, { recursive: true, force: true });
+    }
+  });
+
+  test('project names cannot escape the selected creation directory', () => {
+    let rejected = false;
+    try { assertProjectFolderName('../outside'); } catch { rejected = true; }
+    expect(rejected).toBeTruthy();
+  });
+});
+
+describe('Android release bundle preflight', () => {
+  test('blocks unsigned or error-bearing releases and allows a ready signed release', () => {
+    const base = { applicationId: 'dev.example.app', version: '1.0.0', versionCode: 1 };
+    expect(androidReleaseBlockers({ ...base, ready: false, signing: null, issues: [] }).length).toBeGreaterThan(0);
+    expect(androidReleaseBlockers({ ...base, ready: false, signing: { configured: true, detail: 'release' }, issues: [{ code: 'SDK', severity: 'error', message: 'Missing SDK' }] })[0]).toContain('SDK');
+    expect(androidReleaseBlockers({ ...base, ready: true, signing: { configured: true, detail: 'release' }, issues: [] })).toHaveLength(0);
+  });
 });
 
 /* ===== Session state type completeness ===== */
@@ -377,6 +454,12 @@ describe('Android build result parsing', () => {
     const result = parseMobileBuildOutput('', 'Android SDK is missing', 1);
     expect(result.success).toBe(false);
     expect(result.diagnostics[0]).toContain('Android SDK is missing');
+  });
+
+  test('does not report a successful artifact when the build process failed', () => {
+    const result = parseMobileBuildOutput('{"success":true,"artifactPath":"partial.apk","diagnostics":[]}', 'Packaging failed', 1);
+    expect(result.success).toBe(false);
+    expect(result.diagnostics[0]).toContain('Packaging failed');
   });
 });
 

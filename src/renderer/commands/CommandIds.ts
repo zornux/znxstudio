@@ -281,6 +281,7 @@ export const CommandIds = {
   MobileViewGenerated: 'znxstudio.mobile.viewGenerated',
   MobileProjectSettings: 'znxstudio.mobile.projectSettings',
   MobileRestart: 'znxstudio.mobile.restart',
+  MobileRunSimulator: 'znxstudio.mobile.runSimulator',
   DesignerOpen: 'znxstudio.designer.open',
   DesignerClose: 'znxstudio.designer.close',
   DesignerUndo: 'znxstudio.designer.undo',

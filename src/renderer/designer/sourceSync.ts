@@ -76,6 +76,7 @@ function parseComponentBlock(ctx: ParseContext, baseIndent: number): ComponentNo
   if (!trimmed || trimmed === 'end') return null;
 
   const startLine = ctx.pos;
+  const componentIndent = indentLevel(line);
 
   // Match: keyword "value" attrs... OR keyword value attrs... OR keyword attrs...
   const keywordMatch = trimmed.match(/^(\w+)\s*(.*)/);
@@ -146,7 +147,7 @@ function parseComponentBlock(ctx: ParseContext, baseIndent: number): ComponentNo
     const childTrimmed = childLine.trim();
     const childIndent = indentLevel(childLine);
 
-    if (childTrimmed === 'end' && childIndent <= baseIndent + 4) {
+    if (childTrimmed === 'end' && childIndent === componentIndent) {
       ctx.pos++;
       break;
     }

@@ -102,7 +102,7 @@ const api: ZnxStudioApi = {
     onExit: (callback) => subscribe<TaskExitEvent>(IpcChannels.TaskExit, callback),
   },
   compiler: {
-    info: () => ipcRenderer.invoke(IpcChannels.CompilerInfo),
+    info: (override?: string | null) => ipcRenderer.invoke(IpcChannels.CompilerInfo, override),
     check: (request) => ipcRenderer.invoke(IpcChannels.CompilerCheck, request),
     build: (request) => ipcRenderer.invoke(IpcChannels.CompilerBuild, request),
     checkProject: (request) => ipcRenderer.invoke(IpcChannels.CompilerCheckProject, request),
@@ -284,6 +284,11 @@ const api: ZnxStudioApi = {
     compile: (workspaceRoot: string) => ipcRenderer.invoke(IpcChannels.SimulatorCompile, workspaceRoot),
     screenshot: (request: unknown) => ipcRenderer.invoke(IpcChannels.SimulatorScreenshot, request),
     onSessionState: (callback: (state: string) => void) => subscribe<string>(IpcChannels.SimulatorSessionState, callback),
+    openWindow: (app) => ipcRenderer.invoke(IpcChannels.SimulatorWindowOpen, app),
+    windowPayload: () => ipcRenderer.invoke(IpcChannels.SimulatorWindowPayload),
+    dockWindow: () => ipcRenderer.invoke(IpcChannels.SimulatorWindowDock),
+    onWindowDock: (callback) => subscribe<void>(IpcChannels.SimulatorWindowDock, callback),
+    onWindowClosed: (callback) => subscribe<void>(IpcChannels.SimulatorWindowClosed, callback),
   },
 };
 

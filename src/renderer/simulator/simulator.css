@@ -13,7 +13,8 @@
   display: flex;
   align-items: center;
   gap: 4px;
-  padding: 4px 8px;
+  padding: 7px 10px;
+  min-height: 38px;
   background: var(--znx-bg-tertiary, #252526);
   border-bottom: 1px solid var(--znx-border, #3c3c3c);
   flex-shrink: 0;
@@ -24,8 +25,10 @@
   border: 1px solid transparent;
   color: var(--znx-fg-primary, #d4d4d4);
   cursor: pointer;
-  padding: 4px 6px;
-  border-radius: 3px;
+  min-width: 30px;
+  min-height: 28px;
+  padding: 5px 7px;
+  border-radius: 6px;
   font-size: 14px;
   line-height: 1;
 }
@@ -55,7 +58,67 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  padding: 16px;
+  padding: 20px;
+  background:
+    radial-gradient(circle at 50% 42%, rgba(82, 105, 156, .12), transparent 46%),
+    var(--znx-bg-secondary, #181a1f);
+}
+
+.zsim-device-stage { position: relative; flex: 0 0 auto; margin: auto; }
+.zsim-device-shell {
+  position: absolute;
+  inset: 0 auto auto 0;
+  padding: 46px 14px 54px;
+  border-radius: 42px 42px 48px 48px / 30px 30px 44px 44px;
+  background:
+    linear-gradient(90deg, transparent, rgba(255,255,255,.07) 2%, transparent 7% 93%, rgba(255,255,255,.05) 98%, transparent),
+    linear-gradient(165deg, #35373a 0%, #151719 13%, #070809 67%, #202224 100%);
+  box-shadow: 0 28px 58px rgba(0,0,0,.58), 0 5px 10px rgba(0,0,0,.55), inset 0 0 0 1px #55585b, inset 0 0 0 3px #090a0b;
+  transform-origin: top left;
+  transition: transform 140ms ease;
+}
+.zsim-device-display { overflow: hidden; border-radius: 2px; background: #000; box-shadow: 0 0 0 2px #050506, 0 0 10px rgba(0,0,0,.85); }
+.zsim-device-display > .zsim-viewport { border-radius: 0; box-shadow: none; }
+.zsim-device-camera { position: absolute; z-index: 4; top: 21px; left: 21%; width: 8px; height: 8px; border-radius: 50%; background: radial-gradient(circle at 35% 35%, #45637a, #07090b 46%, #010101 70%); box-shadow: 0 0 0 2px #08090b, inset 0 0 2px #7795ad; pointer-events: none; }
+.zsim-device-earpiece { position: absolute; top: 20px; left: 50%; width: 54px; height: 7px; transform: translateX(-50%); border-radius: 6px; background: repeating-linear-gradient(90deg,#050505 0 2px,#252728 2px 3px); box-shadow: inset 0 1px 2px #000, 0 1px rgba(255,255,255,.08); }
+.zsim-device-sensor { position: absolute; top: 19px; right: 25%; width: 10px; height: 10px; border-radius: 50%; background: radial-gradient(circle, #242729 0 22%, #080909 28% 50%, #1e2021 56%); }
+.zsim-hardware-key { position: absolute; padding: 0; border: 0; background: #252830; box-shadow: inset 1px 0 rgba(255,255,255,.12); }
+.zsim-power-key { right: -3px; top: 150px; width: 3px; height: 64px; border-radius: 0 2px 2px 0; }
+.zsim-volume-key { left: -3px; top: 115px; width: 3px; height: 92px; border-radius: 2px 0 0 2px; }
+.zsim-system-status { height: 24px; padding: 0 8px; display: flex; align-items: center; justify-content: space-between; box-sizing: border-box; background: #303f9f; color: #fff; font: 600 10px Roboto,system-ui,sans-serif; }
+.zsim-system-icons { font-size: 9px; letter-spacing: .2px; }
+.zsim-system-navigation { height: 48px; display: flex; align-items: center; justify-content: space-around; background: #050505; color: #fff; }
+.zsim-system-navigation button { width: 54px; height: 40px; padding: 0; border: 0; background: transparent; color: #fff; font-size: 13px; cursor: pointer; opacity: .95; }
+.zsim-system-navigation button:active { background: rgba(255,255,255,.12); border-radius: 50%; }
+.zsim-system-navigation .zsim-system-home { width: 13px; height: 13px; border-radius: 50%; background: #fff; }
+.zsim-device-shell[data-device-class='tablet'] { padding-top: 32px; padding-bottom: 38px; border-radius: 28px; }
+.zsim-device-shell[data-device-class='tablet'] .zsim-device-earpiece,
+.zsim-device-shell[data-device-class='tablet'] .zsim-device-sensor { display: none; }
+.zsim-device-shell[data-device-class='tablet'] .zsim-device-camera { top: 12px; left: 50%; }
+.zsim-zoom-label { min-width: 48px; font-size: 11px; }
+.zsim-undock-btn { color: var(--znx-accent, #8ab4f8); }
+.zsim-panel-undocked .zsim-device-container::after { content: 'Simulator is open in a separate window'; color: var(--znx-fg-secondary, #aaa); font-size: 13px; }
+.zsim-panel-undocked .zsim-device-stage { display: none; }
+
+.zsim-floating-body { margin: 0; overflow: hidden; background: #111318; color: #e8eaed; font: 13px system-ui, sans-serif; }
+#zsim-floating-root { height: 100vh; display: flex; flex-direction: column; }
+.zsim-floating-toolbar { -webkit-app-region: drag; overflow-x: auto; background: #1b1e24; border-color: #30343d; scrollbar-width: thin; }
+.zsim-floating-toolbar button { -webkit-app-region: no-drag; }
+.zsim-floating-title { min-width: 0; margin-right: auto; padding: 0 8px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-weight: 600; color: #f1f3f4; }
+.zsim-floating-host { min-height: 0; padding: 16px; }
+.zsim-floating-body .zsim-toolbar-btn { color: #d7dae0; }
+.zsim-floating-body .zsim-toolbar-btn:hover { background: #30343d; }
+.zsim-floating-body .zsim-device-container { overflow: auto; }
+
+.zsim-toolbar-btn:focus-visible,
+.zsim-system-navigation button:focus-visible,
+.zsim-hardware-key:focus-visible {
+  outline: 2px solid var(--znx-accent, #8ab4f8);
+  outline-offset: -2px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .zsim-device-shell { transition: none; }
 }
 
 /* Viewport */

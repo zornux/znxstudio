@@ -885,7 +885,7 @@ export interface StatusService {
  * main process; degrades to `available: false` when the compiler is absent.
  */
 export interface CompilerService {
-  info(refresh?: boolean): Promise<CompilerInfo>;
+  info(refreshOrOverride?: boolean | string | null): Promise<CompilerInfo>;
   check(request: CompilerCheckRequest): Promise<CompilerCheckResult>;
   build(request: CompilerBuildRequest): Promise<CompilerBuildResult>;
   checkProject(request: CompilerCheckProjectRequest): Promise<CompilerCheckResult>;

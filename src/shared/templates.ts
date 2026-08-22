@@ -320,7 +320,7 @@ export const PROJECT_TEMPLATES: readonly ProjectTemplate[] = [
         path: 'zornux.project',
         content:
           'name = ${name}\nversion = 0.1.0\ntype = mobile\nentry = main.zx\n\n' +
-          'android.application_id = com.example.${androidName}\nandroid.min_sdk = 24\nandroid.target_sdk = 35\nandroid.compile_sdk = 35\n',
+          'android.application_id = com.example.${androidName}\nandroid.version_code = 1\nandroid.min_sdk = 24\nandroid.target_sdk = 35\nandroid.compile_sdk = 35\n',
       },
       {
         path: 'main.zx',
@@ -343,7 +343,7 @@ export const PROJECT_TEMPLATES: readonly ProjectTemplate[] = [
         path: 'zornux.project',
         content:
           'name = ${name}\nversion = 0.1.0\ntype = mobile\nentry = main.zx\n\n' +
-          'android.application_id = com.example.${androidName}\nandroid.min_sdk = 24\nandroid.target_sdk = 35\nandroid.compile_sdk = 35\n',
+          'android.application_id = com.example.${androidName}\nandroid.version_code = 1\nandroid.min_sdk = 24\nandroid.target_sdk = 35\nandroid.compile_sdk = 35\n',
       },
       {
         path: 'main.zx',
@@ -370,7 +370,7 @@ export const PROJECT_TEMPLATES: readonly ProjectTemplate[] = [
         path: 'zornux.project',
         content:
           'name = ${name}\nversion = 0.1.0\ntype = mobile\nentry = main.zx\n\n' +
-          'android.application_id = com.example.${androidName}\nandroid.min_sdk = 24\nandroid.target_sdk = 35\nandroid.compile_sdk = 35\n',
+          'android.application_id = com.example.${androidName}\nandroid.version_code = 1\nandroid.min_sdk = 24\nandroid.target_sdk = 35\nandroid.compile_sdk = 35\n',
       },
       {
         path: 'main.zx',

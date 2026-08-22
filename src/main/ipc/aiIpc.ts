@@ -17,8 +17,10 @@ export function registerAiIpc(): void {
   const streamKey = (sender: WebContents, id: string): string => `${sender.id}:${id}`;
 
   ipcMain.on(IpcChannels.AiStreamStart, (event, payload: { id: string; request: AiCompletionRequest }) => {
+    if (!payload || typeof payload.id !== 'string' || !payload.id || !payload.request || typeof payload.request !== 'object') return;
     const { id, request } = payload;
     const key = streamKey(event.sender, id);
+    active.get(key)?.abort();
     const controller = new AbortController();
     active.set(key, controller);
     const send = (channel: string, data: unknown): void => {
@@ -30,10 +32,13 @@ export function registerAiIpc(): void {
       .catch((error: unknown) =>
         send(IpcChannels.AiStreamDone, { id, result: { ok: false, text: '', error: (error as Error).message } }),
       )
-      .finally(() => active.delete(key));
+      .finally(() => {
+        if (active.get(key) === controller) active.delete(key);
+      });
   });
 
   ipcMain.on(IpcChannels.AiStreamCancel, (event, payload: { id: string }) => {
+    if (!payload || typeof payload.id !== 'string') return;
     active.get(streamKey(event.sender, payload.id))?.abort();
   });
 }

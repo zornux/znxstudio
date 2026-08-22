@@ -22,6 +22,7 @@ import { DiagnosticSources } from '../language/diagnosticSources';
 import { DocumentManager } from '../language/DocumentManager';
 import { toPlatformDiagnostics } from '../compiler/compilerDiagnostics';
 import { groupByFile } from '../run/buildDiagnostics';
+import { isMobileZornux } from '../language/languages/zornux/mobileSyntax';
 
 const MODULE_CODE = /^ZX13\d\d$/i; // cross-file / import diagnostics (ZX1300–1399)
 
@@ -188,7 +189,9 @@ export class DependencyGraphModule implements IModule, DependencyGraphService {
 
     for (const [path, list] of groupByFile(diagnostics, workspaceRoot)) {
       const uri = monaco.Uri.file(path).toString();
-      const isOpen = Boolean(documents?.get(uri));
+      const doc = documents?.get(uri);
+      if (doc && isMobileZornux(doc.getText())) continue;
+      const isOpen = Boolean(doc);
       const filtered = isOpen ? list.filter((d) => MODULE_CODE.test(d.code)) : list;
       if (!filtered.length) continue;
       engine.set(uri, DiagnosticSources.ZornuxProject, toPlatformDiagnostics(filtered, DiagnosticSources.ZornuxProject));

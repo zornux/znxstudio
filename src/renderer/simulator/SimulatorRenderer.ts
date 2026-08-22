@@ -891,6 +891,10 @@ export class SimulatorRenderer {
     const env = this.runtime.getEnvironment();
     this.element.dataset.theme = env.theme === 'system' ? 'light' : env.theme;
     this.element.style.fontSize = `${14 * env.fontScale}px`;
+    const landscape = env.orientation === 'landscape';
+    this.element.style.width = `${landscape ? env.deviceProfile.height : env.deviceProfile.width}px`;
+    const deviceHeight = landscape ? env.deviceProfile.width : env.deviceProfile.height;
+    this.element.style.height = `${Math.max(240, deviceHeight - env.deviceProfile.statusBarHeight - env.deviceProfile.navigationArea)}px`;
     if (env.reducedMotion) this.element.classList.add('zsim-reduced-motion');
     else this.element.classList.remove('zsim-reduced-motion');
   }

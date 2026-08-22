@@ -34,10 +34,12 @@ const UNAVAILABLE: CompilerInfo = { available: false, path: null, version: null,
 export class CompilerClient implements CompilerService {
   private cachedInfo: CompilerInfo | null = null;
 
-  async info(refresh = false): Promise<CompilerInfo> {
-    if (!refresh && this.cachedInfo) return this.cachedInfo;
+  async info(refreshOrOverride?: boolean | string | null): Promise<CompilerInfo> {
+    const refresh = refreshOrOverride === true;
+    const override = typeof refreshOrOverride === 'string' ? refreshOrOverride : undefined;
+    if (!refresh && !override && this.cachedInfo) return this.cachedInfo;
     try {
-      this.cachedInfo = await window.znxstudio.compiler.info();
+      this.cachedInfo = await window.znxstudio.compiler.info(override);
     } catch {
       this.cachedInfo = UNAVAILABLE;
     }

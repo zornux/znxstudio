@@ -69,6 +69,7 @@ export class LspModule implements IModule {
   private compilerPath: string | null = null;
   private lastStart: LspStartResult | null = null;
   private settings: SettingsService | undefined;
+  private startGeneration = 0;
   /** Publish live ZX37xx findings as you type. Off by default, like the server. */
   private securityEnabled = false;
   /** Mobile DSL documents are owned by the designer-aware local language
@@ -180,12 +181,22 @@ export class LspModule implements IModule {
   }
 
   /* ----- server lifecycle ----- */
+  private compilerPathFromSettings(): string | null {
+    const settings = this.context.services.tryGet<SettingsService>(ServiceKeys.Settings);
+    const value = settings?.get('zornux.compiler.path', '');
+    return typeof value === 'string' && value.trim() ? value.trim() : null;
+  }
+
   private async startServer(workspace: WorkspaceInfo | null): Promise<void> {
+    const gen = ++this.startGeneration;
     try {
-      const info = await window.znxstudio.compiler.info();
+      const override = this.compilerPathFromSettings();
+      const info = await window.znxstudio.compiler.info(override);
+      if (gen !== this.startGeneration) return;
       if (!info.available) {
         this.lastStart = { success: false, error: 'compiler unavailable' };
-        return; // leave the subprocess-check fallback active
+        this.publishStatus();
+        return;
       }
       this.compilerPath = info.path;
       const rootUri = workspace ? monaco.Uri.file(workspace.root).toString() : null;
@@ -195,6 +206,7 @@ export class LspModule implements IModule {
         rootPath: workspace?.root ?? null,
         settings: buildZornuxSettings(this.securityEnabled),
       });
+      if (gen !== this.startGeneration) return;
       this.lastStart = result;
       if (result.success) {
         this.verifySemanticLegend(result);
@@ -202,6 +214,7 @@ export class LspModule implements IModule {
         this.clearStaleFrontendDiagnostics();
       }
     } catch (error) {
+      if (gen !== this.startGeneration) return;
       this.lastStart = { success: false, error: (error as Error).message };
     }
     this.publishStatus();
@@ -305,6 +318,7 @@ export class LspModule implements IModule {
       if (isMobileZornux(doc.getText())) {
         this.mobileDocuments.add(doc.uri);
         this.engine?.clear(doc.uri, LSP_DIAGNOSTIC_SOURCE);
+        this.engine?.clear(doc.uri, DiagnosticSources.ZornuxProject);
         continue;
       }
       this.mobileDocuments.delete(doc.uri);
@@ -318,6 +332,7 @@ export class LspModule implements IModule {
       this.mobileDocuments.add(doc.uri);
       this.client.didClose(doc.uri);
       this.engine?.clear(doc.uri, LSP_DIAGNOSTIC_SOURCE);
+      this.engine?.clear(doc.uri, DiagnosticSources.ZornuxProject);
       return;
     }
     this.mobileDocuments.delete(doc.uri);
@@ -332,6 +347,7 @@ export class LspModule implements IModule {
       this.mobileDocuments.add(doc.uri);
       this.client.didClose(doc.uri);
       this.engine?.clear(doc.uri, LSP_DIAGNOSTIC_SOURCE);
+      this.engine?.clear(doc.uri, DiagnosticSources.ZornuxProject);
       return;
     }
     this.mobileDocuments.delete(doc.uri);

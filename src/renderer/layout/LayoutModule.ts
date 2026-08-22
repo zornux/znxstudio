@@ -769,22 +769,51 @@ export class LayoutModule implements IModule, LayoutService {
    * reorder, enabled rows highlighted. Replaces the full-width raw checkbox list.
    */
   private showPanelManager(): void {
+    const existing = document.querySelector<HTMLElement>('.znxstudio-pm-backdrop');
+    if (existing) {
+      existing.querySelector<HTMLElement>('.znxstudio-pm-close')?.focus();
+      return;
+    }
     const collapsed = new Set<string>();
+    const previouslyFocused = document.activeElement as HTMLElement | null;
 
     const backdrop = document.createElement('div');
     backdrop.className = 'znxstudio-pm-backdrop';
     const card = document.createElement('div');
     card.className = 'znxstudio-pm-card';
     card.setAttribute('role', 'dialog');
-    card.setAttribute('aria-label', 'Manage Panels');
+    card.setAttribute('aria-modal', 'true');
+    card.setAttribute('aria-labelledby', 'znxstudio-pm-title');
     backdrop.appendChild(card);
 
     const dismiss = (): void => {
       backdrop.remove();
       document.removeEventListener('keydown', onKey, true);
+      previouslyFocused?.focus();
     };
     const onKey = (event: KeyboardEvent): void => {
-      if (event.key === 'Escape') dismiss();
+      if (event.key === 'Escape') {
+        event.preventDefault();
+        dismiss();
+        return;
+      }
+      if (event.key !== 'Tab') return;
+      const focusable = [...card.querySelectorAll<HTMLElement>(
+        'button:not([disabled]), [href], input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])',
+      )].filter((element) => element.offsetParent !== null);
+      if (!focusable.length) {
+        event.preventDefault();
+        return;
+      }
+      const first = focusable[0];
+      const last = focusable[focusable.length - 1];
+      if (event.shiftKey && document.activeElement === first) {
+        event.preventDefault();
+        last.focus();
+      } else if (!event.shiftKey && document.activeElement === last) {
+        event.preventDefault();
+        first.focus();
+      }
     };
     backdrop.addEventListener('mousedown', (event) => {
       if (event.target === backdrop) dismiss();
@@ -810,13 +839,15 @@ export class LayoutModule implements IModule, LayoutService {
       toggle.setAttribute('role', 'switch');
       toggle.setAttribute('aria-checked', enabled ? 'true' : 'false');
       toggle.setAttribute('aria-label', `Toggle ${panel.title}`);
+      toggle.dataset.panelId = panel.id;
+      toggle.title = 'Toggle panel. Alt+Up or Alt+Down reorders it.';
 
       const flip = (): void => {
         this.setPanelPreferences(
           enabled ? closePanel(this.panelPreferences, panel.id) : openPanel(this.panelPreferences, panel.id),
         );
         if (!enabled) this.context.layout.showPanelView(panel.id);
-        render();
+        render(`panel:${panel.id}`);
       };
       toggle.addEventListener('click', flip);
       label.addEventListener('click', flip);
@@ -839,26 +870,40 @@ export class LayoutModule implements IModule, LayoutService {
           const ids = orderedIds.filter((id) => id !== dragged);
           ids.splice(Math.max(0, ids.indexOf(panel.id)), 0, dragged);
           this.setPanelPreferences({ ...this.panelPreferences, order: ids });
-          render();
+          render(`panel:${dragged}`);
         }
+      });
+      toggle.addEventListener('keydown', (event) => {
+        if (!event.altKey || (event.key !== 'ArrowUp' && event.key !== 'ArrowDown')) return;
+        event.preventDefault();
+        const from = orderedIds.indexOf(panel.id);
+        const to = Math.max(0, Math.min(orderedIds.length - 1, from + (event.key === 'ArrowUp' ? -1 : 1)));
+        if (from === to) return;
+        const ids = [...orderedIds];
+        ids.splice(from, 1);
+        ids.splice(to, 0, panel.id);
+        this.setPanelPreferences({ ...this.panelPreferences, order: ids });
+        render(`panel:${panel.id}`);
       });
 
       row.append(handle, label, toggle);
       return row;
     };
 
-    const render = (): void => {
+    const render = (focusTarget?: string): void => {
       card.replaceChildren();
 
       const header = document.createElement('div');
       header.className = 'znxstudio-pm-header';
       const title = document.createElement('span');
       title.className = 'znxstudio-pm-title';
+      title.id = 'znxstudio-pm-title';
       title.textContent = 'Manage Panels';
       const close = document.createElement('button');
       close.className = 'znxstudio-pm-close';
       close.textContent = '×';
       close.title = 'Close';
+      close.setAttribute('aria-label', 'Close Manage Panels');
       close.addEventListener('click', dismiss);
       header.append(title, close);
       card.appendChild(header);
@@ -880,6 +925,7 @@ export class LayoutModule implements IModule, LayoutService {
 
         const sectionHeader = document.createElement('button');
         sectionHeader.className = 'znxstudio-pm-section-header';
+        sectionHeader.dataset.category = name;
         sectionHeader.setAttribute('aria-expanded', isCollapsed ? 'false' : 'true');
         const enabledCount = panels.filter((panel) => inStrip(this.panelPreferences, panel.id)).length;
         sectionHeader.innerHTML =
@@ -889,7 +935,7 @@ export class LayoutModule implements IModule, LayoutService {
         sectionHeader.addEventListener('click', () => {
           if (isCollapsed) collapsed.delete(name);
           else collapsed.add(name);
-          render();
+          render(`category:${name}`);
         });
         section.appendChild(sectionHeader);
 
@@ -902,18 +948,30 @@ export class LayoutModule implements IModule, LayoutService {
       footer.className = 'znxstudio-pm-footer';
       const reset = document.createElement('button');
       reset.className = 'znxstudio-pm-reset';
+      reset.dataset.action = 'reset';
       reset.textContent = '⟲ Reset to defaults';
       reset.addEventListener('click', () => {
         this.setPanelPreferences(resetPanelPreferences());
-        render();
+        render('reset');
       });
       footer.appendChild(reset);
       card.appendChild(footer);
+
+      if (focusTarget) queueMicrotask(() => {
+        const [kind, value] = focusTarget.split(':', 2);
+        const target = kind === 'panel'
+          ? [...card.querySelectorAll<HTMLElement>('[data-panel-id]')].find((element) => element.dataset.panelId === value)
+          : kind === 'category'
+            ? [...card.querySelectorAll<HTMLElement>('[data-category]')].find((element) => element.dataset.category === value)
+            : card.querySelector<HTMLElement>('[data-action="reset"]');
+        target?.focus();
+      });
     };
 
     render();
     document.addEventListener('keydown', onKey, true);
     document.body.appendChild(backdrop);
+    card.querySelector<HTMLElement>('.znxstudio-pm-close')?.focus();
   }
 
   /* ----- optional headless self-test (ZNXSTUDIO_SELFTEST=1) ----- */

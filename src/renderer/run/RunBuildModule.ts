@@ -291,9 +291,14 @@ export class RunBuildModule implements IModule {
     const entry = this.zornuxEntry(info);
     const compilerInfo = compiler ? await compiler.info() : null;
 
-    // Mobile projects use `zornux mobile run android` with the selected device.
+    // Mobile projects delegate to MobileModule which handles both the built-in
+    // simulator and Android device targets through a unified run path.
     if (info.detectedType === 'zornux-mobile') {
-      await this.mobileRun(info);
+      if (this.context.commands.has(CommandIds.MobileRunStart)) {
+        await this.context.commands.execute(CommandIds.MobileRunStart);
+      } else {
+        await this.mobileRun(info);
+      }
       return;
     }
 
@@ -406,6 +411,10 @@ export class RunBuildModule implements IModule {
       return;
     }
     if (!targetId) {
+      if (this.context.commands.has(CommandIds.MobileRunSimulator)) {
+        await this.context.commands.execute(CommandIds.MobileRunSimulator);
+        return;
+      }
       this.context.layout.showToast('No Android target is available. Create or install a virtual device from Android SDK Manager.', 'error');
       return;
     }

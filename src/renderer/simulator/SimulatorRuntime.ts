@@ -230,6 +230,12 @@ export class SimulatorRuntime {
     this._onDidChangeEnvironment.fire(this.environment);
   }
 
+  setDeviceProfile(deviceProfile: import('../../shared/simulatorTypes').SimulatorDeviceProfile): void {
+    this.environment = { ...this.environment, deviceProfile };
+    this.environmentModel.set('device', deviceProfile);
+    this._onDidChangeEnvironment.fire(this.environment);
+  }
+
   setConnectivity(mode: ConnectivityMode): void {
     this.environment = { ...this.environment, connectivity: mode };
     this.capabilities.connectivity.setMode(mode);

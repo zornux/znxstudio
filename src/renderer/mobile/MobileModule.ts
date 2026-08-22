@@ -25,6 +25,11 @@ import type {
   ToolchainStatus,
 } from '../../shared/types';
 import { ensureAndroidRunTarget } from './deviceTarget';
+import { parseSource } from '../designer/sourceSync';
+import { compileDesignerToIR } from '../simulator/SimulatorCompiler';
+import { joinPath } from '../explorer/paths';
+
+const SIMULATOR_TARGET_ID = '__znx_simulator__';
 
 /**
  * Android IDE module — the primary development experience for Zornux Mobile.
@@ -42,7 +47,7 @@ export class MobileModule implements IModule {
   private context!: ModuleContext;
   private devices: AndroidDevice[] = [];
   private emulators: AndroidEmulator[] = [];
-  private selectedDeviceId: string | null = null;
+  private selectedDeviceId: string | null = SIMULATOR_TARGET_ID;
   private doctorResult: MobileDoctorResult | null = null;
   private toolchainStatus: ToolchainStatus | null = null;
   private sessionState: MobileSessionState = 'idle';
@@ -78,6 +83,10 @@ export class MobileModule implements IModule {
   private projectSettingsEl: HTMLDivElement | null = null;
   private activityItemRegistered = false;
   private devicePollTimer: ReturnType<typeof setInterval> | null = null;
+  private deviceRequestGeneration = 0;
+  private devicePollInFlight = false;
+  private testRequestGeneration = 0;
+  private buildRequestGeneration = 0;
 
   activate(context: ModuleContext): void {
     this.context = context;
@@ -105,6 +114,7 @@ export class MobileModule implements IModule {
     context.commands.register(CommandIds.MobileSdkManager, () => this.showSdkManager(), 'Zornux: Android SDK Manager');
     context.commands.register(CommandIds.MobileViewGenerated, () => this.viewGenerated(), 'Zornux: View Generated Android');
     context.commands.register(CommandIds.MobileProjectSettings, () => this.showProjectSettings(), 'Zornux: Android Project Settings');
+    context.commands.register(CommandIds.MobileRunSimulator, () => this.runInSimulator(), 'Zornux: Run in Simulator');
 
     // Enablement: mobile commands only for mobile workspaces.
     const mobileCommands = [
@@ -115,7 +125,7 @@ export class MobileModule implements IModule {
       CommandIds.MobileProfileStart, CommandIds.MobileProfileStop, CommandIds.MobileBuildApk,
       CommandIds.MobileBuildAab, CommandIds.MobileReleaseCheck, CommandIds.MobileClean,
       CommandIds.MobileToolchainSetup, CommandIds.MobileSdkManager, CommandIds.MobileViewGenerated,
-      CommandIds.MobileProjectSettings,
+      CommandIds.MobileProjectSettings, CommandIds.MobileRunSimulator,
     ];
     const workspace = context.services.get<WorkspaceService>(ServiceKeys.Workspace);
     context.subscriptions.push(
@@ -127,6 +137,12 @@ export class MobileModule implements IModule {
       }),
     );
     workspace.onDidChangeFolders(() => {
+      this.deviceRequestGeneration += 1;
+      this.testRequestGeneration += 1;
+      this.buildRequestGeneration += 1;
+      this.devices = [];
+      this.emulators = [];
+      this.selectedDeviceId = SIMULATOR_TARGET_ID;
       context.commands.notifyEnablementChanged();
       if (this.isMobileWorkspace()) {
         this.ensureActivityItem();
@@ -230,12 +246,17 @@ export class MobileModule implements IModule {
     deployment.className = 'znxstudio-mobile-deploy';
     const deploymentTitle = document.createElement('div');
     deploymentTitle.className = 'znxstudio-mobile-deploy-title';
-    deploymentTitle.innerHTML = '<strong>app</strong><span data-role="session-status">Idle</span>';
+    deploymentTitle.innerHTML = '<div class="znxstudio-mobile-brand"><span class="znxstudio-mobile-brand-icon" aria-hidden="true">A</span><span><strong>Android App</strong><small>Development &amp; deployment</small></span></div><span data-role="session-status" aria-live="polite">Idle</span>';
     this.sessionStatusEl = deploymentTitle.querySelector('[data-role="session-status"]');
     deployment.appendChild(deploymentTitle);
 
     const targetRow = document.createElement('div');
     targetRow.className = 'znxstudio-mobile-target-row';
+    const targetIcon = document.createElement('span');
+    targetIcon.className = 'znxstudio-mobile-target-icon';
+    targetIcon.textContent = '▣';
+    targetIcon.title = 'Deployment target';
+    targetRow.appendChild(targetIcon);
     const target = document.createElement('select');
     target.className = 'znxstudio-mobile-target';
     target.title = 'Deployment target';
@@ -244,7 +265,7 @@ export class MobileModule implements IModule {
       const id = target.value || null;
       if (!id) return;
       this.selectedDeviceId = id;
-      void window.znxstudio.mobile.selectDevice(id);
+      if (id !== SIMULATOR_TARGET_ID) void this.selectNativeDevice(id);
       this.renderDeviceList();
       this.setDeviceStatusBar();
     });
@@ -261,18 +282,22 @@ export class MobileModule implements IModule {
     primaryActions.className = 'znxstudio-mobile-primary-actions';
     const runButton = this.createButton('▶ Run', () => void this.runStart());
     runButton.classList.add('is-primary');
+    const simButton = this.createButton('▶ Simulator', () => void this.runInSimulator());
+    simButton.title = 'Compile and preview in the in-browser simulator';
     const debugButton = this.createButton('◆ Debug', () => void this.debugStart());
     const restartButton = this.createButton('↻ Restart', () => void this.restart());
     const stopButton = this.createButton('■ Stop', () => void this.runStop());
-    this.runActionButtons = [runButton, debugButton, restartButton];
+    stopButton.classList.add('is-danger');
+    this.runActionButtons = [runButton, simButton, debugButton, restartButton];
     this.stopActionButton = stopButton;
-    primaryActions.append(runButton, debugButton, restartButton, stopButton);
+    primaryActions.append(runButton, simButton, debugButton, restartButton, stopButton);
     deployment.appendChild(primaryActions);
     view.appendChild(deployment);
 
     // Section: Toolchain / Environment
     const toolchainSection = this.createSection('Android Environment', view);
     const toolchainActions = document.createElement('div');
+    toolchainActions.className = 'znxstudio-mobile-actions';
     toolchainActions.style.display = 'flex';
     toolchainActions.style.gap = '4px';
     toolchainActions.style.flexWrap = 'wrap';
@@ -287,6 +312,7 @@ export class MobileModule implements IModule {
     // Section: Devices
     const deviceSection = this.createSection('Device Manager', view);
     const deviceActions = document.createElement('div');
+    deviceActions.className = 'znxstudio-mobile-actions';
     deviceActions.style.display = 'flex';
     deviceActions.style.gap = '4px';
     deviceActions.appendChild(this.createButton('Refresh', () => this.refreshDevices()));
@@ -313,6 +339,7 @@ export class MobileModule implements IModule {
     // Section: Tests
     const testSection = this.createSection('Tests', view);
     const testActions = document.createElement('div');
+    testActions.className = 'znxstudio-mobile-actions';
     testActions.style.display = 'flex';
     testActions.style.gap = '4px';
     testActions.appendChild(this.createButton('Run Tests', () => this.testRun()));
@@ -326,6 +353,7 @@ export class MobileModule implements IModule {
     // Section: Profile
     const profileSection = this.createSection('Profile', view);
     const profileActions = document.createElement('div');
+    profileActions.className = 'znxstudio-mobile-actions';
     profileActions.style.display = 'flex';
     profileActions.style.gap = '4px';
     profileActions.appendChild(this.createButton('Profile', () => this.profileStart()));
@@ -339,11 +367,13 @@ export class MobileModule implements IModule {
     // Section: Build
     const buildSection = this.createSection('Build & Release', view);
     const buildActions = document.createElement('div');
+    buildActions.className = 'znxstudio-mobile-actions';
     buildActions.style.display = 'flex';
     buildActions.style.gap = '4px';
     buildActions.style.flexWrap = 'wrap';
     buildActions.appendChild(this.createButton('Build APK', () => this.buildApk()));
     buildActions.appendChild(this.createButton('Build AAB', () => this.buildAab()));
+    buildActions.appendChild(this.createButton('Stop Build', () => void this.buildStop()));
     buildActions.appendChild(this.createButton('Check Release', () => this.releaseCheck()));
     buildActions.appendChild(this.createButton('Clean', () => this.clean()));
     buildSection.appendChild(buildActions);
@@ -359,6 +389,7 @@ export class MobileModule implements IModule {
     // Section: Project Settings
     const settingsSection = this.createSection('Project', view);
     const settingsActions = document.createElement('div');
+    settingsActions.className = 'znxstudio-mobile-actions';
     settingsActions.style.display = 'flex';
     settingsActions.style.gap = '4px';
     settingsActions.appendChild(this.createButton('Settings', () => this.showProjectSettings()));
@@ -372,6 +403,7 @@ export class MobileModule implements IModule {
     // Section: Logs
     const logSection = this.createSection('Application Logs', view);
     const logActions = document.createElement('div');
+    logActions.className = 'znxstudio-mobile-actions';
     logActions.style.display = 'flex';
     logActions.style.gap = '4px';
     logActions.appendChild(this.createButton('Clear', () => {
@@ -405,14 +437,9 @@ export class MobileModule implements IModule {
   private createSection(title: string, parent: HTMLElement): HTMLDivElement {
     const section = document.createElement('div');
     section.className = 'znxstudio-mobile-section';
-    section.style.marginBottom = '12px';
     const heading = document.createElement('h3');
-    heading.textContent = title;
-    heading.style.margin = '8px 0 4px';
-    heading.style.fontSize = '11px';
-    heading.style.textTransform = 'uppercase';
-    heading.style.opacity = '0.7';
-    heading.style.letterSpacing = '0.5px';
+    const icons: Record<string, string> = { 'Android Environment': '✓', 'Device Manager': '▣', Emulators: '◇', 'Debug Session': '◆', Tests: '✓', Profile: '⌁', 'Build & Release': '⬡', Project: '⚙', 'Application Logs': '≡' };
+    heading.innerHTML = `<span aria-hidden="true">${icons[title] ?? '•'}</span>${title}`;
     section.appendChild(heading);
     parent.appendChild(section);
     return section;
@@ -442,17 +469,24 @@ export class MobileModule implements IModule {
   }
 
   private async pollDevices(): Promise<void> {
+    if (this.devicePollInFlight) return;
+    this.devicePollInFlight = true;
+    const generation = ++this.deviceRequestGeneration;
     let next: AndroidDevice[];
     try {
       next = await window.znxstudio.mobile.devices();
     } catch {
       return;
+    } finally {
+      this.devicePollInFlight = false;
     }
+
+    if (generation !== this.deviceRequestGeneration) return;
 
     const prevIds = new Set(this.devices.filter((d) => d.status === 'device').map((d) => d.id));
     const nextIds = new Set(next.filter((d) => d.status === 'device').map((d) => d.id));
 
-    if (setsEqual(prevIds, nextIds)) return;
+    if (androidDeviceListsEqual(this.devices, next)) return;
 
     // Notify on connects/disconnects.
     for (const d of next) {
@@ -468,8 +502,8 @@ export class MobileModule implements IModule {
 
     this.devices = next;
 
-    // Invalidate selection if the chosen device disappeared.
-    if (this.selectedDeviceId && !nextIds.has(this.selectedDeviceId)) {
+    // Invalidate selection if the chosen device disappeared (but not the simulator).
+    if (this.selectedDeviceId && this.selectedDeviceId !== SIMULATOR_TARGET_ID && !nextIds.has(this.selectedDeviceId)) {
       this.selectedDeviceId = null;
     }
 
@@ -484,20 +518,29 @@ export class MobileModule implements IModule {
   }
 
   private async refreshDevices(): Promise<void> {
+    const generation = ++this.deviceRequestGeneration;
     try {
-      this.devices = await window.znxstudio.mobile.devices();
+      const devices = await window.znxstudio.mobile.devices();
+      if (generation !== this.deviceRequestGeneration) return;
+      this.devices = devices;
     } catch {
+      if (generation !== this.deviceRequestGeneration) return;
       this.devices = [];
     }
 
-    // Auto-select when a device appears and nothing is selected.
+    // Auto-select when nothing is selected yet (don't override explicit simulator choice).
     if (!this.selectedDeviceId) {
       const available = this.devices.find((d) => d.status === 'device');
       if (available) this.selectedDeviceId = available.id;
     }
-    // Invalidate selection if the chosen device disappeared.
-    if (this.selectedDeviceId && !this.devices.some((d) => d.id === this.selectedDeviceId && d.status === 'device')) {
+    // Invalidate selection if the chosen device disappeared (but not the simulator).
+    if (this.selectedDeviceId && this.selectedDeviceId !== SIMULATOR_TARGET_ID &&
+        !this.devices.some((d) => d.id === this.selectedDeviceId && d.status === 'device')) {
       this.selectedDeviceId = null;
+    }
+    // Default to the simulator when no Android device is selected.
+    if (!this.selectedDeviceId) {
+      this.selectedDeviceId = SIMULATOR_TARGET_ID;
     }
 
     this.renderDeviceList();
@@ -516,6 +559,14 @@ export class MobileModule implements IModule {
   }
 
   private setDeviceStatusBar(): void {
+    if (this.selectedDeviceId === SIMULATOR_TARGET_ID) {
+      this.status()?.setItem('android.device', {
+        text: 'Znx Simulator',
+        side: 'right',
+        priority: 26,
+      });
+      return;
+    }
     const selected = this.devices.find((d) => d.id === this.selectedDeviceId);
     if (selected) {
       this.status()?.setItem('android.device', {
@@ -573,6 +624,7 @@ export class MobileModule implements IModule {
       row.appendChild(icon);
 
       const info = document.createElement('div');
+      info.className = 'znxstudio-mobile-device-info';
       info.style.flex = '1';
       const nameEl = document.createElement('div');
       nameEl.textContent = device.name;
@@ -602,7 +654,7 @@ export class MobileModule implements IModule {
           return;
         }
         this.selectedDeviceId = device.id;
-        void window.znxstudio.mobile.selectDevice(device.id);
+        void this.selectNativeDevice(device.id);
         this.renderDeviceList();
         this.renderRunToolbar();
         this.setDeviceStatusBar();
@@ -615,22 +667,22 @@ export class MobileModule implements IModule {
     const target = this.runTargetEl;
     if (target) {
       target.innerHTML = '';
+
+      const simOption = document.createElement('option');
+      simOption.value = SIMULATOR_TARGET_ID;
+      simOption.textContent = 'Znx Simulator';
+      simOption.selected = this.selectedDeviceId === SIMULATOR_TARGET_ID;
+      target.appendChild(simOption);
+
       const ready = this.devices.filter((device) => device.status === 'device');
-      if (ready.length === 0) {
+      for (const device of ready) {
         const option = document.createElement('option');
-        option.value = '';
-        option.textContent = 'No devices available';
+        option.value = device.id;
+        option.textContent = `${device.name}${device.apiLevel ? ` · API ${device.apiLevel}` : ''}`;
+        option.selected = device.id === this.selectedDeviceId;
         target.appendChild(option);
-      } else {
-        for (const device of ready) {
-          const option = document.createElement('option');
-          option.value = device.id;
-          option.textContent = `${device.name}${device.apiLevel ? ` · API ${device.apiLevel}` : ''}`;
-          option.selected = device.id === this.selectedDeviceId;
-          target.appendChild(option);
-        }
       }
-      target.disabled = ready.length === 0;
+      target.disabled = false;
     }
 
     const controls = mobileSessionControls(this.sessionState, Boolean(this.selectedDeviceId) || this.emulators.length > 0);
@@ -654,6 +706,7 @@ export class MobileModule implements IModule {
 
     for (const emu of this.emulators) {
       const row = document.createElement('div');
+      row.className = 'znxstudio-mobile-emulator';
       row.style.padding = '3px 4px';
       row.style.fontSize = '12px';
       row.style.display = 'flex';
@@ -665,10 +718,7 @@ export class MobileModule implements IModule {
       label.textContent = `${emu.name}${emu.apiLevel ? ` (API ${emu.apiLevel})` : ''}`;
       row.appendChild(label);
 
-      const startBtn = this.createButton('Start', () => {
-        void window.znxstudio.mobile.startEmulator(emu.name);
-        this.context.layout.showToast(`Starting emulator: ${emu.name}`, 'info');
-      });
+      const startBtn = this.createButton('Start', () => void this.startEmulator(emu.name));
       startBtn.style.fontSize = '11px';
       row.appendChild(startBtn);
 
@@ -691,7 +741,7 @@ export class MobileModule implements IModule {
     const result = await quickPick.pick(items, { placeholder: 'Select Android device' });
     if (result) {
       this.selectedDeviceId = result;
-      void window.znxstudio.mobile.selectDevice(result);
+      await this.selectNativeDevice(result);
       this.renderDeviceList();
       this.renderRunToolbar();
       this.setDeviceStatusBar();
@@ -712,8 +762,24 @@ export class MobileModule implements IModule {
     }));
     const result = await quickPick.pick(items, { placeholder: 'Start emulator' });
     if (result) {
-      void window.znxstudio.mobile.startEmulator(result);
-      this.context.layout.showToast(`Starting: ${result}`, 'info');
+      await this.startEmulator(result);
+    }
+  }
+
+  private async selectNativeDevice(deviceId: string): Promise<void> {
+    try {
+      await window.znxstudio.mobile.selectDevice(deviceId);
+    } catch (error) {
+      this.context.layout.showToast(`Could not select device: ${(error as Error).message}`, 'error');
+    }
+  }
+
+  private async startEmulator(name: string): Promise<void> {
+    try {
+      await window.znxstudio.mobile.startEmulator(name);
+      this.context.layout.showToast(`Starting emulator: ${name}`, 'info');
+    } catch (error) {
+      this.context.layout.showToast(`Could not start ${name}: ${(error as Error).message}`, 'error');
     }
   }
 
@@ -740,6 +806,7 @@ export class MobileModule implements IModule {
 
     for (const comp of this.toolchainStatus.components) {
       const row = document.createElement('div');
+      row.className = 'znxstudio-mobile-status-row';
       row.style.fontSize = '12px';
       row.style.padding = '1px 0';
       row.style.display = 'flex';
@@ -887,6 +954,7 @@ export class MobileModule implements IModule {
     container.innerHTML = '';
     for (const check of this.doctorResult.checks) {
       const row = document.createElement('div');
+      row.className = 'znxstudio-mobile-result-row';
       row.style.fontSize = '12px';
       row.style.padding = '1px 0';
       row.textContent = `${check.passed ? '✓' : '✗'} ${check.name}`;
@@ -945,22 +1013,23 @@ export class MobileModule implements IModule {
   }
 
   private async runStart(): Promise<void> {
+    if (this.selectedDeviceId === SIMULATOR_TARGET_ID) {
+      return this.runInSimulator();
+    }
+
     const root = this.getWorkspaceRoot();
     if (!root) return;
 
-    const status = await window.znxstudio.mobile.status();
-    if (status.running) {
-      this.context.layout.showToast('App is already running. Stop it first.', 'info');
-      return;
-    }
-
-    const deviceId = await this.pickDevice();
-    if (!deviceId) return;
-
-    if (this.logOutputEl) this.logOutputEl.textContent = '';
-    this.status()?.setItem('mobile.status', { text: 'Android: Running', side: 'right', priority: 29 });
-
     try {
+      const status = await window.znxstudio.mobile.status();
+      if (status.running) {
+        this.context.layout.showToast('App is already running. Stop it first.', 'info');
+        return;
+      }
+      const deviceId = await this.pickDevice();
+      if (!deviceId) return;
+      if (this.logOutputEl) this.logOutputEl.textContent = '';
+      this.status()?.setItem('mobile.status', { text: 'Android: Running', side: 'right', priority: 29 });
       await window.znxstudio.mobile.runStart(deviceId, root);
     } catch (error) {
       this.context.layout.showToast(`Run failed: ${(error as Error).message}`, 'error');
@@ -970,7 +1039,16 @@ export class MobileModule implements IModule {
 
   private async runStop(): Promise<void> {
     try {
-      await window.znxstudio.mobile.runStop();
+      const operation = androidStopOperation(this.sessionState);
+      if (operation === 'test') this.testRequestGeneration += 1;
+      if (operation === 'build') this.buildRequestGeneration += 1;
+      switch (operation) {
+        case 'debug': await window.znxstudio.mobile.debugStop(); break;
+        case 'test': await window.znxstudio.mobile.testStop(); break;
+        case 'profile': await window.znxstudio.mobile.profileStop(); break;
+        case 'build': await window.znxstudio.mobile.buildStop(); break;
+        case 'run': await window.znxstudio.mobile.runStop(); break;
+      }
       this.status()?.setItem('mobile.status', { text: 'Android: Stopped', side: 'right', priority: 29, autoHideMs: 4000 });
     } catch (error) {
       this.context.layout.showToast(`Stop failed: ${(error as Error).message}`, 'error');
@@ -980,6 +1058,71 @@ export class MobileModule implements IModule {
   private async restart(): Promise<void> {
     await this.runStop();
     await this.runStart();
+  }
+
+  /* ===== Simulator ===== */
+
+  private async runInSimulator(): Promise<void> {
+    const root = this.getWorkspaceRoot();
+    if (!root) return;
+
+    this.status()?.setItem('mobile.status', { text: 'Simulator: Compiling…', side: 'right', priority: 29 });
+
+    try {
+      const editor = this.context.services.tryGet<EditorService>(ServiceKeys.Editor);
+      let sourcePath = editor?.currentFile() ?? null;
+
+      if (!sourcePath || !sourcePath.toLowerCase().endsWith('.zx')) {
+        const conventional = joinPath(root, 'src/main.zx');
+        if (await window.znxstudio.fs.pathExists(conventional)) {
+          sourcePath = conventional;
+        } else {
+          const entries = await window.znxstudio.fs.readDirectory(root);
+          const zxFile = entries.find((e: { name: string }) => e.name.toLowerCase().endsWith('.zx'));
+          sourcePath = zxFile ? joinPath(root, zxFile.name) : null;
+        }
+        if (!sourcePath) {
+          this.context.layout.showToast('No .zx file found in the workspace.', 'error');
+          return;
+        }
+      }
+      const source = await window.znxstudio.fs.readFile(sourcePath);
+      const doc = parseSource(source);
+
+      if (!doc.appName) {
+        this.context.layout.showToast('Source file does not define a mobile app.', 'error');
+        this.status()?.setItem('mobile.status', { text: 'Simulator: Error', side: 'right', priority: 29, autoHideMs: 4000 });
+        return;
+      }
+
+      const screens = [...doc.getScreens()];
+      if (screens.length === 0) {
+        this.context.layout.showToast('No screens defined in the app.', 'error');
+        this.status()?.setItem('mobile.status', { text: 'Simulator: Error', side: 'right', priority: 29, autoHideMs: 4000 });
+        return;
+      }
+
+      const result = compileDesignerToIR(doc.appName, screens, doc.startScreen || undefined);
+      if (!result.ok || !result.app) {
+        const msg = result.diagnostics.map((d) => d.message).join('; ') || 'Compilation failed';
+        this.context.layout.showToast(`Simulator compile error: ${msg}`, 'error');
+        this.status()?.setItem('mobile.status', { text: 'Simulator: Error', side: 'right', priority: 29, autoHideMs: 4000 });
+        return;
+      }
+
+      const simulator = this.context.services.tryGet<{ start(app: typeof result.app): void | Promise<void> }>(ServiceKeys.Simulator);
+      if (!simulator) {
+        this.context.layout.showToast('Simulator service is not available.', 'error');
+        this.status()?.setItem('mobile.status', { text: 'Simulator: Error', side: 'right', priority: 29, autoHideMs: 4000 });
+        return;
+      }
+
+      await simulator.start(result.app);
+      this.status()?.setItem('mobile.status', { text: 'Simulator: Running', side: 'right', priority: 29 });
+    } catch (error) {
+      this.context.layout.showToast(`Simulator failed: ${(error as Error).message}`, 'error');
+      this.status()?.setItem('mobile.status', { text: 'Simulator: Error', side: 'right', priority: 29, autoHideMs: 4000 });
+    }
   }
 
   /* ===== Debug ===== */
@@ -1039,13 +1182,15 @@ export class MobileModule implements IModule {
     const root = this.getWorkspaceRoot();
     if (!root) return;
 
+    const generation = ++this.testRequestGeneration;
     this.status()?.setItem('mobile.test', { text: 'Android: Testing', side: 'right', priority: 28 });
 
     try {
       const report = await window.znxstudio.mobile.testRun({
         workspaceRoot: root,
-        deviceId: this.selectedDeviceId ?? undefined,
+        deviceId: nativeAndroidTargetId(this.selectedDeviceId),
       });
+      if (generation !== this.testRequestGeneration) return;
       this.lastTestReport = report;
       this.renderTestResults();
 
@@ -1064,12 +1209,14 @@ export class MobileModule implements IModule {
         output.appendLine(summary);
       }
     } catch (error) {
+      if (generation !== this.testRequestGeneration) return;
       this.context.layout.showToast(`Test failed: ${(error as Error).message}`, 'error');
       this.status()?.setItem('mobile.test', { text: 'Android: Test error', side: 'right', priority: 28, autoHideMs: 4000 });
     }
   }
 
   private async testStop(): Promise<void> {
+    this.testRequestGeneration += 1;
     try {
       await window.znxstudio.mobile.testStop();
       this.status()?.setItem('mobile.test', { text: 'Android: Tests stopped', side: 'right', priority: 28, autoHideMs: 4000 });
@@ -1279,6 +1426,7 @@ export class MobileModule implements IModule {
     const root = this.getWorkspaceRoot();
     if (!root) return;
 
+    const generation = ++this.buildRequestGeneration;
     this.status()?.setItem('mobile.build', { text: 'Android: Building APK', side: 'right', priority: 27 });
     const output = this.output();
     output?.show();
@@ -1290,6 +1438,7 @@ export class MobileModule implements IModule {
         mode: 'debug',
         format: 'apk',
       });
+      if (generation !== this.buildRequestGeneration) return;
       this.lastBuildResult = result;
       this.renderBuildResults();
 
@@ -1304,6 +1453,7 @@ export class MobileModule implements IModule {
         this.status()?.setItem('mobile.build', { text: 'Android: Build failed', side: 'right', priority: 27, autoHideMs: 6000 });
       }
     } catch (error) {
+      if (generation !== this.buildRequestGeneration) return;
       this.context.layout.showToast(`Build failed: ${(error as Error).message}`, 'error');
       this.status()?.setItem('mobile.build', { text: 'Android: Build error', side: 'right', priority: 27, autoHideMs: 4000 });
     }
@@ -1313,17 +1463,32 @@ export class MobileModule implements IModule {
     const root = this.getWorkspaceRoot();
     if (!root) return;
 
-    this.status()?.setItem('mobile.build', { text: 'Android: Building AAB', side: 'right', priority: 27 });
+    const generation = ++this.buildRequestGeneration;
+    this.status()?.setItem('mobile.build', { text: 'Android: Checking release', side: 'right', priority: 27 });
     const output = this.output();
     output?.show();
     output?.appendLine('--- Build App Bundle ---');
 
     try {
+      const preflight = await window.znxstudio.mobile.releaseCheck(root);
+      if (generation !== this.buildRequestGeneration) return;
+      this.lastReleaseCheck = preflight;
+      this.renderReleaseResults();
+      const blockers = androidReleaseBlockers(preflight);
+      if (blockers.length > 0) {
+        output?.appendLine('Release preflight blocked the bundle:');
+        for (const blocker of blockers) output?.appendLine(`  ${blocker}`);
+        this.context.layout.showToast('AAB build blocked by release checks. Review Build & Release details.', 'error');
+        this.status()?.setItem('mobile.build', { text: 'Android: Release blocked', side: 'right', priority: 27, autoHideMs: 8000 });
+        return;
+      }
+      this.status()?.setItem('mobile.build', { text: 'Android: Building AAB', side: 'right', priority: 27 });
       const result = await window.znxstudio.mobile.buildAab({
         workspaceRoot: root,
         mode: 'release',
         format: 'aab',
       });
+      if (generation !== this.buildRequestGeneration) return;
       this.lastBuildResult = result;
       this.renderBuildResults();
 
@@ -1338,6 +1503,7 @@ export class MobileModule implements IModule {
         this.status()?.setItem('mobile.build', { text: 'Android: Build failed', side: 'right', priority: 27, autoHideMs: 6000 });
       }
     } catch (error) {
+      if (generation !== this.buildRequestGeneration) return;
       this.context.layout.showToast(`Build failed: ${(error as Error).message}`, 'error');
       this.status()?.setItem('mobile.build', { text: 'Android: Build error', side: 'right', priority: 27, autoHideMs: 4000 });
     }
@@ -1347,6 +1513,16 @@ export class MobileModule implements IModule {
     const output = this.output();
     output?.appendLine(`[${progress.phase}] ${progress.message}`);
     this.status()?.setItem('mobile.build', { text: `Android: ${progress.phase}`, side: 'right', priority: 27 });
+  }
+
+  private async buildStop(): Promise<void> {
+    this.buildRequestGeneration += 1;
+    try {
+      await window.znxstudio.mobile.buildStop();
+      this.status()?.setItem('mobile.build', { text: 'Android: Build stopped', side: 'right', priority: 27, autoHideMs: 4000 });
+    } catch (error) {
+      this.context.layout.showToast(`Stop build failed: ${(error as Error).message}`, 'error');
+    }
   }
 
   private renderBuildResults(): void {
@@ -1484,8 +1660,8 @@ export class MobileModule implements IModule {
     this.renderProjectSettings();
   }
 
-  private showProjectSettings(): void {
-    void this.loadProjectConfig();
+  private async showProjectSettings(): Promise<void> {
+    await this.loadProjectConfig();
     const output = this.output();
     if (output && this.projectConfig) {
       output.show();
@@ -1709,8 +1885,34 @@ export function mobileSessionControls(state: MobileSessionState, hasDevice: bool
   };
 }
 
-function setsEqual(a: Set<string>, b: Set<string>): boolean {
-  if (a.size !== b.size) return false;
-  for (const v of a) if (!b.has(v)) return false;
-  return true;
+export function nativeAndroidTargetId(selectedDeviceId: string | null): string | undefined {
+  return selectedDeviceId && selectedDeviceId !== SIMULATOR_TARGET_ID ? selectedDeviceId : undefined;
+}
+
+export function androidStopOperation(state: MobileSessionState): 'run' | 'debug' | 'test' | 'profile' | 'build' {
+  if (state === 'debugging') return 'debug';
+  if (state === 'testing') return 'test';
+  if (state === 'profiling') return 'profile';
+  if (state === 'building') return 'build';
+  return 'run';
+}
+
+export function androidReleaseBlockers(result: MobileReleaseCheckResult): string[] {
+  const blockers = result.issues
+    .filter((issue) => issue.severity === 'error')
+    .map((issue) => `${issue.code}: ${issue.message}`);
+  if (!result.signing?.configured && !blockers.some((item) => /sign/i.test(item))) {
+    blockers.push('SIGNING_NOT_CONFIGURED: Configure a release keystore before creating an AAB.');
+  }
+  if (!result.ready && blockers.length === 0) blockers.push('RELEASE_NOT_READY: Android release checks did not pass.');
+  return blockers;
+}
+
+export function androidDeviceListsEqual(a: AndroidDevice[], b: AndroidDevice[]): boolean {
+  if (a.length !== b.length) return false;
+  return a.every((device, index) => {
+    const next = b[index];
+    return Boolean(next) && device.id === next.id && device.name === next.name &&
+      device.type === next.type && device.apiLevel === next.apiLevel && device.status === next.status;
+  });
 }

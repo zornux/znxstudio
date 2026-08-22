@@ -96,10 +96,10 @@ export function parseMobileBuildOutput(stdout: string, stderr: string, code: num
     };
   }
   return {
-    success: Boolean(parsed.success),
+    success: code === 0 && Boolean(parsed.success),
     artifactPath: parsed.artifactPath != null ? String(parsed.artifactPath) : null,
     artifactSizeBytes: typeof parsed.artifactSizeBytes === 'number' ? parsed.artifactSizeBytes : null,
-    diagnostics: Array.isArray(parsed.diagnostics)
+    diagnostics: Array.isArray(parsed.diagnostics) && parsed.diagnostics.length > 0
       ? parsed.diagnostics.map((diagnostic) => String(diagnostic))
       : code === 0 ? [] : [stderr.trim() || `Build exited with code ${code ?? '—'}`],
   };
@@ -124,6 +124,7 @@ export class MobileService {
   private profileProcess: ChildProcess | null = null;
   private profileSender: WebContents | null = null;
   private profileMetrics: MobileProfileMetric[] = [];
+  private profileStartedAt = 0;
   private buildProcess: ChildProcess | null = null;
   private buildSender: WebContents | null = null;
   private sessionState: MobileSessionState = 'idle';
@@ -145,10 +146,8 @@ export class MobileService {
             id: String(entry.id ?? ''),
             name: String(entry.name ?? entry.id ?? ''),
             type: entry.type === 'emulator' ? 'emulator' as const : 'physical' as const,
-            apiLevel: typeof entry.apiLevel === 'string' ? entry.apiLevel : null,
-            status: entry.status === 'offline' ? 'offline' as const
-              : entry.status === 'unauthorized' ? 'unauthorized' as const
-              : 'device' as const,
+            apiLevel: normalizeApiLevel(entry.apiLevel),
+            status: normalizeAndroidDeviceStatus(entry.status),
           })).filter((device: AndroidDevice) => device.id.length > 0);
         }
       } catch {
@@ -167,7 +166,7 @@ export class MobileService {
         if (Array.isArray(parsed)) {
           return parsed.map((entry: Record<string, unknown>) => ({
             name: String(entry.name ?? ''),
-            apiLevel: typeof entry.apiLevel === 'string' ? entry.apiLevel : null,
+            apiLevel: normalizeApiLevel(entry.apiLevel),
           })).filter((emulator: AndroidEmulator) => emulator.name.length > 0);
         }
       } catch {
@@ -192,6 +191,13 @@ export class MobileService {
       windowsHide: true,
       env: this.androidEnv(),
     });
+    await new Promise<void>((resolve, reject) => {
+      child.once('spawn', resolve);
+      child.once('error', reject);
+    });
+    // A late EventEmitter error without a listener would terminate the IDE.
+    child.removeAllListeners('error');
+    child.on('error', () => {});
     child.unref();
   }
 
@@ -205,6 +211,7 @@ export class MobileService {
 
   /** Start `zornux mobile run android --device <id> --watch`. Kills any previous run. */
   runStart(deviceId: string, workspaceRoot: string, sender: WebContents): void {
+    this.stopOtherOperations('run');
     this.runStop();
 
     const compilerPath = this.locateCompiler();
@@ -280,6 +287,7 @@ export class MobileService {
 
   /** Start `zornux mobile debug android --device <id>`. Kills any previous debug session. */
   debugStart(config: MobileDebugConfig, sender: WebContents): void {
+    this.stopOtherOperations('debug');
     this.debugStop();
 
     const compilerPath = this.locateCompiler();
@@ -390,6 +398,7 @@ export class MobileService {
 
   /** Run `zornux mobile test android` and return structured results. */
   async testRun(config: MobileTestConfig, sender: WebContents): Promise<MobileTestReport> {
+    this.stopOtherOperations('test');
     this.testStop();
     this.testSender = sender;
     const gen = ++this.generation;
@@ -490,6 +499,7 @@ export class MobileService {
 
   /** Start `zornux mobile profile android --device <id> --json`. Kills any previous profile. */
   profileStart(config: MobileProfileConfig, sender: WebContents): void {
+    this.stopOtherOperations('profile');
     this.profileStop();
     this.profileMetrics = [];
 
@@ -505,6 +515,7 @@ export class MobileService {
     });
 
     this.profileProcess = child;
+    this.profileStartedAt = Date.now();
     this.profileSender = sender;
     const gen = ++this.generation;
     this.setSessionState('profiling', sender);
@@ -546,6 +557,7 @@ export class MobileService {
       emitEvent({ type: 'complete' });
       if (this.generation === gen) {
         this.profileProcess = null;
+        this.profileStartedAt = 0;
         this.setSessionState('idle');
       }
     });
@@ -555,7 +567,7 @@ export class MobileService {
   profileStop(): MobileProfileReport {
     const child = this.profileProcess;
     const report: MobileProfileReport = {
-      durationMs: 0,
+      durationMs: this.profileStartedAt > 0 ? Math.max(0, Date.now() - this.profileStartedAt) : 0,
       metrics: [...this.profileMetrics],
       events: [],
     };
@@ -564,6 +576,7 @@ export class MobileService {
 
     ++this.generation;
     this.profileProcess = null;
+    this.profileStartedAt = 0;
     this.setSessionState('idle');
     if (process.platform === 'win32' && child.pid !== undefined) {
       execFile('taskkill', ['/pid', String(child.pid), '/T', '/F'], () => {});
@@ -599,7 +612,7 @@ export class MobileService {
     try {
       const parsed = JSON.parse(stdout);
       return {
-        ready: Boolean(parsed.ready),
+        ready: code === 0 && Boolean(parsed.ready),
         applicationId: parsed.applicationId != null ? String(parsed.applicationId) : null,
         version: parsed.version != null ? String(parsed.version) : null,
         versionCode: typeof parsed.versionCode === 'number' ? parsed.versionCode : null,
@@ -736,6 +749,17 @@ export class MobileService {
     this.buildStop();
   }
 
+  /** The Android UI models one active operation. Enforce the same invariant in
+   * the service so commands, extensions, or rapid clicks cannot overlap child
+   * processes and corrupt the shared session state. */
+  private stopOtherOperations(keep: 'run' | 'debug' | 'test' | 'profile' | 'build'): void {
+    if (keep !== 'run') this.runStop();
+    if (keep !== 'debug') this.debugStop();
+    if (keep !== 'test') this.testStop();
+    if (keep !== 'profile') this.profileStop();
+    if (keep !== 'build') this.buildStop();
+  }
+
   /* ----- internals ----- */
 
   private locateCompiler(): string {
@@ -800,6 +824,7 @@ export class MobileService {
    * build progress events, and parses the final JSON result.
    */
   private execBuildAndParse(args: string[], cwd: string, sender: WebContents): Promise<MobileBuildResult> {
+    this.stopOtherOperations('build');
     this.buildStop();
     this.buildSender = sender;
     const gen = ++this.generation;
@@ -968,6 +993,18 @@ export class MobileService {
       });
     });
   }
+}
+
+export function normalizeApiLevel(value: unknown): string | null {
+  if (typeof value === 'string' && value.trim()) return value.trim();
+  if (typeof value === 'number' && Number.isInteger(value) && value > 0) return String(value);
+  return null;
+}
+
+export function normalizeAndroidDeviceStatus(value: unknown): AndroidDevice['status'] {
+  if (value === 'device') return 'device';
+  if (value === 'unauthorized') return 'unauthorized';
+  return 'offline';
 }
 
 export function parseAdbDevices(stdout: string): AndroidDevice[] {

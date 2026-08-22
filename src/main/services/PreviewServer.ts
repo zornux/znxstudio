@@ -35,9 +35,11 @@ export class PreviewServer {
   private root: string | null = null;
   private url: string | null = null;
   private proxy: PreviewProxy | null = null;
+  private generation = 0;
 
   async start(rootDir: string, proxy?: PreviewProxy): Promise<PreviewStartResult> {
     await this.stop();
+    const generation = ++this.generation;
 
     let root = resolve(rootDir);
     try {
@@ -47,22 +49,29 @@ export class PreviewServer {
     } catch {
       return { ok: false, error: `Folder not found: ${root}` };
     }
-    this.proxy = proxy ?? null;
+    const requestProxy = proxy ?? null;
 
     return new Promise<PreviewStartResult>((resolvePromise) => {
-      const server = createServer((req, res) => void this.handle(root, req, res));
-      server.on('error', (error) => resolvePromise({ ok: false, error: (error as Error).message }));
+      const server = createServer((req, res) => void this.handle(root, requestProxy, req, res));
+      server.once('error', (error) => resolvePromise({ ok: false, error: (error as Error).message }));
       server.listen(0, '127.0.0.1', () => {
+        if (generation !== this.generation) {
+          server.close();
+          resolvePromise({ ok: false, error: 'Preview start was superseded by a newer request.' });
+          return;
+        }
         const port = (server.address() as AddressInfo).port;
         this.server = server;
         this.root = root;
         this.url = `http://127.0.0.1:${port}/`;
+        this.proxy = requestProxy;
         resolvePromise({ ok: true, url: this.url, root });
       });
     });
   }
 
   async stop(): Promise<void> {
+    this.generation += 1;
     const server = this.server;
     this.server = null;
     this.root = null;
@@ -71,14 +80,14 @@ export class PreviewServer {
     if (server) await new Promise<void>((r) => server.close(() => r()));
   }
 
-  private async handle(root: string, req: IncomingMessage, res: ServerResponse): Promise<void> {
+  private async handle(root: string, proxy: PreviewProxy | null, req: IncomingMessage, res: ServerResponse): Promise<void> {
     res.setHeader('Access-Control-Allow-Origin', '*');
     res.setHeader('Cache-Control', 'no-store');
     const rawUrl = req.url ?? '/';
 
     // Route matching-prefix requests to the backend (full-stack dev proxy, 6H).
-    if (this.proxy && this.matchesProxy(rawUrl, this.proxy.prefix)) {
-      this.forward(req, res, this.proxy, rawUrl);
+    if (proxy && this.matchesProxy(rawUrl, proxy.prefix)) {
+      this.forward(req, res, proxy, rawUrl);
       return;
     }
 

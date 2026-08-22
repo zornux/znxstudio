@@ -53,6 +53,7 @@ export class LspLanguageClient {
       this.closedHandler();
     });
 
+    this.running = false;
     this.openUris.clear();
     const result = await window.znxstudio.lsp.start(config);
     this.running = result.success;

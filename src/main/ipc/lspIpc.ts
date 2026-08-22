@@ -11,11 +11,19 @@ export function registerLspIpc(): void {
   const trust = sharedWorkspaceTrust();
 
   ipcMain.handle(IpcChannels.LspStart, async (event, config: LspStartConfig) => {
-    await trust.load();
-    trust.assertTrusted('Language Server');
+    try {
+      await trust.load();
+      trust.assertTrusted('Language Server');
+    } catch (e) {
+      lsp.stop();
+      return { success: false, error: (e as Error).message } as const;
+    }
     if (config.rootPath) {
       const safe = confineToRoots(config.rootPath, trust.getRoots());
-      if (!safe) throw new Error('Path is outside workspace boundaries.');
+      if (!safe) {
+        lsp.stop();
+        return { success: false, error: 'Path is outside workspace boundaries.' } as const;
+      }
       config = { ...config, rootPath: safe };
     }
     return lsp.start(config, event.sender);

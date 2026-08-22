@@ -147,7 +147,7 @@ export class LanguagePlatformModule implements IModule {
     // so it never blocks startup — the status bar shows "checking…" and updates
     // when the probe resolves. This was ~44% of the whole activation pass.
     this.publishCompilerStatus(); // "checking…" while compilerInfo is still null
-    void this.compiler.info().then((info) => {
+    void this.compiler.info(this.compilerPathOverride() || undefined).then((info) => {
       this.compilerInfo = info;
       this.publishCompilerStatus();
     });
@@ -311,7 +311,7 @@ export class LanguagePlatformModule implements IModule {
     if (settings) context.subscriptions.push(settings.onDidChange((event) => {
       if (!event.key.startsWith('zornux.compiler.')) return;
       // Re-probe (path/enablement changed) and re-check every open Zornux doc.
-      void this.compiler.info(true).then((info) => {
+      void this.compiler.info(this.compilerPathOverride() || true).then((info) => {
         this.compilerInfo = info;
         this.publishCompilerStatus();
         for (const managed of this.openZornuxDocuments()) {
@@ -631,7 +631,7 @@ export class LanguagePlatformModule implements IModule {
 
     // Compiler service: availability + a real single-file check against the CLI.
     try {
-      const info = await this.compiler.info(true);
+      const info = await this.compiler.info(this.compilerPathOverride() || true);
       log(`compiler: available=${info.available} version=${info.version ?? 'n/a'} source=${info.source} path=${info.path ?? 'n/a'}`);
 
       // Toolchain negotiation (Integration Layer): product/protocol versions + capabilities.

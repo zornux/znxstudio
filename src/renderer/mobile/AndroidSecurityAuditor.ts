@@ -28,9 +28,9 @@ const PATH_TRAVERSAL = /(?:\.\.[/\\])|(?:%2[eE]%2[eE])|(?:%2[fF])|(?:%5[cC])/;
 const NULL_BYTE = /\x00/;
 const SECRET_PATTERNS = [
   { name: 'Private key', pattern: /-----BEGIN (?:RSA |EC |DSA )?PRIVATE KEY-----/ },
-  { name: 'API key', pattern: /(?:api[_-]?key|apikey)\s*[:=]\s*['"][A-Za-z0-9_\-]{20,}['"]/ },
+  { name: 'API key', pattern: /(?:api[_-]?key|apikey)\s*[:=]\s*['"][A-Za-z0-9_-]{20,}['"]/ },
   { name: 'Password', pattern: /(?:password|passwd|pwd|storePassword|keyPassword)\s*[:=]\s*['"]?[^\s'"]{8,}['"]?/ },
-  { name: 'Token', pattern: /(?:token|secret|credential)\s*[:=]\s*['"][A-Za-z0-9_\-]{20,}['"]/ },
+  { name: 'Token', pattern: /(?:token|secret|credential)\s*[:=]\s*['"][A-Za-z0-9_-]{20,}['"]/ },
   { name: 'AWS key', pattern: /AKIA[0-9A-Z]{16}/ },
   { name: 'Keystore password', pattern: /(?:storePass|keyPass|keystorePassword)\s*[:=]\s*\S+/ },
 ];

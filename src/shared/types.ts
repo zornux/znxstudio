@@ -978,7 +978,7 @@ export interface ZnxStudioApi {
     onChanged(callback: (state: TrustState) => void): Unsubscribe;
   };
   compiler: {
-    info(): Promise<CompilerInfo>;
+    info(override?: string | null): Promise<CompilerInfo>;
     check(request: CompilerCheckRequest): Promise<CompilerCheckResult>;
     build(request: CompilerBuildRequest): Promise<CompilerBuildResult>;
     checkProject(request: CompilerCheckProjectRequest): Promise<CompilerCheckResult>;
@@ -1176,5 +1176,10 @@ export interface ZnxStudioApi {
     compile(workspaceRoot: string): Promise<import('./simulatorTypes').SimulatorCompileResult>;
     screenshot(request: import('./simulatorTypes').ScreenshotRequest): Promise<import('./simulatorTypes').ScreenshotResult>;
     onSessionState(callback: (state: string) => void): () => void;
+    openWindow(app: import('./simulatorTypes').MobileIRApp): Promise<void>;
+    windowPayload(): Promise<import('./simulatorTypes').MobileIRApp | null>;
+    dockWindow(): Promise<void>;
+    onWindowDock(callback: () => void): () => void;
+    onWindowClosed(callback: () => void): () => void;
   };
 }

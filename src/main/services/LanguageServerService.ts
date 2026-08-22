@@ -43,9 +43,6 @@ export class LanguageServerService {
         clientInfo: { name: 'ZnxStudio' },
         locale: 'en',
         rootUri: config.rootUri ?? null,
-        // `initializationOptions.zornux` is where the server reads its settings up
-        // front (LanguageServer.InitializeWorkspace); the same block can be resent
-        // later through workspace/didChangeConfiguration.
         initializationOptions: { zornux: config.settings ?? {} },
         capabilities: {
           textDocument: {

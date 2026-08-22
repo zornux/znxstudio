@@ -23,7 +23,7 @@ export function registerCompilerIpc(): void {
     return safe;
   }
 
-  ipcMain.handle(IpcChannels.CompilerInfo, () => compiler.info());
+  ipcMain.handle(IpcChannels.CompilerInfo, (_event, override?: string | null) => compiler.info(override));
   ipcMain.handle(IpcChannels.ToolchainInfo, (_event, override?: string | null) =>
     compiler.capabilities(override),
   );

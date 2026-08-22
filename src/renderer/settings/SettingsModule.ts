@@ -39,6 +39,7 @@ import {
   type WorkspaceStore,
 } from './settingsScope';
 import { normalizeRoot } from '../workspace/workspaceFolders';
+import { reportUiError } from '../core/uiErrors';
 import {
   describeSettings,
   filterSettings,
@@ -269,7 +270,7 @@ export class SettingsModule implements IModule, SettingsService {
   private schedulePersist(): void {
     if (this.writeTimer) clearTimeout(this.writeTimer);
     this.writeTimer = setTimeout(() => {
-      void window.znxstudio.settings.write(this.all());
+      void window.znxstudio.settings.write(this.all()).catch((error) => reportUiError('Could not save user settings', error));
     }, 200);
   }
 

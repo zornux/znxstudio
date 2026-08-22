@@ -25,6 +25,10 @@ export class SimulatorModule implements IModule {
   private inspectorPanel: HTMLElement | null = null;
   private inspectMode = false;
   private lastApp: MobileIRApp | null = null;
+  private deviceStage: HTMLElement | null = null;
+  private deviceShell: HTMLElement | null = null;
+  private zoom = 0;
+  private resizeObserver: ResizeObserver | null = null;
 
   activate(context: ModuleContext): void {
     this.context = context;
@@ -43,6 +47,8 @@ export class SimulatorModule implements IModule {
     } as any);
 
     this.registerCommands(context);
+    context.subscriptions.push({ dispose: window.znxstudio.simulator.onWindowDock(() => this.dockSimulator()) });
+    context.subscriptions.push({ dispose: window.znxstudio.simulator.onWindowClosed(() => this.dockSimulator()) });
   }
 
   deactivate(): void {
@@ -50,6 +56,7 @@ export class SimulatorModule implements IModule {
     this.inspector?.dispose();
     this.testRunner?.dispose();
     this.panelElement?.remove();
+    this.resizeObserver?.disconnect();
   }
 
   private registerCommands(context: ModuleContext): void {
@@ -96,7 +103,10 @@ export class SimulatorModule implements IModule {
   }
 
   private openPanel(): void {
-    if (this.panelElement) return;
+    if (this.panelElement) {
+      this.context.layout.showPanelView('znxstudio.panel.simulator');
+      return;
+    }
 
     this.panelElement = document.createElement('div');
     this.panelElement.className = 'zsim-panel';
@@ -108,7 +118,12 @@ export class SimulatorModule implements IModule {
 
     const viewport = document.createElement('div');
     viewport.className = 'zsim-device-container';
+    this.deviceStage = document.createElement('div');
+    this.deviceStage.className = 'zsim-device-stage';
+    viewport.appendChild(this.deviceStage);
     this.panelElement.appendChild(viewport);
+    this.resizeObserver = new ResizeObserver(() => this.layoutDevice());
+    this.resizeObserver.observe(viewport);
 
     this.inspectorPanel = document.createElement('div');
     this.inspectorPanel.className = 'zsim-inspector-panel';
@@ -120,6 +135,7 @@ export class SimulatorModule implements IModule {
       title: 'Simulator',
       element: this.panelElement,
     });
+    this.context.layout.showPanelView('znxstudio.panel.simulator');
   }
 
   private closePanel(): void {
@@ -142,12 +158,12 @@ export class SimulatorModule implements IModule {
       btn.className = 'zsim-toolbar-btn';
       btn.textContent = label;
       btn.title = title;
-      btn.addEventListener('click', () => this.context.commands.execute(commandId));
+      if (commandId) btn.addEventListener('click', () => this.context.commands.execute(commandId));
       toolbar.appendChild(btn);
       return btn;
     };
 
-    addButton('▶', 'Start Simulator', CommandIds.SimulatorStart);
+    addButton('▶', 'Start simulator', CommandIds.SimulatorStart);
     addButton('■', 'Stop Simulator', CommandIds.SimulatorStop);
     addButton('↻', 'Restart Simulator', CommandIds.SimulatorRestart);
 
@@ -166,6 +182,16 @@ export class SimulatorModule implements IModule {
 
     addButton('🔍', 'Inspect Mode', CommandIds.SimulatorInspectToggle);
     addButton('📷', 'Screenshot', CommandIds.SimulatorScreenshot);
+    addButton('−', 'Zoom out', '').addEventListener('click', (event) => { event.stopImmediatePropagation(); this.setZoom(this.zoom ? this.zoom - .1 : .7); });
+    const zoomLabel = document.createElement('button');
+    zoomLabel.className = 'zsim-toolbar-btn zsim-zoom-label';
+    zoomLabel.textContent = 'Fit';
+    zoomLabel.title = 'Fit device to available space';
+    zoomLabel.addEventListener('click', () => { this.zoom = 0; this.layoutDevice(); });
+    toolbar.appendChild(zoomLabel);
+    addButton('+', 'Zoom in', '').addEventListener('click', (event) => { event.stopImmediatePropagation(); this.setZoom((this.zoom || .7) + .1); });
+    addButton('⇱', 'Open simulator in a movable window', '').classList.add('zsim-undock-btn');
+    (toolbar.lastElementChild as HTMLButtonElement).addEventListener('click', (event) => { event.stopImmediatePropagation(); void this.undockSimulator(); });
 
     const stateLabel = document.createElement('span');
     stateLabel.className = 'zsim-toolbar-state';
@@ -196,10 +222,11 @@ export class SimulatorModule implements IModule {
     this.openPanel();
     await this.session.start(app);
 
-    const viewport = this.panelElement?.querySelector('.zsim-device-container');
-    if (viewport) {
-      viewport.innerHTML = '';
-      viewport.appendChild(this.session.getRenderer().element);
+    if (this.deviceStage) {
+      this.deviceStage.innerHTML = '';
+      this.deviceShell = this.buildDeviceShell(this.session.getRenderer().element);
+      this.deviceStage.appendChild(this.deviceShell);
+      this.layoutDevice();
     }
 
     this.inspector = new SimulatorInspector(
@@ -260,6 +287,7 @@ export class SimulatorModule implements IModule {
     if (!rt) return;
     const current = rt.getEnvironment().orientation;
     rt.setOrientation(current === 'portrait' ? 'landscape' : 'portrait');
+    this.layoutDevice();
   }
 
   private async selectDevice(): Promise<void> {
@@ -274,9 +302,60 @@ export class SimulatorModule implements IModule {
     if (selected) {
       const profile = getDeviceProfile(selected);
       if (profile && this.session?.getRuntime()) {
-        this.session.getRuntime().getEnvironment().deviceProfile = profile;
+        this.session.getRuntime().setDeviceProfile(profile);
+        this.layoutDevice();
       }
     }
+  }
+
+  private buildDeviceShell(screen: HTMLElement): HTMLElement {
+    const shell = document.createElement('div');
+    shell.className = 'zsim-device-shell';
+    const earpiece = document.createElement('div'); earpiece.className = 'zsim-device-earpiece';
+    const camera = document.createElement('div'); camera.className = 'zsim-device-camera';
+    const sensor = document.createElement('div'); sensor.className = 'zsim-device-sensor';
+    const display = document.createElement('div'); display.className = 'zsim-device-display';
+    const status = document.createElement('div'); status.className = 'zsim-system-status';
+    status.innerHTML = '<span>1:07</span><span class="zsim-system-icons">▴ 4G&nbsp; ◔&nbsp; ▰</span>';
+    const navigation = document.createElement('div'); navigation.className = 'zsim-system-navigation';
+    navigation.innerHTML = '<button aria-label="Back">◀</button><button aria-label="Home" class="zsim-system-home"></button><button aria-label="Recent apps">■</button>';
+    display.append(status, screen, navigation);
+    const power = document.createElement('button'); power.className = 'zsim-hardware-key zsim-power-key'; power.title = 'Power'; power.setAttribute('aria-label', 'Power');
+    const volume = document.createElement('button'); volume.className = 'zsim-hardware-key zsim-volume-key'; volume.title = 'Volume'; volume.setAttribute('aria-label', 'Volume');
+    shell.append(earpiece, camera, sensor, display, power, volume);
+    return shell;
+  }
+
+  private layoutDevice(): void {
+    if (!this.deviceShell || !this.deviceStage || !this.session) return;
+    const env = this.session.getRuntime().getEnvironment();
+    const landscape = env.orientation === 'landscape';
+    const width = (landscape ? env.deviceProfile.height : env.deviceProfile.width) + 28;
+    const height = (landscape ? env.deviceProfile.width : env.deviceProfile.height) + 100;
+    this.deviceShell.dataset.deviceClass = env.deviceProfile.deviceClass;
+    this.deviceShell.dataset.orientation = env.orientation;
+    const host = this.deviceStage.parentElement?.getBoundingClientRect();
+    const fit = host ? Math.min((host.width - 40) / width, (host.height - 40) / height, 1) : 1;
+    const scale = Math.max(.25, Math.min(2, this.zoom || fit));
+    this.deviceShell.style.transform = `scale(${scale})`;
+    this.deviceStage.style.width = `${width * scale}px`;
+    this.deviceStage.style.height = `${height * scale}px`;
+    const label = this.toolbarElement?.querySelector('.zsim-zoom-label');
+    if (label) label.textContent = this.zoom ? `${Math.round(scale * 100)}%` : 'Fit';
+  }
+
+  private setZoom(value: number): void { this.zoom = Math.max(.25, Math.min(2, value)); this.layoutDevice(); }
+
+  private async undockSimulator(): Promise<void> {
+    if (!this.lastApp) { this.context.layout.showToast('Start an app before undocking the simulator.', 'info'); return; }
+    await window.znxstudio.simulator.openWindow(this.lastApp);
+    this.panelElement?.classList.add('zsim-panel-undocked');
+  }
+
+  private dockSimulator(): void {
+    this.panelElement?.classList.remove('zsim-panel-undocked');
+    this.context.layout.showPanelView('znxstudio.panel.simulator');
+    this.layoutDevice();
   }
 
   private async selectConnectivity(): Promise<void> {

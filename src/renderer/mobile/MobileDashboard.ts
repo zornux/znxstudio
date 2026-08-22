@@ -126,9 +126,9 @@ export function auditConfigForArtifact(entries: ConfigEntry[]): { safe: boolean;
 
 export const SECRET_PATTERNS = [
   { name: 'Private key', pattern: /-----BEGIN (?:RSA |EC |DSA )?PRIVATE KEY-----/ },
-  { name: 'API key', pattern: /(?:api[_-]?key|apikey)\s*[:=]\s*['"][A-Za-z0-9_\-]{20,}['"]/ },
+  { name: 'API key', pattern: /(?:api[_-]?key|apikey)\s*[:=]\s*['"][A-Za-z0-9_-]{20,}['"]/ },
   { name: 'Password', pattern: /(?:password|passwd|pwd)\s*[:=]\s*['"][^'"]{8,}['"]/ },
-  { name: 'Token', pattern: /(?:token|secret|credential)\s*[:=]\s*['"][A-Za-z0-9_\-]{20,}['"]/ },
+  { name: 'Token', pattern: /(?:token|secret|credential)\s*[:=]\s*['"][A-Za-z0-9_-]{20,}['"]/ },
   { name: 'AWS key', pattern: /AKIA[0-9A-Z]{16}/ },
   { name: 'Base64 key', pattern: /[A-Za-z0-9+/]{40,}={0,2}/ },
 ];
