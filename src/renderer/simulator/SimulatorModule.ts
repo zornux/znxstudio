@@ -15,6 +15,8 @@ import { SIMULATOR_DEVICE_PROFILES, getDeviceProfile } from './SimulatorDevicePr
 import { parseSource } from '../designer/sourceSync';
 import { compileDesignerToIR } from './SimulatorCompiler';
 import { joinPath } from '../explorer/paths';
+import { LanguageServiceKeys } from '../language/api';
+import type { DocumentManager } from '../language/DocumentManager';
 
 export class SimulatorModule implements IModule {
   readonly id = 'znxstudio.simulator';
@@ -37,8 +39,9 @@ export class SimulatorModule implements IModule {
   activate(context: ModuleContext): void {
     this.context = context;
 
+    const module = this;
     context.services.register(ServiceKeys.Simulator, {
-      get state() { return this._session?.getState() ?? 'idle'; },
+      get state() { return module.session?.getState() ?? 'idle'; },
       start: (app: MobileIRApp) => this.startSimulator(app),
       reload: (app: MobileIRApp) => this.reloadSimulator(app),
       stop: () => this.stopSimulator(),
@@ -47,8 +50,7 @@ export class SimulatorModule implements IModule {
       resume: () => this.session?.resume(),
       reset: () => this.resetSimulator(),
       onDidChangeState: this.onDidChangeState.bind(this),
-      _session: this.session,
-    } as any);
+    });
 
     this.registerCommands(context);
     context.subscriptions.push({ dispose: window.znxstudio.simulator.onWindowDock(() => this.dockSimulator()) });
@@ -258,6 +260,9 @@ export class SimulatorModule implements IModule {
     this.inspector = null;
     this.deviceShell = null;
     if (this.deviceStage) this.deviceStage.innerHTML = '';
+    if (this.panelElement?.classList.contains('zsim-panel-undocked')) {
+      void window.znxstudio.simulator.dockWindow();
+    }
   }
 
   private async restartSimulator(): Promise<void> {
@@ -296,7 +301,12 @@ export class SimulatorModule implements IModule {
         }
       }
 
-      const doc = parseSource(await window.znxstudio.fs.readFile(sourcePath));
+      const documents = this.context.services.tryGet<DocumentManager>(LanguageServiceKeys.Documents);
+      const activeUri = editor?.currentUri();
+      const source = activeUri && documents?.get(activeUri)?.path === sourcePath
+        ? documents.get(activeUri)!.getText()
+        : await window.znxstudio.fs.readFile(sourcePath);
+      const doc = parseSource(source);
       const screens = [...doc.getScreens()];
       if (!doc.appName || screens.length === 0) {
         this.context.layout.showToast('The source file must define a mobile app with at least one screen.', 'error');

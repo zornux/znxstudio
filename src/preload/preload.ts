@@ -242,6 +242,7 @@ const api: ZnxStudioApi = {
     selectDevice: (id) => ipcRenderer.invoke(IpcChannels.MobileDeviceSelect, id),
     emulators: () => ipcRenderer.invoke(IpcChannels.MobileEmulatorList),
     startEmulator: (name) => ipcRenderer.invoke(IpcChannels.MobileEmulatorStart, name),
+    stopEmulator: (name) => ipcRenderer.invoke(IpcChannels.MobileEmulatorStop, name),
     doctor: (platform) => ipcRenderer.invoke(IpcChannels.MobileDoctor, platform),
     runStart: (deviceId, workspaceRoot) => ipcRenderer.invoke(IpcChannels.MobileRunStart, deviceId, workspaceRoot),
     runStop: () => ipcRenderer.invoke(IpcChannels.MobileRunStop),

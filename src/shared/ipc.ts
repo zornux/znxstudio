@@ -165,6 +165,7 @@ export const IpcChannels = {
   MobileDeviceSelect: 'mobile:select-device',
   MobileEmulatorList: 'mobile:emulators',
   MobileEmulatorStart: 'mobile:start-emulator',
+  MobileEmulatorStop: 'mobile:stop-emulator',
   MobileDoctor: 'mobile:doctor',
   MobileLogs: 'mobile:logs',
   MobileRunStart: 'mobile:run-start',

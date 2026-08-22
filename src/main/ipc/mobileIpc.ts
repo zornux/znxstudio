@@ -67,6 +67,11 @@ export function registerMobileIpc(): void {
     assertSafeId(name, 'emulator name');
     return mobile.startEmulator(name);
   });
+  ipcMain.handle(IpcChannels.MobileEmulatorStop, (_event, name: string) => {
+    trust.assertTrusted('Stop Emulator');
+    assertSafeId(name, 'emulator name');
+    return mobile.stopEmulator(name);
+  });
 
   ipcMain.handle(IpcChannels.MobileDoctor, (_event, platform: string) => {
     trust.assertTrusted('Mobile Doctor');

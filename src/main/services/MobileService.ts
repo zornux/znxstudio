@@ -1,4 +1,5 @@
 import { execFile, spawn, type ChildProcess } from 'node:child_process';
+import { existsSync } from 'node:fs';
 import { readFile, writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import { homedir } from 'node:os';
@@ -22,8 +23,7 @@ import type {
   MobileTestConfig,
   MobileTestReport,
 } from '../../shared/types';
-import { ZORNUX_EXE, zornuxCandidates } from '../util/zornuxRuntime';
-import { existsSync } from 'node:fs';
+import { resolveZornux } from '../util/zornuxRuntime';
 import { probeAndroidEnvironment } from './AndroidEnvironmentProbe';
 
 const CLI_TIMEOUT_MS = 30_000;
@@ -167,6 +167,8 @@ export class MobileService {
           return parsed.map((entry: Record<string, unknown>) => ({
             name: String(entry.name ?? ''),
             apiLevel: normalizeApiLevel(entry.apiLevel),
+            running: Boolean(entry.running),
+            deviceId: typeof entry.deviceId === 'string' ? entry.deviceId : null,
           })).filter((emulator: AndroidEmulator) => emulator.name.length > 0);
         }
       } catch {
@@ -176,13 +178,17 @@ export class MobileService {
     const emulator = this.androidTool('emulator', 'emulator');
     if (!emulator) return [];
     const result = await this.execFile(emulator, ['-list-avds']);
-    return parseAvdNames(result.stdout);
+    const available = parseAvdNames(result.stdout);
+    const running = await this.runningAvds();
+    return available.map((avd) => {
+      const deviceId = [...running.entries()].find(([, avdName]) => avdName === avd.name)?.[0] ?? null;
+      return { ...avd, running: deviceId !== null, deviceId };
+    });
   }
 
   /** Start an emulator by AVD name. Fire-and-forget: the emulator boots asynchronously. */
   async startEmulator(name: string): Promise<void> {
-    const result = await this.exec(['mobile', 'emulator', 'start', name]);
-    if (result.code === 0) return;
+    if ([...(await this.runningAvds()).values()].includes(name)) return;
     const emulator = this.androidTool('emulator', 'emulator');
     if (!emulator) throw new Error('Android Emulator is not installed.');
     const child = spawn(emulator, [`@${name}`, '-no-metrics'], {
@@ -199,6 +205,22 @@ export class MobileService {
     child.removeAllListeners('error');
     child.on('error', () => {});
     child.unref();
+  }
+
+  /** Shut down the named AVD and wait for Android to disconnect from ADB. */
+  async stopEmulator(name: string): Promise<void> {
+    const adb = this.androidTool('platform-tools', 'adb');
+    if (!adb) throw new Error('ADB is not installed.');
+    const running = await this.runningAvds();
+    const deviceId = [...running.entries()].find(([, avdName]) => avdName === name)?.[0];
+    if (!deviceId) return;
+    const result = await this.execFile(adb, ['-s', deviceId, 'emu', 'kill']);
+    if (result.code !== 0) throw new Error(result.stderr.trim() || `Could not stop ${name}.`);
+    for (let attempt = 0; attempt < 40; attempt += 1) {
+      if (!(await this.runningAvds()).has(deviceId)) return;
+      await new Promise<void>((resolve) => setTimeout(resolve, 250));
+    }
+    throw new Error(`${name} did not shut down in time.`);
   }
 
   /** Run `zornux mobile doctor android` and return structured results. */
@@ -763,10 +785,7 @@ export class MobileService {
   /* ----- internals ----- */
 
   private locateCompiler(): string {
-    for (const candidate of zornuxCandidates()) {
-      if (existsSync(candidate.path)) return candidate.path;
-    }
-    return ZORNUX_EXE;
+    return resolveZornux().path;
   }
 
   private execWithTimeout(args: string[], cwd: string, timeoutMs: number): Promise<ExecResult> {
@@ -908,6 +927,22 @@ export class MobileService {
     if (!adb) return [];
     const result = await this.execFile(adb, ['devices', '-l']);
     return result.code === 0 ? parseAdbDevices(result.stdout) : [];
+  }
+
+  private async runningAvds(): Promise<Map<string, string>> {
+    const adb = this.androidTool('platform-tools', 'adb');
+    if (!adb) return new Map();
+    const devices = await this.execFile(adb, ['devices']);
+    const ids = devices.stdout.split(/\r?\n/)
+      .map((line) => line.match(/^(emulator-\d+)\s+device$/)?.[1])
+      .filter((id): id is string => Boolean(id));
+    const result = new Map<string, string>();
+    for (const id of ids) {
+      const avd = await this.execFile(adb, ['-s', id, 'emu', 'avd', 'name']);
+      const name = avd.stdout.split(/\r?\n/).map((line) => line.trim()).find((line) => line && line !== 'OK');
+      if (name) result.set(id, name);
+    }
+    return result;
   }
 
   private androidSdkRoot(): string | null {

@@ -707,6 +707,8 @@ export interface AndroidDevice {
 export interface AndroidEmulator {
   name: string;
   apiLevel: string | null;
+  running?: boolean;
+  deviceId?: string | null;
 }
 
 export interface MobileDoctorResult {
@@ -1131,6 +1133,7 @@ export interface ZnxStudioApi {
     selectDevice(id: string): Promise<void>;
     emulators(): Promise<AndroidEmulator[]>;
     startEmulator(name: string): Promise<void>;
+    stopEmulator(name: string): Promise<void>;
     doctor(platform: string): Promise<MobileDoctorResult>;
     runStart(deviceId: string, workspaceRoot: string): Promise<void>;
     runStop(): Promise<void>;

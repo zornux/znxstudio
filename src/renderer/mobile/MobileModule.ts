@@ -5,7 +5,10 @@ import {
   type WorkspaceService,
   type QuickPickService,
   type EditorService,
+  type SimulatorService,
 } from '../core/Contracts';
+import { LanguageServiceKeys } from '../language/api';
+import type { DocumentManager } from '../language/DocumentManager';
 import type { IModule, ModuleContext } from '../core/Module';
 import { CommandIds } from '../commands/CommandIds';
 import type {
@@ -685,11 +688,14 @@ export class MobileModule implements IModule {
     }
 
     const controls = mobileSessionControls(this.sessionState, Boolean(this.selectedDeviceId) || this.emulators.length > 0);
-    for (const button of this.runActionButtons) button.disabled = !controls.canLaunch;
-    if (this.stopActionButton) this.stopActionButton.disabled = !controls.canStop;
+    const simulator = this.context.services.tryGet<SimulatorService>(ServiceKeys.Simulator);
+    const simulatorSelected = this.selectedDeviceId === SIMULATOR_TARGET_ID;
+    const simulatorActive = simulatorSelected && simulator != null && simulator.state !== 'idle' && simulator.state !== 'stopped' && simulator.state !== 'failed';
+    for (const button of this.runActionButtons) button.disabled = simulatorSelected ? false : !controls.canLaunch;
+    if (this.stopActionButton) this.stopActionButton.disabled = simulatorSelected ? !simulatorActive : !controls.canStop;
     if (this.sessionStatusEl) {
-      this.sessionStatusEl.textContent = controls.label;
-      this.sessionStatusEl.className = `is-${this.sessionState}`;
+      this.sessionStatusEl.textContent = simulatorSelected ? simulator?.state ?? 'Idle' : controls.label;
+      this.sessionStatusEl.className = `is-${simulatorSelected ? simulator?.state ?? 'idle' : this.sessionState}`;
     }
   }
 
@@ -717,9 +723,20 @@ export class MobileModule implements IModule {
       label.textContent = `${emu.name}${emu.apiLevel ? ` (API ${emu.apiLevel})` : ''}`;
       row.appendChild(label);
 
-      const startBtn = this.createButton('Start', () => void this.startEmulator(emu.name));
-      startBtn.style.fontSize = '11px';
-      row.appendChild(startBtn);
+      if (emu.running) {
+        const status = document.createElement('span');
+        status.className = 'znxstudio-mobile-device-state is-device';
+        status.textContent = 'Running';
+        row.appendChild(status);
+        const stopBtn = this.createButton('Stop', () => void this.stopEmulator(emu.name));
+        stopBtn.classList.add('is-danger');
+        stopBtn.style.fontSize = '11px';
+        row.appendChild(stopBtn);
+      } else {
+        const startBtn = this.createButton('Start', () => void this.startEmulator(emu.name));
+        startBtn.style.fontSize = '11px';
+        row.appendChild(startBtn);
+      }
 
       container.appendChild(row);
     }
@@ -777,8 +794,23 @@ export class MobileModule implements IModule {
     try {
       await window.znxstudio.mobile.startEmulator(name);
       this.context.layout.showToast(`Starting emulator: ${name}`, 'info');
+      await this.refreshEmulators();
     } catch (error) {
       this.context.layout.showToast(`Could not start ${name}: ${(error as Error).message}`, 'error');
+    }
+  }
+
+  private async stopEmulator(name: string): Promise<void> {
+    try {
+      this.context.layout.showToast(`Stopping emulator: ${name}`, 'info');
+      await window.znxstudio.mobile.stopEmulator(name);
+      if (this.devices.some((device) => device.id === this.selectedDeviceId && device.type === 'emulator')) {
+        this.selectedDeviceId = SIMULATOR_TARGET_ID;
+      }
+      await Promise.all([this.refreshDevices(), this.refreshEmulators()]);
+      this.context.layout.showToast(`${name} stopped.`, 'info');
+    } catch (error) {
+      this.context.layout.showToast(`Could not stop ${name}: ${(error as Error).message}`, 'error');
     }
   }
 
@@ -1022,8 +1054,7 @@ export class MobileModule implements IModule {
     try {
       const status = await window.znxstudio.mobile.status();
       if (status.running) {
-        this.context.layout.showToast('App is already running. Stop it first.', 'info');
-        return;
+        await window.znxstudio.mobile.runStop();
       }
       const deviceId = await this.pickDevice();
       if (!deviceId) return;
@@ -1038,6 +1069,12 @@ export class MobileModule implements IModule {
 
   private async runStop(): Promise<void> {
     try {
+      if (this.selectedDeviceId === SIMULATOR_TARGET_ID) {
+        this.context.services.tryGet<SimulatorService>(ServiceKeys.Simulator)?.stop();
+        this.status()?.setItem('mobile.status', { text: 'Simulator: Stopped', side: 'right', priority: 29, autoHideMs: 4000 });
+        this.renderRunToolbar();
+        return;
+      }
       const operation = androidStopOperation(this.sessionState);
       if (operation === 'test') this.testRequestGeneration += 1;
       if (operation === 'build') this.buildRequestGeneration += 1;
@@ -1085,7 +1122,11 @@ export class MobileModule implements IModule {
           return;
         }
       }
-      const source = await window.znxstudio.fs.readFile(sourcePath);
+      const documents = this.context.services.tryGet<DocumentManager>(LanguageServiceKeys.Documents);
+      const activeUri = editor?.currentUri();
+      const source = activeUri && documents?.get(activeUri)?.path === sourcePath
+        ? documents.get(activeUri)!.getText()
+        : await window.znxstudio.fs.readFile(sourcePath);
       const doc = parseSource(source);
 
       if (!doc.appName) {
@@ -1109,7 +1150,7 @@ export class MobileModule implements IModule {
         return;
       }
 
-      const simulator = this.context.services.tryGet<{ start(app: typeof result.app): void | Promise<void> }>(ServiceKeys.Simulator);
+      const simulator = this.context.services.tryGet<SimulatorService>(ServiceKeys.Simulator);
       if (!simulator) {
         this.context.layout.showToast('Simulator service is not available.', 'error');
         this.status()?.setItem('mobile.status', { text: 'Simulator: Error', side: 'right', priority: 29, autoHideMs: 4000 });
@@ -1118,6 +1159,7 @@ export class MobileModule implements IModule {
 
       await simulator.start(result.app);
       this.status()?.setItem('mobile.status', { text: 'Simulator: Running', side: 'right', priority: 29 });
+      this.renderRunToolbar();
     } catch (error) {
       this.context.layout.showToast(`Simulator failed: ${(error as Error).message}`, 'error');
       this.status()?.setItem('mobile.status', { text: 'Simulator: Error', side: 'right', priority: 29, autoHideMs: 4000 });

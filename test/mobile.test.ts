@@ -23,7 +23,7 @@ import { compileDesignerToIR } from '../src/renderer/simulator/SimulatorCompiler
 describe('mobile IPC channel contracts', () => {
   const mobileChannels = [
     'MobileDeviceList', 'MobileDeviceSelect', 'MobileEmulatorList',
-    'MobileEmulatorStart', 'MobileDoctor', 'MobileLogs',
+    'MobileEmulatorStart', 'MobileEmulatorStop', 'MobileDoctor', 'MobileLogs',
     'MobileRunStart', 'MobileRunStop', 'MobileRunStatus',
     'MobileDebugStart', 'MobileDebugStop', 'MobileDebugStatus',
     'MobileDebugEvent', 'MobileTestRun', 'MobileTestStop',

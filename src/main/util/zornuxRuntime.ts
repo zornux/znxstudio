@@ -1,6 +1,10 @@
+import { spawnSync } from 'node:child_process';
 import { existsSync } from 'node:fs';
+import { homedir } from 'node:os';
 import { join } from 'node:path';
 import type { CompilerLocationSource } from '../../shared/types';
+import { parsePathEnv, type Platform } from '../../shared/platform';
+import { compareSemVer } from '../../shared/update';
 
 /**
  * Single source of truth for locating the `zornux` toolchain from the main
@@ -11,9 +15,7 @@ import type { CompilerLocationSource } from '../../shared/types';
  * Resolution order (first existing wins; otherwise fall through to PATH):
  *   1. an explicit override (settings / negotiated compiler path)
  *   2. ZORNUX_CLI / ZORNUX_HOME environment overrides
- *   3. the runtime BUNDLED inside a packaged ZnxStudio (see below)
- *   4. this workstation's dev build (contributor convenience)
- *   5. bare `zornux` on PATH
+ *   3. the newest discovered system, bundled, or contributor runtime
  *
  * Kept free of any `electron` import so it stays usable from the Node unit-test
  * bundle: the packaged location is read from `process.resourcesPath`, an Electron
@@ -24,6 +26,10 @@ export const ZORNUX_EXE = process.platform === 'win32' ? 'zornux.exe' : 'zornux'
 export interface ResolvedZornux {
   path: string;
   source: CompilerLocationSource;
+}
+
+export interface VersionedZornux extends ResolvedZornux {
+  version: string | null;
 }
 
 /**
@@ -70,13 +76,64 @@ export function zornuxCandidates(override?: string | null): ResolvedZornux[] {
   for (const bundled of bundledZornuxPaths()) candidates.push({ path: bundled, source: 'bundled' });
   candidates.push({ path: join(DEV_BUILD_BASE, 'Release', 'net10.0', ZORNUX_EXE), source: 'default' });
   candidates.push({ path: join(DEV_BUILD_BASE, 'Debug', 'net10.0', ZORNUX_EXE), source: 'default' });
-  return candidates;
+
+  // GUI applications on Windows do not always inherit a freshly updated PATH.
+  // Check the normal per-user installation locations as well as every PATH entry.
+  const home = homedir();
+  const systemPaths = [
+    join(home, '.local', 'bin', ZORNUX_EXE),
+    join(home, '.dotnet', 'tools', ZORNUX_EXE),
+  ];
+  if (process.platform === 'win32') {
+    if (process.env.LOCALAPPDATA) systemPaths.push(join(process.env.LOCALAPPDATA, 'Zornux', ZORNUX_EXE));
+    if (process.env.ProgramFiles) systemPaths.push(join(process.env.ProgramFiles, 'Zornux', ZORNUX_EXE));
+  }
+  const platform: Platform = process.platform === 'win32' || process.platform === 'darwin' ? process.platform : 'linux';
+  for (const dir of parsePathEnv(process.env.PATH, platform)) {
+    systemPaths.push(join(dir, ZORNUX_EXE));
+  }
+  const seen = new Set<string>();
+  return [...candidates, ...systemPaths.map((path) => ({ path, source: 'path' as const }))].filter((candidate) => {
+    const key = process.platform === 'win32' ? candidate.path.toLowerCase() : candidate.path;
+    if (seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  });
 }
 
-/** Resolve the zornux binary, preferring a bundled runtime over PATH. */
+/** Read a candidate's product version without involving a shell. */
+function probeVersion(path: string): string | null {
+  try {
+    const result = spawnSync(path, ['--version'], { encoding: 'utf8', windowsHide: true, timeout: 8_000 });
+    if (result.status !== 0) return null;
+    return /zornux\s+([0-9][\w.-]*)/i.exec(result.stdout)?.[1] ?? null;
+  } catch {
+    return null;
+  }
+}
+
+/** Select the newest usable runtime; equal/unknown versions preserve discovery order. */
+export function newestZornux(candidates: readonly VersionedZornux[]): VersionedZornux | null {
+  let best: VersionedZornux | null = null;
+  for (const candidate of candidates) {
+    if (!candidate.version) continue;
+    if (!best || compareSemVer(candidate.version, best.version ?? '') > 0) best = candidate;
+  }
+  return best;
+}
+
+/** Resolve the newest installed zornux binary. Explicit settings/environment overrides still win. */
 export function resolveZornux(override?: string | null): ResolvedZornux {
-  for (const candidate of zornuxCandidates(override)) {
+  const candidates = zornuxCandidates(override);
+  const explicitCount = (override?.trim() ? 1 : 0) + (process.env.ZORNUX_CLI ? 1 : 0) + (process.env.ZORNUX_HOME ? 2 : 0);
+  for (const candidate of candidates.slice(0, explicitCount)) {
     if (existsSync(candidate.path)) return candidate;
   }
+  const installed = candidates.slice(explicitCount)
+    .filter((candidate) => existsSync(candidate.path))
+    .map((candidate) => ({ ...candidate, version: probeVersion(candidate.path) }));
+  const newest = newestZornux(installed);
+  if (newest) return { path: newest.path, source: newest.source };
+  if (installed[0]) return { path: installed[0].path, source: installed[0].source };
   return { path: ZORNUX_EXE, source: 'path' };
 }

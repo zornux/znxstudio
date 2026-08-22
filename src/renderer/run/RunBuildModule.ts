@@ -375,8 +375,8 @@ export class RunBuildModule implements IModule {
   private async mobileRun(info: WorkspaceInfo): Promise<void> {
     const status = await window.znxstudio.mobile.status();
     if (status.running) {
-      this.context.layout.showToast('Mobile app is already running. Stop it first.', 'info');
-      return;
+      this.context.layout.showToast('Redeploying updated Android application…', 'info');
+      await window.znxstudio.mobile.runStop();
     }
 
     const quickPick = this.context.services.tryGet<QuickPickService>(ServiceKeys.QuickPick);

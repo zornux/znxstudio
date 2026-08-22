@@ -18,7 +18,7 @@ import { fastHash } from '../../shared/hash';
 import { CompileCacheStore } from './CompileCacheStore';
 import { CompilerProfiler, type CompilerProfile } from '../../shared/compilerProfiler';
 import type { CompilerCacheStats } from '../../shared/types';
-import { ZORNUX_EXE, zornuxCandidates } from '../util/zornuxRuntime';
+import { resolveZornux } from '../util/zornuxRuntime';
 
 interface Located {
   path: string;
@@ -445,15 +445,7 @@ export class CompilerService {
     }
     if (this.located) return this.located;
 
-    for (const candidate of zornuxCandidates()) {
-      if (existsSync(candidate.path)) {
-        this.located = candidate;
-        return candidate;
-      }
-    }
-
-    // Last resort: rely on PATH resolution. info()/check() confirm it works.
-    this.located = { path: ZORNUX_EXE, source: 'path' };
+    this.located = resolveZornux();
     return this.located;
   }
 
